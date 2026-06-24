@@ -26,7 +26,12 @@ public sealed class WindowsFileSystemWalker : IFileSystemWalker
 
     public IEnumerable<ScanEntry> Walk(string rootPath)
     {
-        rootPath = ScanPaths.AnchorDriveRoot(rootPath);
+        // The engine hands roots in normalized '/' form, but the '\\?\' extended-length
+        // prefix below is a raw Win32 path that is NOT normalized — forward slashes are
+        // taken literally and the open fails (a subtree --root would yield one bogus
+        // 'inaccessible' marker). Switch to '\' for the OS; entry paths are re-split by
+        // the engine, so the separator never leaks into classification or the report.
+        rootPath = ScanPaths.AnchorDriveRoot(rootPath).Replace('/', '\\');
 
         var pending = new Stack<string>();
         pending.Push(rootPath);

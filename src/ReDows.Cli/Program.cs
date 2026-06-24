@@ -40,8 +40,9 @@ static int Usage(int exitCode)
     Console.WriteLine();
     Console.WriteLine("Usage:");
     Console.WriteLine("  redows context show [--json]            Discover and display this machine's scan context.");
-    Console.WriteLine("  redows scan [--root <path>] [--rules <dir>] [--out <file>] [--json]");
+    Console.WriteLine("  redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json]");
     Console.WriteLine("                                          Walk and classify (read-only), print the completeness report.");
+    Console.WriteLine("                                          --manifest writes one JSONL line per CAPTURE item (the file-by-file keep list).");
     Console.WriteLine("                                          Exit codes: 0 complete, 1 invalid ruleset, 2 usage, 3 interrupted, 4 unexpected error.");
     Console.WriteLine("  redows apps [--out <dir>] [--enrich-winget] [--json]");
     Console.WriteLine("                                          Installed-applications inventory (reinstall list).");

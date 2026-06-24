@@ -94,6 +94,10 @@ public static class RuleVocabulary
         _ => throw new ArgumentOutOfRangeException(nameof(verdict)),
     };
 
+    /// <summary>The three CAPTURE verdicts (things to keep): config, user data, secret.</summary>
+    public static bool IsCapture(this Verdict verdict) =>
+        verdict is Verdict.CaptureConfig or Verdict.CaptureUser or Verdict.CaptureSecret;
+
     public static bool TryParseVerdict(string? text, out Verdict verdict)
     {
         verdict = text switch

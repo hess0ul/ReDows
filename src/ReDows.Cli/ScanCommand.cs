@@ -35,6 +35,7 @@ public static class ScanCommand
         string rulesDirectory = "rules";
         string? root = null;
         string? outputFile = null;
+        string? manifestFile = null;
         var asJson = false;
 
         for (var i = 0; i < options.Length; i++)
@@ -50,11 +51,14 @@ public static class ScanCommand
                 case "--out" when i + 1 < options.Length:
                     outputFile = options[++i];
                     break;
+                case "--manifest" when i + 1 < options.Length:
+                    manifestFile = options[++i];
+                    break;
                 case "--json":
                     asJson = true;
                     break;
                 default:
-                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--json]");
+                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json]");
                     return 2;
             }
         }
@@ -108,14 +112,35 @@ public static class ScanCommand
         };
         Console.CancelKeyPress += onCancel;
 
+        // The manifest is a ReDows output too: exclude it (and the report) from the
+        // scan so the run never inventories its own files (engine.self_output).
+        var fullOutputPath = outputFile is null ? null : Path.GetFullPath(outputFile);
+        var fullManifestPath = manifestFile is null ? null : Path.GetFullPath(manifestFile);
+        var excludedOutputs = new List<string>();
+        if (fullOutputPath is not null) excludedOutputs.Add(fullOutputPath);
+        if (fullManifestPath is not null) excludedOutputs.Add(fullManifestPath);
+
+        StreamWriter? manifestWriter = null;
+        var manifestLines = 0L;
         try
         {
-            var fullOutputPath = outputFile is null ? null : Path.GetFullPath(outputFile);
+            Action<ManifestEntry>? onCapture = null;
+            if (fullManifestPath is not null)
+            {
+                manifestWriter = new StreamWriter(fullManifestPath, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                onCapture = entry =>
+                {
+                    manifestWriter.WriteLine(ManifestLine.Format(entry));
+                    manifestLines++;
+                };
+            }
+
             var scanOptions = new ScanOptions(
                 Roots: root is null ? null : [Path.GetFullPath(root)],
-                ExcludedOutputPaths: fullOutputPath is null ? null : [fullOutputPath],
+                ExcludedOutputPaths: excludedOutputs.Count > 0 ? excludedOutputs : null,
                 OnProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} items — {Sanitize(path)}"),
-                ClaimedZones: indexZones.Zones);
+                ClaimedZones: indexZones.Zones,
+                OnCapture: onCapture);
 
             Console.Error.WriteLine(root is null
                 ? $"Scanning {windowsContext.Context.Volumes.Count} volume(s)…"
@@ -137,10 +162,25 @@ public static class ScanCommand
                 Console.Error.WriteLine($"Report written to '{fullOutputPath}'.");
             }
 
+            if (manifestWriter is not null)
+            {
+                manifestWriter.Flush();
+                // Self-consistency, shown not asserted-on-trust: the manifest lists
+                // exactly the items the report counts as CAPTURE (the equation again).
+                var captureItems = report.ByVerdict.Where(v => v.Key.IsCapture()).Sum(v => v.Value.Items);
+                var balanced = manifestLines == captureItems;
+                Console.Error.WriteLine(
+                    $"Manifest: {manifestLines:N0} CAPTURE line(s) → '{fullManifestPath}' " +
+                    (balanced
+                        ? $"== {captureItems:N0} CAPTURE items in the report ✓"
+                        : $"≠ {captureItems:N0} CAPTURE items ✗ (manifest bug — counts must match)"));
+            }
+
             return report.Partial ? 3 : 0;
         }
         finally
         {
+            manifestWriter?.Dispose();
             Console.CancelKeyPress -= onCancel;
         }
     }

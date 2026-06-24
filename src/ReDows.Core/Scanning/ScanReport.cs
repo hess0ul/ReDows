@@ -81,12 +81,19 @@ public sealed record PreResetAlert(string RuleId, long Items);
 /// lists paths produced by ReDows itself (report file…), classified engine.self_output;
 /// <paramref name="ClaimedZones"/> are index-derived dynamic zones.
 /// </summary>
+/// <param name="OnCapture">
+/// Called once for every CAPTURE-verdict item, in scan order, before the report is
+/// built — the per-item manifest sink. Invoked in lockstep with the CAPTURE verdict
+/// tally, so a sink that writes one line per call emits exactly as many lines as the
+/// report counts CAPTURE items (the manifest's self-consistency guarantee).
+/// </param>
 public sealed record ScanOptions(
     IReadOnlyList<string>? Roots = null,
     IReadOnlyList<string>? ExcludedOutputPaths = null,
     Action<long, string>? OnProgress = null,
     long ProgressInterval = 50_000,
-    IReadOnlyList<ClaimedZone>? ClaimedZones = null);
+    IReadOnlyList<ClaimedZone>? ClaimedZones = null,
+    Action<ManifestEntry>? OnCapture = null);
 
 public sealed record VerdictTotals(long Items, long Bytes);
 

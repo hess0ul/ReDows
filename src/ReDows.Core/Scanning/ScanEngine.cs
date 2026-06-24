@@ -110,6 +110,13 @@ public static class ScanEngine
                 var verdictTotals = byVerdict.GetValueOrDefault(classification.Verdict);
                 byVerdict[classification.Verdict] = (verdictTotals.Items + 1, verdictTotals.Bytes + entryBytes);
 
+                // Per-item manifest sink: one call per CAPTURE item, alongside the
+                // tally above, so the manifest line count matches the report exactly.
+                if (options.OnCapture is not null && classification.Verdict.IsCapture())
+                {
+                    options.OnCapture(ManifestEntry.From(path, classification, entryBytes, entry.IsDirectory));
+                }
+
                 var hit = ruleHits.GetValueOrDefault(classification.RuleId, (classification.Stage, classification.Verdict, 0, 0));
                 ruleHits[classification.RuleId] = (hit.Stage, hit.Verdict, hit.Items + 1, hit.Bytes + entryBytes);
 
