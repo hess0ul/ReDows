@@ -22,6 +22,7 @@ return args switch
     ["scan", .. var scanOptions] => ScanCommand.Run(scanOptions),
     ["apps", .. var appsOptions] => AppsCommand.Run(appsOptions),
     ["settings", .. var settingsOptions] => SettingsCommand.Run(settingsOptions),
+    ["secrets", .. var secretsOptions] => SecretsCommand.Run(secretsOptions),
     ["export", .. var exportOptions] => ExportCommand.Run(exportOptions),
     ["profile", .. var profileOptions] => ProfileCommand.Run(profileOptions),
     [] or ["--help"] or ["-h"] => Usage(0),
@@ -53,6 +54,9 @@ static int Usage(int exitCode)
     Console.WriteLine("  redows settings [--out <dir>] [--catalog <dir>] [--json] [--by-module]");
     Console.WriteLine("                                          Read catalogued Windows settings (read-only). --by-module = group by InDows module (profile).");
     Console.WriteLine("                                          Catalog = YAML under 'settings/'. Exit: 0 ok, 1 invalid catalog, 2 usage, 4 error.");
+    Console.WriteLine("  redows secrets [--out <dir>] [--catalog <dir>] [--json]");
+    Console.WriteLine("                                          Inventory registry-only app secrets/config a file scan misses (read-only, locations only).");
+    Console.WriteLine("                                          Headline = the 'export before reset' alert list. Exit: 0 ok, 1 invalid catalog, 2 usage, 4 error.");
     Console.WriteLine("  redows profile --out <dir> [--from <apps.json>] [--catalog <dir>]");
     Console.WriteLine("                                          Write the complete InDows profile folder (apps catalog + settings + README).");
     Console.WriteLine("                                          Read-only; closes the ReDows -> InDows loop. Exit: 0 ok, 1 invalid catalog, 2 usage, 3 input, 4 error.");
