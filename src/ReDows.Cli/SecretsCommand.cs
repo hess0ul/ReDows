@@ -119,7 +119,7 @@ public static class SecretsCommand
         }
 
         text.AppendLine();
-        text.AppendLine("== Per target ==");
+        text.AppendLine("== Per target (config values shown; secret values never read) ==");
         foreach (var finding in report.Findings)
         {
             var detail = finding.Status switch
@@ -131,6 +131,17 @@ public static class SecretsCommand
                     + $"{finding.Items.Count(i => i.Class == SecretClass.Review)} review",
             };
             text.AppendLine($"  {Cell(finding.Target.Id),-22} {Status(finding.Status),-20} {detail}");
+
+            foreach (var item in finding.Items.Where(i => i.Class == SecretClass.Config))
+            {
+                var shown = item.Value is { } v ? $"{item.ValueName} = {Truncate(v)}" : item.ValueName;
+                text.AppendLine($"      {Cell(shown)}");
+            }
+
+            foreach (var item in finding.Items.Where(i => i.Class == SecretClass.Secret))
+            {
+                text.AppendLine($"      {Cell(item.ValueName)} = (secret — present, not read)");
+            }
         }
 
         var review = report.Findings.SelectMany(f => f.Items).Where(i => i.Class == SecretClass.Review).ToList();
@@ -179,6 +190,8 @@ public static class SecretsCommand
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
     };
+
+    private static string Truncate(string value) => value.Length > 120 ? value[..117] + "…" : value;
 
     private static string Cell(string? value) =>
         string.IsNullOrEmpty(value) ? "" : ConsoleText.Sanitize(value);

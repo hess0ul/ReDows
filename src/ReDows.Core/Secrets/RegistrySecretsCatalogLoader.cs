@@ -177,6 +177,13 @@ public static partial class RegistrySecretsCatalogLoader
         var unmatched = ParseUnmatched(dto.Unmatched);
         if (unmatched is null) Fail($"target '{id}': unmatched '{dto.Unmatched}' must be config | review");
 
+        // A name in both sets is ambiguous: precedence would silently pick secret. Refuse it
+        // (fail-closed) so the catalog can never half-declare a value as both secret and config.
+        var secretValues = ToSet(dto.SecretValues);
+        var configValues = ToSet(dto.ConfigValues);
+        var overlap = secretValues.Where(configValues.Contains).ToList();
+        if (overlap.Count > 0) Fail($"target '{id}': value name(s) {string.Join(", ", overlap)} are in both secret_values and config_values");
+
         if (!ok || hive is null || shape is null || sensitivity is null || unmatched is null)
         {
             return null;
@@ -188,8 +195,8 @@ public static partial class RegistrySecretsCatalogLoader
             hive.Value,
             dto.Key!,
             shape.Value,
-            ToSet(dto.SecretValues),
-            ToSet(dto.ConfigValues),
+            secretValues,
+            configValues,
             sensitivity.Value,
             dto.What!,
             string.IsNullOrWhiteSpace(dto.ExportHint) ? null : dto.ExportHint,

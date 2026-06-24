@@ -17,4 +17,6 @@ settings.json
 settings.md
 settings-profile.json
 settings-profile.md
+secrets.json
+secrets.md
 configuration.dsc.yaml
