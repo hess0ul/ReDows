@@ -9,3 +9,12 @@ artifacts/
 # generated scan output (redows scan --out)
 scan-report.txt
 scan-console.txt
+
+# local throwaway command output
+.tmp-*/
+apps.json
+settings.json
+settings.md
+settings-profile.json
+settings-profile.md
+configuration.dsc.yaml

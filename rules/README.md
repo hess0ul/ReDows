@@ -11,6 +11,19 @@ keys, duplicate keys, duplicate ids, invalid verdicts/tokens, or a
 `schema_version` newer than the engine all abort loading — the engine refuses
 to scan rather than scan wrong.
 
+## Personal vs generic rules
+
+ReDows ships a **generic** ruleset. Machine- or user-specific rules (a particular
+game folder, a custom data drive, a niche app on one PC) belong in a `rules/perso/`
+subfolder. The loader walks `rules/` recursively, so anything dropped in
+`rules/perso/` is picked up automatically — no wiring, same schema and validation.
+
+`rules/perso/` is **kept out of the public release**: it is excluded when the
+generic version is published, so personal rules stay in the private copy. This is
+the rule-set side of the project's generic-first split — the public catalogue
+stays universal, personal additions live beside it without leaking. (Non-`.yaml`
+files in `rules/` — like this README — are ignored by the loader.)
+
 ## Editing
 
 `ruleset.schema.json` is **generated from the C# DTOs** (single source of
@@ -169,6 +182,14 @@ templates). Everything is fail-closed: unknown template, missing or extra
 param, undeclared `{placeholder}`, invalid layer — all are load errors. Apps may
 reference templates from any file (load order stays irrelevant). Generated ids
 (`app.<name>.<suffix>`) share the global id namespace.
+
+## Settings catalog (a separate file family)
+
+`settings/*.yaml` (a sibling of `rules/`) is a different data set, read by `redows
+settings`: the list of Windows *settings* ReDows reads from the registry (the
+ReDows → InDows loop). It has its own schema (`schema_version` + `settings:` with
+`hive`/`key`/`value`/`type`/`decode`/`indows_module`) and its own fail-closed loader
+— it does not mix with the classification rules here.
 
 ## Evolution policy
 

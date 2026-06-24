@@ -1,0 +1,436 @@
+# ReDows settings catalog — the Windows settings the registry reader (block 3, reader R1)
+# reads from an old PC. Keys verified (workflow 2026-06-24, 0 wrong keys). Each
+# entry maps to how InDows re-applies it (the ReDows -> InDows loop). 'default' is
+# the value when the registry value is absent (the Windows default).
+schema_version: 1
+settings:
+
+  # ── File Explorer / UI ──────────────────────────────────────────────────────
+  - id: explorer.show_file_extensions
+    name: Show file extensions
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: HideFileExt
+    type: dword
+    what: Show known file extensions in Explorer
+    in_loop: true
+    indows_module: explorer-ui
+    default: '1'
+    decode: { '0': extensions shown, '1': extensions hidden }
+    source: 'reglages-checklist Part 5'
+
+  - id: explorer.show_hidden_files
+    name: Show hidden files
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: Hidden
+    type: dword
+    what: Show hidden files and folders
+    in_loop: true
+    indows_module: explorer-ui
+    default: '2'
+    decode: { '1': hidden files shown, '2': hidden files not shown }
+    source: 'reglages-checklist Part 5'
+
+  - id: explorer.show_protected_os_files
+    name: Show protected OS files
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: ShowSuperHidden
+    type: dword
+    what: Show protected operating-system files
+    in_loop: true
+    indows_module: explorer-ui
+    applied: false
+    note: 'explorer-ui is the home but the ShowSuperHidden line is commented (clutter/risk) — not applied by default'
+    default: '0'
+    decode: { '0': protected OS files hidden, '1': protected OS files shown }
+    source: 'reglages-checklist Part 5'
+
+  - id: explorer.full_path_in_title
+    name: Full path in title bar
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState'
+    value: FullPath
+    type: dword
+    what: Show the full path in the Explorer title bar
+    in_loop: true
+    indows_module: explorer-ui
+    applied: false
+    note: 'explorer-ui is the home but FullPath is a planned graft — not coded yet'
+    default: '0'
+    decode: { '0': path only, '1': full path shown }
+    source: 'reglages-checklist Part 5'
+
+  - id: explorer.show_empty_drives
+    name: Show empty drives
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: HideDrivesWithNoMedia
+    type: dword
+    what: Show drives with no media in This PC
+    in_loop: true
+    indows_module: explorer-ui
+    applied: false
+    note: 'explorer-ui is the home but HideDrivesWithNoMedia is a planned graft — not coded yet'
+    default: '1'
+    decode: { '0': empty drives shown, '1': empty drives hidden }
+    source: 'reglages-checklist Part 5'
+
+  - id: taskbar.end_task_on_right_click
+    name: End task on taskbar right-click
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: TaskbarEndTask
+    type: dword
+    what: Add "End task" to the taskbar right-click menu
+    in_loop: true
+    indows_module: taskbar-startmenu
+    default: '0'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: taskbar.align_left
+    name: Taskbar aligned left
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: TaskbarAl
+    type: dword
+    what: Taskbar icons aligned to the left (vs center)
+    in_loop: true
+    indows_module: taskbar-startmenu
+    default: '1'
+    decode: { '0': left, '1': center }
+    source: 'reglages-checklist Part 5'
+
+  - id: start.recent_files_off
+    name: Start recommended/recent files off
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: Start_TrackDocs
+    type: dword
+    what: Show recommended/recent files in Start and Explorer
+    in_loop: true
+    indows_module: taskbar-startmenu
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: start.recommendations_off
+    name: Start recommendations off
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    value: Start_IrisRecommendations
+    type: dword
+    what: Show tips/shortcuts/new-app recommendations in Start
+    in_loop: true
+    indows_module: taskbar-startmenu
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: start.recently_added_off
+    name: Start recently added apps off
+    category: ui
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Start'
+    value: ShowRecentList
+    type: dword
+    what: Show recently added apps in Start
+    in_loop: true
+    indows_module: taskbar-startmenu
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  # ── Appearance ──────────────────────────────────────────────────────────────
+  - id: theme.apps_dark
+    name: Dark mode (apps)
+    category: appearance
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    value: AppsUseLightTheme
+    type: dword
+    what: Dark theme for apps
+    in_loop: true
+    indows_module: dark-mode
+    default: '1'
+    decode: { '0': dark, '1': light }
+    source: 'reglages-checklist Part 5'
+
+  - id: theme.system_dark
+    name: Dark mode (system/shell)
+    category: appearance
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    value: SystemUsesLightTheme
+    type: dword
+    what: Dark taskbar / Start / notifications
+    in_loop: true
+    indows_module: dark-mode
+    default: '1'
+    decode: { '0': dark, '1': light }
+    source: 'reglages-checklist Part 5'
+
+  - id: theme.transparency
+    name: Transparency effects
+    category: appearance
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    value: EnableTransparency
+    type: dword
+    what: Window/taskbar transparency
+    in_loop: true
+    indows_module: visual-effects
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  # ── Input / accessibility ───────────────────────────────────────────────────
+  - id: mouse.enhance_pointer_precision
+    name: Enhance pointer precision (mouse accel)
+    category: input
+    hive: hkcu
+    key: 'Control Panel\Mouse'
+    value: MouseSpeed
+    type: sz
+    what: Mouse acceleration ("enhance pointer precision")
+    in_loop: true
+    indows_module: gaming
+    default: '1'
+    decode: { '0': acceleration off, '1': acceleration on }
+    source: 'reglages-checklist Part 5'
+
+  - id: accessibility.always_show_scrollbars
+    name: Always show scrollbars
+    category: accessibility
+    hive: hkcu
+    key: 'Control Panel\Accessibility'
+    value: DynamicScrollbars
+    type: dword
+    what: Always show scrollbars (no auto-hide)
+    in_loop: true
+    indows_module: 'NEW:accessibility'
+    default: '1'
+    decode: { '0': always shown, '1': auto-hide }
+    source: 'reglages-checklist Part 5'
+
+  # ── Privacy / telemetry ─────────────────────────────────────────────────────
+  - id: privacy.advertising_id
+    name: Advertising ID
+    category: privacy
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'
+    value: Enabled
+    type: dword
+    what: Per-user advertising ID
+    in_loop: true
+    indows_module: privacy-telemetry
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: privacy.copilot_off
+    name: Windows Copilot disabled
+    category: privacy
+    hive: hklm
+    key: 'SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot'
+    value: TurnOffWindowsCopilot
+    type: dword
+    what: Windows Copilot turned off machine-wide
+    in_loop: true
+    indows_module: disable-ai
+    default: '0'
+    decode: { '0': Copilot on, '1': Copilot off }
+    source: 'reglages-checklist Part 5'
+
+  - id: privacy.telemetry
+    name: Telemetry level
+    category: privacy
+    hive: hklm
+    key: 'SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+    value: AllowTelemetry
+    type: dword
+    what: Diagnostic telemetry level
+    in_loop: true
+    indows_module: base
+    note: 'set by the InDows base install (AllowTelemetry); the shipped privacy-telemetry module does not set it'
+    default: '3'
+    decode: { '0': security/off, '1': basic, '3': full }
+    source: 'reglages-checklist Part 5'
+
+  - id: privacy.clipboard_history
+    name: Clipboard history (Win+V)
+    category: privacy
+    hive: hkcu
+    key: 'Software\Microsoft\Clipboard'
+    value: EnableClipboardHistory
+    type: dword
+    what: Save multiple clipboard items (Win+V)
+    in_loop: true
+    indows_module: 'NEW:clipboard'
+    default: '0'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: privacy.share_across_devices
+    name: Share across devices
+    category: privacy
+    hive: hkcu
+    key: 'Software\Microsoft\Windows\CurrentVersion\CDP'
+    value: CdpSessionUserAuthzPolicy
+    type: dword
+    what: Continue app experiences on other devices
+    in_loop: true
+    indows_module: 'NEW:privacy-telemetry'
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: privacy.troubleshooter_preference
+    name: Recommended troubleshooter preference
+    category: privacy
+    hive: hklm
+    key: 'SOFTWARE\Microsoft\WindowsMitigation'
+    value: UserPreference
+    type: dword
+    what: Whether Windows can recommend/run troubleshooters
+    in_loop: true
+    indows_module: 'NEW:privacy-telemetry'
+    default: '2'
+    decode: { '1': don't run any, '2': ask before running, '3': run automatically then notify }
+    source: 'reglages-checklist Part 5'
+
+  # ── System / misc ───────────────────────────────────────────────────────────
+  - id: system.computer_name
+    name: Computer name
+    category: identity
+    hive: hklm
+    key: 'SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName'
+    value: ComputerName
+    type: sz
+    what: Machine name
+    in_loop: true
+    indows_module: computer-name
+    source: 'reglages-checklist Part 5'
+
+  - id: system.time_zone
+    name: Time zone
+    category: locale
+    hive: hklm
+    key: 'SYSTEM\CurrentControlSet\Control\TimeZoneInformation'
+    value: TimeZoneKeyName
+    type: sz
+    what: System time zone
+    in_loop: true
+    indows_module: timezone
+    source: 'reglages-checklist Part 5'
+
+  - id: misc.rtc_utc
+    name: RTC kept in UTC (dual-boot)
+    category: misc
+    hive: hklm
+    key: 'SYSTEM\CurrentControlSet\Control\TimeZoneInformation'
+    value: RealTimeIsUniversal
+    type: dword
+    what: Hardware clock in UTC (for Linux dual-boot)
+    in_loop: true
+    indows_module: misc
+    default: '0'
+    decode: { '0': local time, '1': UTC }
+    source: 'reglages-checklist Part 5'
+
+  - id: misc.long_paths
+    name: Long paths enabled
+    category: misc
+    hive: hklm
+    key: 'SYSTEM\CurrentControlSet\Control\FileSystem'
+    value: LongPathsEnabled
+    type: dword
+    what: Allow paths longer than 260 characters
+    in_loop: true
+    indows_module: misc
+    default: '0'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: perf.network_throttling
+    name: Network throttling index
+    category: network
+    hive: hklm
+    key: 'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile'
+    value: NetworkThrottlingIndex
+    type: dword
+    what: Multimedia network throttling (4294967295 = off)
+    in_loop: true
+    indows_module: performance
+    default: '10'
+    decode: { '4294967295': throttling off }
+    source: 'reglages-checklist Part 5'
+
+  - id: gaming.gamedvr
+    name: Game DVR / background recording
+    category: gaming
+    hive: hkcu
+    key: 'System\GameConfigStore'
+    value: GameDVR_Enabled
+    type: dword
+    what: Background game recording (Game DVR)
+    in_loop: true
+    indows_module: gaming
+    default: '1'
+    decode: { '0': off, '1': on }
+    source: 'reglages-checklist Part 5'
+
+  - id: terminal.default
+    name: Default terminal application
+    category: ui
+    hive: hkcu
+    key: 'Console\%%Startup'
+    value: DelegationConsole
+    type: sz
+    what: Default terminal that hosts command-line apps
+    in_loop: true
+    indows_module: 'NEW:default-terminal'
+    decode: { '{2EACA947-7F5F-4CFA-BA87-8F7FBEEFBE69}': Windows Terminal, '{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}': Windows Console Host }
+    source: 'reglages-checklist Part 5'
+
+  # ── Developer tools (questionable — opt-in, off by default) ──────────────────
+  - id: dev.sudo
+    name: sudo command
+    category: developer
+    hive: hklm
+    key: 'SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo'
+    value: Enabled
+    type: dword
+    what: Windows sudo command (security-sensitive)
+    in_loop: true
+    indows_module: 'NEW:developer-tools'
+    default: '0'
+    decode: { '0': disabled, '1': new window, '2': input disabled, '3': inline }
+    note: opt-in, off by default; inline (3) is the riskiest mode
+    source: 'reglages-checklist Part 5'
+
+  - id: dev.developer_mode
+    name: Developer Mode
+    category: developer
+    hive: hklm
+    key: 'SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+    value: AllowDevelopmentWithoutDevLicense
+    type: dword
+    what: Install/sideload apps from any source (Developer Mode)
+    in_loop: true
+    indows_module: 'NEW:developer-tools'
+    default: '0'
+    decode: { '0': off, '1': on }
+    note: opt-in, off by default; lowers the app-trust barrier
+    source: 'reglages-checklist Part 5'

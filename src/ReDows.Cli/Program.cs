@@ -21,7 +21,9 @@ return args switch
     ["context", "show", "--json"] => ContextCommand.Show(asJson: true),
     ["scan", .. var scanOptions] => ScanCommand.Run(scanOptions),
     ["apps", .. var appsOptions] => AppsCommand.Run(appsOptions),
+    ["settings", .. var settingsOptions] => SettingsCommand.Run(settingsOptions),
     ["export", .. var exportOptions] => ExportCommand.Run(exportOptions),
+    ["profile", .. var profileOptions] => ProfileCommand.Run(profileOptions),
     [] or ["--help"] or ["-h"] => Usage(0),
     _ => UnknownCommand(),
 };
@@ -47,6 +49,12 @@ static int Usage(int exitCode)
     Console.WriteLine("  redows export [--target indows] [--from <apps.json>] [--out <file>]");
     Console.WriteLine("                                          Turn apps.json into an InDows winget catalog (configuration.dsc.yaml).");
     Console.WriteLine("                                          Read-only; reads apps.json (default './apps.json'). Exit: 0 ok, 2 usage, 3 input, 4 error.");
+    Console.WriteLine("  redows settings [--out <dir>] [--catalog <dir>] [--json] [--by-module]");
+    Console.WriteLine("                                          Read catalogued Windows settings (read-only). --by-module = group by InDows module (profile).");
+    Console.WriteLine("                                          Catalog = YAML under 'settings/'. Exit: 0 ok, 1 invalid catalog, 2 usage, 4 error.");
+    Console.WriteLine("  redows profile --out <dir> [--from <apps.json>] [--catalog <dir>]");
+    Console.WriteLine("                                          Write the complete InDows profile folder (apps catalog + settings + README).");
+    Console.WriteLine("                                          Read-only; closes the ReDows -> InDows loop. Exit: 0 ok, 1 invalid catalog, 2 usage, 3 input, 4 error.");
     Console.WriteLine("  redows rules validate [--rules <dir>]   Load and validate the ruleset (fail-closed).");
     Console.WriteLine("  redows rules schema [--out <file>]      Emit the generated JSON Schema for ruleset files.");
     Console.WriteLine("  redows --version                        Print the version.");

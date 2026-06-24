@@ -57,26 +57,12 @@ public static class ExportCommand
             return 2;
         }
 
-        if (!File.Exists(fromPath))
+        var (catalog, error) = TryBuildCatalog(fromPath);
+        if (catalog is null)
         {
-            Console.Error.WriteLine(
-                $"Input not found: '{fromPath}'. Run 'redows apps --enrich-winget --out <dir>' first, then point --from at its apps.json.");
+            Console.Error.WriteLine(error);
             return 3;
         }
-
-        List<AppEntry> entries;
-        try
-        {
-            var artifact = JsonSerializer.Deserialize<AppsArtifact>(File.ReadAllText(fromPath), JsonOptions);
-            entries = artifact?.Entries ?? [];
-        }
-        catch (JsonException ex)
-        {
-            Console.Error.WriteLine($"Cannot read inventory '{fromPath}': not a valid apps.json ({ex.Message}).");
-            return 3;
-        }
-
-        var catalog = InDowsCatalogEmitter.Emit(entries);
 
         if (outPath is null)
         {
@@ -91,6 +77,30 @@ public static class ExportCommand
         Console.Error.WriteLine(
             $"{catalog.ActiveCount} app(s) ready via winget; {catalog.CandidateCount} uncertain + {catalog.ManualCount} without an id left as comments to review.");
         return 0;
+    }
+
+    /// <summary>
+    /// Read an apps.json and emit the InDows winget catalog, read-only. Returns the catalog,
+    /// or null plus a user-facing message (input missing or not valid apps.json → caller exits 3).
+    /// Shared by 'redows export' and 'redows profile'.
+    /// </summary>
+    internal static (InDowsCatalog? Catalog, string? Error) TryBuildCatalog(string fromPath)
+    {
+        if (!File.Exists(fromPath))
+        {
+            return (null,
+                $"Input not found: '{fromPath}'. Run 'redows apps --enrich-winget --out <dir>' first, then point --from at its apps.json.");
+        }
+
+        try
+        {
+            var artifact = JsonSerializer.Deserialize<AppsArtifact>(File.ReadAllText(fromPath), JsonOptions);
+            return (InDowsCatalogEmitter.Emit(artifact?.Entries ?? []), null);
+        }
+        catch (JsonException ex)
+        {
+            return (null, $"Cannot read inventory '{fromPath}': not a valid apps.json ({ex.Message}).");
+        }
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()

@@ -1,0 +1,25 @@
+# Windows features / capabilities / app-debloat state. Read once via read-only
+# PowerShell (Get-WindowsOptionalFeature / Get-WindowsCapability / Get-AppxPackage).
+# 'selector' is the DISM feature/capability name or the AppX package Name.
+schema_version: 1
+settings:
+
+  # ── Optional features (WSL / virtualization / .NET 3.5) ─────────────────────
+  - { id: feature.wsl, name: WSL (Subsystem for Linux), category: features, mechanism: optional_feature, selector: Microsoft-Windows-Subsystem-Linux, what: Windows Subsystem for Linux, in_loop: true, indows_module: optional-features, decode: { Enabled: enabled, Disabled: disabled, Absent: not installed, NotPresent: not available on this edition }, source: 'reglages-checklist Part 5' }
+  - { id: feature.vm_platform, name: Virtual Machine Platform, category: features, mechanism: optional_feature, selector: VirtualMachinePlatform, what: Virtual Machine Platform (WSL2/sandbox backend), in_loop: true, indows_module: optional-features, decode: { Enabled: enabled, Disabled: disabled, Absent: not installed, NotPresent: not available } }
+  - { id: feature.hyper_v, name: Hyper-V, category: features, mechanism: optional_feature, selector: Microsoft-Hyper-V-All, what: Hyper-V (full), in_loop: true, indows_module: optional-features, decode: { Enabled: enabled, Disabled: disabled, Absent: not installed, NotPresent: not available } }
+  - { id: feature.sandbox, name: Windows Sandbox, category: features, mechanism: optional_feature, selector: Containers-DisposableClientVM, what: Windows Sandbox, in_loop: true, indows_module: optional-features, decode: { Enabled: enabled, Disabled: disabled, Absent: not installed, NotPresent: not available } }
+  - { id: feature.netfx3, name: .NET Framework 3.5, category: features, mechanism: optional_feature, selector: NetFx3, what: .NET Framework 3.5 (incl. 2.0/3.0), in_loop: true, indows_module: optional-features, decode: { Enabled: enabled, Disabled: disabled, Absent: not installed, NotPresent: not available } }
+
+  # ── Capabilities ────────────────────────────────────────────────────────────
+  - { id: capability.internet_explorer, name: Internet Explorer mode/engine, category: features, mechanism: capability, selector: 'Browser.InternetExplorer~~~~0.0.11.0', what: Internet Explorer capability, in_loop: true, indows_module: remove-edge, decode: { Installed: installed, Staged: staged, NotPresent: removed/absent } }
+
+  # ── App debloat state (is the preinstalled app still there?) ─────────────────
+  - { id: appx.bing_news, name: Bing News (debloat), category: features, mechanism: appx, selector: Microsoft.BingNews, what: Bing News app present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.bing_weather, name: Bing Weather (debloat), category: features, mechanism: appx, selector: Microsoft.BingWeather, what: Bing Weather app present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.xbox_gaming, name: Xbox Gaming app (debloat), category: features, mechanism: appx, selector: Microsoft.GamingApp, what: Xbox/Gaming app present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.media_player, name: Media Player / Groove (debloat), category: features, mechanism: appx, selector: Microsoft.ZuneMusic, what: Media Player (ZuneMusic) present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.feedback_hub, name: Feedback Hub (debloat), category: features, mechanism: appx, selector: Microsoft.WindowsFeedbackHub, what: Feedback Hub present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.clipchamp, name: Clipchamp (debloat), category: features, mechanism: appx, selector: Clipchamp.Clipchamp, what: Clipchamp present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.teams, name: Teams (consumer) (debloat), category: features, mechanism: appx, selector: MicrosoftTeams, what: Teams consumer present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }
+  - { id: appx.todos, name: Microsoft To Do (debloat), category: features, mechanism: appx, selector: Microsoft.Todos, what: Microsoft To Do present, in_loop: true, indows_module: debloat-appx, decode: { installed: still installed, removed: removed } }

@@ -1,0 +1,71 @@
+# Scheduled-task states — read once via read-only Get-ScheduledTask (no elevation).
+# selector = the full task path (TaskPath + TaskName). These are the telemetry /
+# CEIP / WER tasks InDows disables; reading their state shows what was turned off.
+schema_version: 1
+settings:
+
+  - id: task.compat_appraiser
+    name: Compatibility Appraiser (telemetry)
+    category: privacy
+    mechanism: scheduled_task
+    selector: '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser'
+    what: Application compatibility telemetry task
+    in_loop: true
+    indows_module: scheduled-tasks
+    decode: { Ready: enabled, Disabled: disabled, Running: running, NotPresent: not present }
+    source: 'reglages-checklist Part 5'
+
+  - id: task.program_data_updater
+    name: ProgramDataUpdater (telemetry)
+    category: privacy
+    mechanism: scheduled_task
+    selector: '\Microsoft\Windows\Application Experience\ProgramDataUpdater'
+    what: Application-experience data collection
+    in_loop: true
+    indows_module: scheduled-tasks
+    decode: { Ready: enabled, Disabled: disabled, Running: running, NotPresent: not present }
+    source: 'reglages-checklist Part 5'
+
+  - id: task.ceip_consolidator
+    name: CEIP Consolidator
+    category: privacy
+    mechanism: scheduled_task
+    selector: '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator'
+    what: Customer Experience Improvement Program upload
+    in_loop: true
+    indows_module: scheduled-tasks
+    decode: { Ready: enabled, Disabled: disabled, Running: running, NotPresent: not present }
+    source: 'reglages-checklist Part 5'
+
+  - id: task.ceip_usbceip
+    name: CEIP UsbCeip
+    category: privacy
+    mechanism: scheduled_task
+    selector: '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip'
+    what: USB CEIP data collection
+    in_loop: true
+    indows_module: scheduled-tasks
+    decode: { Ready: enabled, Disabled: disabled, Running: running, NotPresent: not present }
+    source: 'reglages-checklist Part 5'
+
+  - id: task.wer_queue_reporting
+    name: Windows Error Reporting (QueueReporting)
+    category: privacy
+    mechanism: scheduled_task
+    selector: '\Microsoft\Windows\Windows Error Reporting\QueueReporting'
+    what: Error-report queue upload
+    in_loop: true
+    indows_module: scheduled-tasks
+    decode: { Ready: enabled, Disabled: disabled, Running: running, NotPresent: not present }
+    source: 'reglages-checklist Part 5'
+
+  - id: task.feedback_dmclient
+    name: Feedback DmClient (telemetry)
+    category: privacy
+    mechanism: scheduled_task
+    selector: '\Microsoft\Windows\Feedback\Siuf\DmClient'
+    what: Diagnostics feedback uploader
+    in_loop: true
+    indows_module: scheduled-tasks
+    decode: { Ready: enabled, Disabled: disabled, Running: running, NotPresent: not present }
+    source: 'reglages-checklist Part 5'

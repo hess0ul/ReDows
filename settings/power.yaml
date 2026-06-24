@@ -1,0 +1,27 @@
+# Power settings — read via read-only `powercfg` queries (no elevation).
+# power_scheme = the active plan name; power_setting reads a setting's AC index
+# (selector = the powercfg subgroup + setting, e.g. "SUB_VIDEO VIDEOIDLE").
+schema_version: 1
+settings:
+
+  - id: power.active_scheme
+    name: Active power plan
+    category: power
+    mechanism: power_scheme
+    what: The currently active power plan (name)
+    in_loop: true
+    indows_module: power
+    note: 'InDows reveals + activates the Ultimate Performance plan'
+    source: 'reglages-checklist Part 5'
+
+  - id: power.monitor_timeout_ac
+    name: Screen-off timeout (plugged in)
+    category: power
+    mechanism: power_setting
+    selector: SUB_VIDEO VIDEOIDLE
+    what: Turn off the display after N seconds on AC (0 = never)
+    in_loop: true
+    indows_module: 'NEW:power'
+    decode: { '0': never, '1800': 30 minutes, '600': 10 minutes }
+    note: 'value is seconds'
+    source: 'reglages-checklist Part 5'

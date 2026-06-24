@@ -1,0 +1,24 @@
+# Network / execution-policy settings — read once via read-only PowerShell
+# (Get-NetConnectionProfile / Get-ExecutionPolicy). No elevation needed.
+schema_version: 1
+settings:
+
+  - id: network.connection_profiles
+    name: Network connection profiles
+    category: network
+    mechanism: network_profile
+    what: Network profile (Private/Public) of each active adapter
+    in_loop: true
+    indows_module: 'NEW:network-profile'
+    note: 'reads as "<adapter>:<category>; …"; InDows sets the active/wired adapter to Private'
+    source: 'reglages-checklist Part 5'
+
+  - id: developer.execution_policy_effective
+    name: PowerShell execution policy (effective)
+    category: developer
+    mechanism: execution_policy
+    what: Effective PowerShell script execution policy (precedence-aware, all scopes)
+    in_loop: true
+    indows_module: 'NEW:powershell-policy'
+    decode: { Restricted: restricted, AllSigned: all signed, RemoteSigned: remote signed (local unsigned ok), Unrestricted: unrestricted, Bypass: bypass, Undefined: undefined (Windows default) }
+    source: 'reglages-checklist Part 5'
