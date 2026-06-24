@@ -1,0 +1,756 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Wave 2 static capture rules (apps-ctt §3-§11). Shapes that no template fits:
+# secret-class data dirs, faux-amis (config under %LOCALAPPDATA%, Program Files
+# or ProgramData), drive-floating secret files, machine-scoped services.
+# Matching denies live in wave2-deny.yaml (deny beats capture).
+schema_version: 1
+layer: capture
+rules:
+  # --- Communications (apps-ctt §3) ---
+  - id: app.telegram.tdata
+    scope: user
+    match: '%APPDATA%/Telegram Desktop/tdata/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §3 / deny-list §C-13'
+    note: 'Session + encryption keys: whoever holds tdata holds the account.'
+
+  - id: app.viber.data
+    scope: user
+    match: '%APPDATA%/ViberPC/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §3 / deny-list §C-13'
+    note: 'Per-number message databases.'
+
+  - id: app.qtox.identity
+    scope: user
+    match: '%APPDATA%/tox/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §3'
+    note: '*.tox = identity/private key.'
+
+  - id: app.teamspeak.config
+    scope: user
+    match: '%APPDATA%/TS3Client/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §3'
+  - id: app.teamspeak.identities
+    scope: user
+    match: '%APPDATA%/TS3Client/settings.db'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §3'
+    note: 'Identities (private keys) live inside settings.db.'
+
+  - id: app.chatterino.config
+    scope: user
+    match: '%APPDATA%/Chatterino2/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §3'
+  - id: app.chatterino.tokens
+    scope: user
+    match: '%APPDATA%/Chatterino2/Settings/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §3'
+    note: 'OAuth tokens in settings.'
+
+  - id: app.dorion.config
+    scope: user
+    match: '%APPDATA%/dorion/config.json'
+    verdict: capture:config
+    source: 'vault apps-ctt §3'
+    note: 'webdata/ is data, not cache (§11 faux-amis) — left to default REVIEW.'
+
+  - id: app.zoom.config
+    scope: user
+    match: '%APPDATA%/Zoom/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §3'
+    note: 'Recordings land in Documents/Zoom — already captured by the Documents Known Folder rule.'
+
+  - id: app.element.e2e_keys
+    scope: user
+    match: '%APPDATA%/Element/IndexedDB/**'
+    verdict: capture:secret
+    prio: high
+    flags: [dpapi_machine_bound]
+    source: 'vault apps-ctt §12 / deny-list §D-14'
+    note: 'Matrix E2E keys; safeStorage pickle key is DPAPI-bound — unreadable after a reset unless server key backup exists.'
+
+  # --- Development (apps-ctt §4 + §12) ---
+  - id: app.git.config
+    scope: user
+    match: '<UserProfile>/.gitconfig'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §4'
+  - id: app.git.credentials
+    scope: user
+    match: '<UserProfile>/.git-credentials'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §4 / §11'
+    note: 'Plaintext tokens.'
+  - id: app.git.appdata
+    scope: user
+    match: '%APPDATA%/Git/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+
+  - id: app.gnupg.keyrings
+    scope: user
+    match: '%APPDATA%/gnupg/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §12'
+    note: 'Private keyrings + trustdb (Git signing, Thunderbird GPG, Kleopatra) — claimed by no single app, captured here.'
+
+  - id: app.neovim.config
+    scope: user
+    match: '%LOCALAPPDATA%/nvim/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §4 (faux-ami: config under Local)'
+    note: 'nvim-data (shada/undo/sessions) stays in default REVIEW.'
+
+  - id: app.sublime.user
+    scope: user
+    match: '%APPDATA%/Sublime Text/Packages/User/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §4'
+  - id: app.sublime.license
+    scope: user
+    match: '%LOCALAPPDATA%/Sublime Text/License.sublime_license'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (licences)'
+
+  - id: app.zed.config
+    scope: user
+    match: '%APPDATA%/Zed/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+
+  - id: app.jetbrains.config
+    scope: user
+    match: '%APPDATA%/JetBrains/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §4'
+    note: 'Per-IDE settings; account sync mitigates but local capture stays authoritative.'
+
+  - id: app.lazygit.config
+    scope: user
+    match: '%LOCALAPPDATA%/lazygit/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4 (faux-ami: config under Local)'
+
+  - id: app.devtools.npmrc
+    scope: user
+    match: '<UserProfile>/.npmrc'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (registry tokens §A.5)'
+  - id: app.devtools.yarnrc
+    scope: user
+    match: '<UserProfile>/.yarnrc.yml'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (npmAuthToken)'
+  - id: app.devtools.pip
+    scope: user
+    match: '%APPDATA%/pip/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+  - id: app.devtools.pip_ini
+    scope: user
+    match: '%APPDATA%/pip/pip.ini'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (index credentials)'
+  - id: app.devtools.uv
+    scope: user
+    match: '%APPDATA%/uv/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+  - id: app.devtools.uv_toml
+    scope: user
+    match: '%APPDATA%/uv/uv.toml'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11'
+  - id: app.devtools.gemrc
+    scope: user
+    match: '<UserProfile>/.gemrc'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (api keys)'
+  - id: app.devtools.cargo_credentials
+    scope: user
+    match: '<UserProfile>/.cargo/credentials.toml'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §4 / §11'
+  - id: app.devtools.go_env
+    scope: user
+    match: '%APPDATA%/go/env'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+
+  - id: app.nuget.config
+    scope: user
+    match: '%APPDATA%/NuGet/NuGet.Config'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (feed credentials)'
+
+  - id: app.powershell.psreadline
+    scope: user
+    match: '%APPDATA%/Microsoft/Windows/PowerShell/PSReadLine/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §6 / deny-list §C-4'
+    note: 'Command history: secrets typed at the prompt end up here.'
+
+  - id: app.unity.licenses
+    scope: machine
+    match: '%ProgramData%/Unity/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §4 / §11 (licences)'
+    note: '*.ulf licences are machine-bound: re-activation will be needed post-reset.'
+  - id: app.unityhub.config
+    scope: user
+    match: '%APPDATA%/UnityHub/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+
+  - id: app.systeminformer.config
+    scope: user
+    match: '%APPDATA%/SystemInformer/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §4'
+
+  # --- Games (apps-ctt §5) ---
+  - id: app.epic.manifests
+    scope: machine
+    match: '%ProgramData%/Epic/EpicGamesLauncher/Data/Manifests/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §5'
+    note: 'The installed-games inventory the launcher reads — what to reinstall.'
+
+  - id: app.xbox.wgs_saves
+    scope: user
+    match: '%LOCALAPPDATA%/Packages/*/SystemAppData/wgs/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §5 / capture §B'
+    note: 'Xbox Live connected-storage saves (local copy) for every packaged game.'
+
+  - id: app.ubisoft.savegames
+    scope: machine
+    match: '%ProgramFiles(x86)%/Ubisoft/Ubisoft Game Launcher/savegames/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault apps-ctt §5 / deny-list §A.4(c)'
+    note: 'Saves under Program Files — the classic faux-ami.'
+
+  - id: app.prismlauncher.data
+    scope: user
+    match: '%APPDATA%/PrismLauncher/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §5'
+    note: 'instances/*/.minecraft = worlds; re-downloadable assets are denied separately.'
+  - id: app.prismlauncher.accounts
+    scope: user
+    match: '%APPDATA%/PrismLauncher/accounts.json'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §5 / §11 (MS tokens)'
+
+  - id: app.modrinth.profiles
+    scope: user
+    match: '%APPDATA%/ModrinthApp/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §5'
+
+  - id: app.minecraft.data
+    scope: user
+    match: '%APPDATA%/.minecraft/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §5 / deny-list §A.6'
+    note: 'saves/, screenshots/, options.txt, servers.dat; assets/libraries/versions are denied separately.'
+
+  - id: app.cemu.nand
+    scope: drive
+    match: '**/Cemu/mlc01/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault apps-ctt §5 / §11 (portable faux-ami)'
+    note: 'Wii U NAND: saves live here, wherever the (often portable) Cemu folder sits.'
+
+  - id: app.itch.config
+    scope: user
+    match: '%APPDATA%/itch/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §5'
+
+  - id: app.gog.inventory
+    scope: machine
+    match: '%ProgramData%/GOG.com/**'
+    verdict: note_only
+    source: 'vault apps-ctt §5'
+    note: 'Galaxy DB = installed-games inventory; redows apps reads it, no bytes worth capturing.'
+  - id: app.ea.inventory
+    scope: machine
+    match: '%ProgramData%/EA Desktop/**'
+    verdict: note_only
+    source: 'vault apps-ctt §5'
+    note: 'Manifests = inventory; EA saves live under Documents (already captured).'
+
+  # --- Microsoft tools (apps-ctt §6) ---
+  - id: app.rdcman.rdg
+    scope: drive
+    match: '**/*.rdg'
+    verdict: capture:secret
+    prio: high
+    flags: [dpapi_machine_bound]
+    source: 'vault apps-ctt §6 / deny-list §D-14'
+    note: 'RDCMan files embed DPAPI machine-bound credentials: re-enter passwords after the reset.'
+  - id: app.rdcman.settings
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Remote Desktop Connection Manager/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §6'
+
+  - id: app.onedrive.sync_root
+    scope: user
+    match: '<UserProfile>/OneDrive*/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §6 / capture §B'
+    note: 'Default sync-root location; online-only placeholders are counted at logical size, never hydrated. SyncRootManager-driven roots arrive with the dynamic-sources block.'
+
+  - id: user.startup_items
+    scope: user
+    match: '%APPDATA%/Microsoft/Windows/Start Menu/Programs/Startup/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §10 / deny-list §C-4'
+    note: 'User startup entries — AutoHotkey scripts and one-off .cmd live here.'
+
+  # --- Multimedia (apps-ctt §7) ---
+  - id: app.obs.config
+    scope: user
+    match: '%APPDATA%/obs-studio/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §7 / §12'
+    note: 'Whole dir captured (global.ini hotkeys included); logs/crashes denied separately.'
+  - id: app.obs.profiles
+    scope: user
+    match: '%APPDATA%/obs-studio/basic/profiles/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §7 / §11'
+    note: 'Stream keys.'
+  - id: app.obs.plugin_config
+    scope: user
+    match: '%APPDATA%/obs-studio/plugin_config/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §12 (obs-websocket password)'
+
+  - id: app.sharex.uploaders
+    scope: user
+    match: 'FOLDERID_Documents/ShareX/UploadersConfig.json'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §7 / §11 (API keys)'
+    note: 'Documents is already captured as user data; this upgrades the one secret-bearing file.'
+
+  - id: app.notepadpp.config
+    scope: user
+    match: '%APPDATA%/Notepad++/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §7'
+
+  - id: app.calibre.config
+    scope: user
+    match: '%APPDATA%/calibre/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §7 / §12'
+    note: 'Libraries themselves are claimed at scan time by the global.py.json index parser.'
+
+  - id: app.libreoffice.user
+    scope: user
+    match: '%APPDATA%/LibreOffice/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.blender.config
+    scope: user
+    match: '%APPDATA%/Blender Foundation/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.gimp.config
+    scope: user
+    match: '%APPDATA%/GIMP/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.audacity.config
+    scope: user
+    match: '%APPDATA%/audacity/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.handbrake.config
+    scope: user
+    match: '%APPDATA%/HandBrake/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.paintnet.config
+    scope: user
+    match: '%LOCALAPPDATA%/paint.net/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7 (faux-ami: config under Local)'
+
+  - id: app.vlc.config
+    scope: user
+    match: '%APPDATA%/vlc/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.aimp.config
+    scope: user
+    match: '%APPDATA%/AIMP/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+
+  - id: app.acrobat.config
+    scope: user
+    match: '%APPDATA%/Adobe/Acrobat/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §7'
+  - id: app.acrobat.security
+    scope: user
+    match: '%APPDATA%/Adobe/Acrobat/**/Security/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §7 (certificates)'
+
+  - id: app.naps2.config
+    scope: user
+    match: '%APPDATA%/NAPS2/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §7'
+  - id: app.irfanview.config
+    scope: user
+    match: '%APPDATA%/IrfanView/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §7'
+  - id: app.imageglass.config
+    scope: user
+    match: '%LOCALAPPDATA%/ImageGlass/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §7 (faux-ami: config under Local)'
+
+  # --- Pro tools (apps-ctt §8) ---
+  - id: app.wireguard.configs
+    scope: machine
+    match: '%ProgramData%/WireGuard/**'
+    verdict: capture:secret
+    prio: critical
+    flags: [dpapi_machine_bound]
+    source: 'vault apps-ctt §8 / deny-list §D-14'
+    note: '*.conf.dpapi tunnel keys are machine-bound: EXPORT from the app before the reset or lose the tunnels.'
+
+  - id: app.openvpn.profiles
+    scope: user
+    match: '<UserProfile>/OpenVPN/config/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §8'
+    note: '.ovpn profiles embed certs/keys.'
+
+  - id: app.mullvadvpn.account
+    scope: machine
+    match: '%ProgramData%/Mullvad VPN/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §8'
+    note: 'settings.json + device.json = account + device key.'
+
+  - id: app.protonvpn.config
+    scope: user
+    match: '%LOCALAPPDATA%/ProtonVPN/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §8'
+
+  - id: app.putty.ppk_keys
+    scope: drive
+    match: '**/*.ppk'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §8 / §11'
+    note: 'PuTTY private keys, wherever they sit. Registry-only session data (PuTTY/WinSCP/TightVNC) is the HKCU capture facet, declared for a later block.'
+
+  - id: app.rustdesk.identity
+    scope: user
+    match: '%APPDATA%/RustDesk/config/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §8 / §11'
+
+  - id: app.simplewall.profile
+    scope: user
+    match: '%APPDATA%/Henry++/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §8'
+
+  - id: app.wireshark.profiles
+    scope: user
+    match: '%APPDATA%/Wireshark/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §8'
+
+  # --- Selfhosted (apps-ctt §9) ---
+  - id: app.jellyfin.server
+    scope: machine
+    match: '%ProgramData%/Jellyfin/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §9'
+    note: 'DB + users + plugins; cache/transcodes/log denied separately; metadata left to REVIEW.'
+
+  - id: app.plex.data
+    scope: user
+    match: '%LOCALAPPDATA%/Plex Media Server/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §9 (faux-ami: everything under Local)'
+    note: 'Databases + Preferences.xml; caches denied separately.'
+  - id: app.plex.metadata
+    scope: user
+    match: '%LOCALAPPDATA%/Plex Media Server/Metadata/**'
+    verdict: review
+    source: 'vault apps-ctt §9'
+    note: 'Huge and mostly re-fetchable, but may hold local edits — human decides.'
+
+  - id: app.kodi.userdata
+    scope: user
+    match: '%APPDATA%/Kodi/userdata/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §9'
+
+  - id: app.sunshine.config
+    scope: machine
+    match: '%ProgramFiles%/Sunshine/config/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §9 / deny-list §A.4(b)'
+    note: 'Pairing credentials + TLS certs under Program Files.'
+
+  - id: app.moonlight.client
+    scope: user
+    match: '%LOCALAPPDATA%/Moonlight Game Streaming Project/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §9 (client key/cert)'
+
+  - id: app.netbird.config
+    scope: machine
+    match: '%ProgramData%/Netbird/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §9 / §11 (WireGuard private key)'
+
+  - id: app.nextcloud.config
+    scope: user
+    match: '%APPDATA%/Nextcloud/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §9'
+    note: 'Sync roots themselves are user-chosen dirs (dynamic-sources block); accounts config captured here.'
+
+  - id: app.localsend.config
+    scope: user
+    match: '%APPDATA%/LocalSend/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §9'
+
+  # --- Utilities (apps-ctt §10) ---
+  - id: app.bitwarden.vault
+    scope: user
+    match: '%APPDATA%/Bitwarden/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §10 / deny-list §C-16'
+    note: 'data.json = encrypted local vault.'
+
+  - id: app.1password.data
+    scope: user
+    match: '%LOCALAPPDATA%/1Password/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §10 / §C-16 (faux-ami: under Local)'
+    note: 'Encrypted; the Secret Key from the emergency kit is still needed to use it.'
+
+  - id: app.protonpass.vault
+    scope: user
+    match: '%APPDATA%/Proton Pass/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §10 / §C-16'
+
+  - id: app.qbittorrent.config
+    scope: user
+    match: '%APPDATA%/qBittorrent/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+  - id: app.qbittorrent.bt_backup
+    scope: user
+    match: '%LOCALAPPDATA%/qBittorrent/BT_backup/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §10 / §11 (faux-ami)'
+    note: '.torrent + fastresume: the active torrent state lives under Local.'
+
+  - id: app.totalcommander.config
+    scope: user
+    match: '%APPDATA%/GHISLER/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+  - id: app.totalcommander.ftp
+    scope: user
+    match: '%APPDATA%/GHISLER/wcx_ftp.ini'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §10 / §11 (FTP passwords)'
+
+  - id: app.winrar.config
+    scope: user
+    match: '%APPDATA%/WinRAR/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §10'
+  - id: app.winrar.license
+    scope: drive
+    match: '**/rarreg.key'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §10 / §11 (licences)'
+    note: 'The licence file often sits in the install dir.'
+
+  - id: app.anydesk.identity
+    scope: user
+    match: '%APPDATA%/AnyDesk/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §10 / §11 (ID + identity key)'
+  - id: app.anydesk.service
+    scope: machine
+    match: '%ProgramData%/AnyDesk/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+
+  - id: app.parsec.config
+    scope: user
+    match: '%APPDATA%/Parsec/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §10 (config.txt + session keys)'
+
+  - id: app.glazewm.config
+    scope: user
+    match: '<UserProfile>/.glzr/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+
+  - id: app.deskflow.config
+    scope: machine
+    match: '%ProgramData%/Deskflow/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+
+  - id: app.nilesoft.config
+    scope: drive
+    match: '**/shell.nss'
+    verdict: capture:config
+    source: 'vault apps-ctt §10 / deny-list §A.4(b)'
+    note: 'Nilesoft Shell config lives in its install dir.'
+
+  - id: app.afterburner.profiles
+    scope: machine
+    match: '%ProgramFiles(x86)%/MSI Afterburner/Profiles/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §10 / deny-list §A.4(b)'
+    note: 'OC profiles and fan curves under Program Files.'
+
+  - id: app.openrgb.profiles
+    scope: user
+    match: '%APPDATA%/OpenRGB/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+
+  - id: app.virtualbox.config
+    scope: user
+    match: '<UserProfile>/.VirtualBox/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §10 / deny-list §A.7'
+    note: 'VM registry; registered machine folders are claimed at scan time by the VirtualBox.xml index parser.'
+  - id: app.virtualbox.vms
+    scope: user
+    match: '<UserProfile>/VirtualBox VMs/**'
+    verdict: review
+    prio: high
+    source: 'vault apps-ctt §10 / deny-list §A.7'
+    note: 'Disks can be enormous: never ignored, human decides what to take.'
+
+  - id: app.peazip.config
+    scope: user
+    match: '%APPDATA%/PeaZip/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §10'
+
+  - id: app.unigetui.bundles
+    scope: user
+    match: '%LOCALAPPDATA%/UniGetUI/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §10 (faux-ami: under Local)'
+    note: 'Package bundles = a ready-made reinstall list.'
+
+  - id: app.processlasso.config
+    scope: machine
+    match: '%ProgramData%/ProcessLasso/**'
+    verdict: capture:config
+    source: 'vault apps-ctt §10'
+
+  - id: app.hxd.config
+    scope: user
+    match: '%APPDATA%/HxD/**'
+    verdict: capture:config
+    prio: low
+    source: 'vault apps-ctt §10'

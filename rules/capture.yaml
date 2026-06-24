@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=./ruleset.schema.json
+# Capture stage: what must be saved (capture framework §B/§D). Evaluated after
+# the deny stage; anything unmatched anywhere still ends up in REVIEW.
+schema_version: 1
+layer: capture
+rules:
+  - id: user.kf.documents
+    scope: user
+    match: 'FOLDERID_Documents/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault capture §B (Known Folders)'
+    note: 'Resolved per profile by GUID from each profile hive — follows redirections (other volume, OneDrive KFM).'
+
+  - id: user.kf.desktop
+    scope: user
+    match: 'FOLDERID_Desktop/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault capture §B'
+
+  - id: user.kf.pictures
+    scope: user
+    match: 'FOLDERID_Pictures/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault capture §B'
+    note: 'Photos are irreplaceable: maximum priority.'
+
+  - id: user.kf.downloads
+    scope: user
+    match: 'FOLDERID_Downloads/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault capture §B'
+    note: 'Installers are re-downloadable but documents and one-off exports land here too: forget-nothing wins.'
+
+  - id: user.kf.music
+    scope: user
+    match: 'FOLDERID_Music/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault capture §B'
+
+  - id: user.kf.videos
+    scope: user
+    match: 'FOLDERID_Videos/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault capture §B'
+
+  - id: user.ssh
+    scope: user
+    match: '<UserProfile>/.ssh/**'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault capture §D (PORTABLE secrets)'
+    note: 'Private keys: secrets pipeline — located and flagged, never inlined in the inventory.'

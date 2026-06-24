@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Wave 1 app instantiations (apps-ctt §2) — the measured wave: apps present on
+# the dev machine plus the most common members of each family. Each entry
+# expands the named template into rules with ids 'app.<name>.<suffix>'.
+# Static (non-template) wave-1 rules live in wave1-static-*.yaml.
+schema_version: 1
+apps:
+  # --- Chromium family (P-CHROM) ---
+  - name: chrome
+    template: chromium
+    params: { vendor_path: '%LOCALAPPDATA%/Google/Chrome' }
+    source: 'vault apps-ctt §1 P-CHROM'
+  - name: edge
+    template: chromium
+    params: { vendor_path: '%LOCALAPPDATA%/Microsoft/Edge' }
+    source: 'vault apps-ctt §1 P-CHROM'
+  - name: brave
+    template: chromium
+    params: { vendor_path: '%LOCALAPPDATA%/BraveSoftware/Brave-Browser' }
+    source: 'vault apps-ctt §1 P-CHROM'
+  - name: vivaldi
+    template: chromium
+    params: { vendor_path: '%LOCALAPPDATA%/Vivaldi' }
+    source: 'vault apps-ctt §1 P-CHROM'
+  - name: chromium
+    template: chromium
+    params: { vendor_path: '%LOCALAPPDATA%/Chromium' }
+    source: 'vault apps-ctt §1 P-CHROM'
+
+  # --- Gecko family (P-GECKO) ---
+  # Thunderbird is deliberately NOT here: its profile holds mail stores, so it
+  # gets a static capture:user/critical rule instead (wave1-static-capture.yaml).
+  - name: firefox
+    template: gecko
+    params:
+      vendor_roaming: '%APPDATA%/Mozilla/Firefox'
+      vendor_local: '%LOCALAPPDATA%/Mozilla/Firefox'
+    source: 'vault apps-ctt §1 P-GECKO'
+  - name: waterfox
+    template: gecko
+    params:
+      vendor_roaming: '%APPDATA%/Waterfox'
+      vendor_local: '%LOCALAPPDATA%/Waterfox'
+    source: 'vault apps-ctt §1 P-GECKO'
+  - name: librewolf
+    template: gecko
+    params:
+      vendor_roaming: '%APPDATA%/librewolf'
+      vendor_local: '%LOCALAPPDATA%/librewolf'
+    source: 'vault apps-ctt §1 P-GECKO'
+  - name: zen
+    template: gecko
+    params:
+      vendor_roaming: '%APPDATA%/zen'
+      vendor_local: '%LOCALAPPDATA%/zen'
+    source: 'vault apps-ctt §1 P-GECKO'
+  - name: floorp
+    template: gecko
+    params:
+      vendor_roaming: '%APPDATA%/Floorp'
+      vendor_local: '%LOCALAPPDATA%/Floorp'
+    source: 'vault apps-ctt §1 P-GECKO'
+
+  # --- Electron family (P-ELEC) ---
+  # Signal is deliberately NOT here: its whole data dir is secret-class and
+  # DPAPI-bound, so it gets a static rule instead (wave1-static-capture.yaml).
+  - name: discord
+    template: electron
+    params: { data_path: '%APPDATA%/discord' }
+    source: 'vault apps-ctt §1 P-ELEC'
+  - name: vesktop
+    template: electron
+    params: { data_path: '%APPDATA%/vesktop' }
+    source: 'vault apps-ctt §1 P-ELEC'
+  - name: slack
+    template: electron
+    params: { data_path: '%APPDATA%/Slack' }
+    source: 'vault apps-ctt §1 P-ELEC'
+  - name: element
+    template: electron
+    params: { data_path: '%APPDATA%/Element' }
+    source: 'vault apps-ctt §1 P-ELEC'
+  - name: obsidian
+    template: electron
+    params: { data_path: '%APPDATA%/obsidian' }
+    source: 'vault apps-ctt §1 P-ELEC'
+
+  # --- UWP / packaged (P-UWP) ---
+  - name: windowsterminal
+    template: uwp
+    params: { pfn: 'Microsoft.WindowsTerminal_8wekyb3d8bbwe' }
+    source: 'vault apps-ctt §1 P-UWP'

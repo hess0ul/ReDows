@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+artifacts/
+*.binlog
+
+# generated scan output (redows scan --out)
+scan-report.txt
+scan-console.txt

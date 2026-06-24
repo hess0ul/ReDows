@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Wave 1 static deny rules — known caches and re-downloadable payloads of the
+# statically-captured apps (wave1-static-capture.yaml). Deny runs before
+# capture, so these win inside the captured zones.
+schema_version: 1
+layer: deny
+rules:
+  - id: app.thunderbird.local_mirror
+    scope: user
+    match: '%LOCALAPPDATA%/Thunderbird/**'
+    verdict: ignore
+    source: 'vault apps-ctt §1 (gecko-family, static)'
+    note: 'Local mirror holds cache2/startupCache only — same shape as the gecko template local_mirror rule.'
+
+  - id: app.signal.cache
+    scope: user
+    match: '%APPDATA%/Signal/**/Cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §1 (electron-family caches)'
+  - id: app.signal.code_cache
+    scope: user
+    match: '%APPDATA%/Signal/**/Code Cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §1 (electron-family caches)'
+  - id: app.signal.gpu_cache
+    scope: user
+    match: '%APPDATA%/Signal/**/GPUCache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §1 (electron-family caches)'
+
+  # Steam game payloads: 100% re-downloadable via the launcher; the inventory
+  # of WHAT to reinstall comes from 'redows apps' (SteamManifests), and saves
+  # live in userdata / Documents / AppData (captured elsewhere). Drive-scoped
+  # floating ignores: 'steamapps' is a distinctive Steam-only name (§0-8).
+  - id: app.steam.common
+    scope: drive
+    match: '**/steamapps/common/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault apps-ctt §1 / deny-list §A.6 (deviation arbitrated, review 0-4)'
+    note: 'Installed game binaries/assets — the single biggest reclaim (hundreds of GB). ACCEPTED DEVIATION: hand-installed mods (Stardew Mods/…) and legacy in-install-dir saves are swallowed; a generic Mods/ carve would be collision-prone (§0-8) — targeted detection is backlog.'
+  - id: app.steam.shadercache
+    scope: drive
+    match: '**/steamapps/shadercache/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault apps-ctt §1 / deny-list §A.3'
+  - id: app.steam.downloading
+    scope: drive
+    match: '**/steamapps/downloading/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault apps-ctt §1 / deny-list §A.3'
+
+  - id: app.epic.webcache
+    scope: user
+    match: '%LOCALAPPDATA%/EpicGamesLauncher/Saved/webcache*/**'
+    verdict: ignore
+    source: 'vault apps-ctt §1 (chromium-style caches)'
+    note: 'webcache, webcache_4147 and other versioned CEF caches.'

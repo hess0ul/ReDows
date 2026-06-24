@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <!-- winget COM interop ships per-arch projection binaries; per-arch publish comes with distribution -->
+    <MicrosoftManagementDeployment-Platform>x64</MicrosoftManagementDeployment-Platform>
+    <Description>Windows access: volumes, profiles, Known Folders, registry, WMI, P/Invoke.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ReDows.Core\ReDows.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.28.240" />
+  </ItemGroup>
+
+</Project>

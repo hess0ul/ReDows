@@ -1,0 +1,316 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Wave 2 static deny rules (apps-ctt §3-§10, deny-list §A): re-downloadable
+# game payloads, package-manager caches, app caches inside captured zones.
+# Unsaved-work zones nearby are protected by the carve_out stage.
+schema_version: 1
+layer: deny
+rules:
+  # --- Game payloads (deny-list §A.6): the launcher re-downloads them; the
+  # --- inventory of WHAT comes from 'redows apps'; saves are captured elsewhere.
+  - id: app.epic.games_payload
+    scope: drive
+    match: '**/Epic Games/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault apps-ctt §5 / deny-list §A.6 (deviation arbitrated, review 0-4)'
+    note: 'Installed Epic games + launcher binaries; manifests (%ProgramData%/Epic) and launcher config (%LOCALAPPDATA%/EpicGamesLauncher) are outside this tree and captured. ACCEPTED DEVIATION: hand-installed mods and in-install-dir saves inside game folders (and any user folder literally named "Epic Games") are swallowed — targeted mod/save detection is backlog.'
+
+  - id: app.xbox.games_payload
+    scope: drive
+    match: '**/XboxGames/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault apps-ctt §5 / deny-list §A.6 (deviation arbitrated, review 0-4)'
+    note: 'MSIX-managed game content; saves are the wgs capture rule. ACCEPTED DEVIATION: hand-installed mods inside game folders are swallowed — backlog.'
+
+  - id: app.ubisoft.games_payload
+    scope: machine
+    match: '%ProgramFiles(x86)%/Ubisoft/Ubisoft Game Launcher/games/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 / deny-list §A.6'
+    note: 'The sibling savegames/ dir is captured (§A.4(c)).'
+
+  - id: app.cemu.shadercache
+    scope: drive
+    match: '**/Cemu/shaderCache/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault apps-ctt §5 / deny-list §A.6'
+
+  - id: app.minecraft.assets
+    scope: user
+    match: '%APPDATA%/.minecraft/assets/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 / deny-list §A.6'
+  - id: app.minecraft.libraries
+    scope: user
+    match: '%APPDATA%/.minecraft/libraries/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 / deny-list §A.6'
+  - id: app.minecraft.versions
+    scope: user
+    match: '%APPDATA%/.minecraft/versions/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 / deny-list §A.6'
+
+  - id: app.prismlauncher.assets
+    scope: user
+    match: '%APPDATA%/PrismLauncher/assets/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+  - id: app.prismlauncher.libraries
+    scope: user
+    match: '%APPDATA%/PrismLauncher/libraries/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+  - id: app.prismlauncher.meta
+    scope: user
+    match: '%APPDATA%/PrismLauncher/meta/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+  - id: app.prismlauncher.java
+    scope: user
+    match: '%APPDATA%/PrismLauncher/java/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+  - id: app.prismlauncher.cache
+    scope: user
+    match: '%APPDATA%/PrismLauncher/cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+
+  - id: app.modrinth.meta
+    scope: user
+    match: '%APPDATA%/ModrinthApp/meta/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+  - id: app.modrinth.caches
+    scope: user
+    match: '%APPDATA%/ModrinthApp/caches/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5'
+
+  # itch refined (review 0-4 arbitration): indie games (RPG Maker/Ren'Py…) very
+  # commonly save INSIDE their install folder under apps/<game> — so apps/ falls
+  # to default REVIEW and only the re-downloadable machinery is denied.
+  - id: app.itch.broth
+    scope: user
+    match: '%LOCALAPPDATA%/itch/broth/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 + review 0-4'
+    note: 'Butler & companion binaries, re-downloaded by the app.'
+  - id: app.itch.downloads
+    scope: user
+    match: '%LOCALAPPDATA%/itch/downloads/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 + review 0-4'
+  - id: app.itch.prereqs
+    scope: user
+    match: '%LOCALAPPDATA%/itch/prereqs/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 + review 0-4'
+  - id: app.itch.temp
+    scope: user
+    match: '%LOCALAPPDATA%/itch/temp/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 + review 0-4'
+  - id: app.itch.logs
+    scope: user
+    match: '%LOCALAPPDATA%/itch/logs/**'
+    verdict: ignore
+    source: 'vault apps-ctt §5 + review 0-4'
+
+  # --- Dev package caches (deny-list §A.4/§A.5): restored by the next
+  # --- install/build; lockfiles in projects pin the versions.
+  - id: dev.npm_cache
+    scope: user
+    match: '%LOCALAPPDATA%/npm-cache/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.cargo_registry
+    scope: user
+    match: '<UserProfile>/.cargo/registry/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.cargo_git
+    scope: user
+    match: '<UserProfile>/.cargo/git/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.go_module_cache
+    scope: user
+    match: '<UserProfile>/go/pkg/mod/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+    note: 'GOPATH/src (user code) stays in default REVIEW.'
+  - id: dev.go_build_cache
+    scope: user
+    match: '%LOCALAPPDATA%/go-build/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.pip_cache
+    scope: user
+    match: '%LOCALAPPDATA%/pip/cache/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.gradle_caches
+    scope: user
+    match: '<UserProfile>/.gradle/caches/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.maven_repository
+    scope: user
+    match: '<UserProfile>/.m2/repository/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.5'
+  - id: dev.nuget_packages
+    scope: user
+    match: '<UserProfile>/.nuget/packages/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.4'
+
+  # --- App caches inside or beside captured zones ---
+  - id: app.telegram.emoji_cache
+    scope: user
+    match: '%APPDATA%/Telegram Desktop/tdata/emoji/**'
+    verdict: ignore
+    source: 'vault apps-ctt §3'
+  - id: app.teamspeak.cache
+    scope: user
+    match: '%APPDATA%/TS3Client/cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §3'
+  - id: app.chatterino.cache
+    scope: user
+    match: '%APPDATA%/Chatterino2/Cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §3'
+  - id: app.dorion.webview_cache
+    scope: user
+    match: '%APPDATA%/dorion/EBWebView/**'
+    verdict: ignore
+    source: 'vault apps-ctt §3 / deny-list §A.3 (WebView2)'
+
+  - id: app.zed.local_cache
+    scope: user
+    match: '%LOCALAPPDATA%/Zed/**'
+    verdict: ignore
+    source: 'vault apps-ctt §4'
+  - id: app.jetbrains.toolbox_apps
+    scope: user
+    match: '%LOCALAPPDATA%/JetBrains/Toolbox/apps/**'
+    verdict: ignore
+    source: 'vault apps-ctt §4 / deny-list §A.4'
+    note: 'The IDE binaries Toolbox re-downloads.'
+  - id: app.jetbrains.caches
+    scope: user
+    match: '%LOCALAPPDATA%/JetBrains/**/caches/**'
+    verdict: ignore
+    source: 'vault apps-ctt §4 / §12'
+    note: 'LocalHistory next door is protected by its carve-out.'
+  - id: app.visualstudio.component_cache
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/VisualStudio/**/ComponentModelCache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §4 / deny-list §A.5'
+
+  - id: app.obs.logs
+    scope: user
+    match: '%APPDATA%/obs-studio/logs/**'
+    verdict: ignore
+    source: 'vault apps-ctt §7'
+  - id: app.obs.crashes
+    scope: user
+    match: '%APPDATA%/obs-studio/crashes/**'
+    verdict: ignore
+    source: 'vault apps-ctt §7'
+
+  - id: app.vlc.art_cache
+    scope: user
+    match: '%LOCALAPPDATA%/vlc/**'
+    verdict: ignore
+    source: 'vault apps-ctt §7'
+
+  - id: app.acrobat.local_cache
+    scope: user
+    match: '%LOCALAPPDATA%/Adobe/Acrobat/**'
+    verdict: ignore
+    source: 'vault apps-ctt §7'
+
+  - id: app.plex.cache
+    scope: user
+    match: '%LOCALAPPDATA%/Plex Media Server/Cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+  - id: app.plex.codecs
+    scope: user
+    match: '%LOCALAPPDATA%/Plex Media Server/Codecs/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+  - id: app.plex.crash_reports
+    scope: user
+    match: '%LOCALAPPDATA%/Plex Media Server/Crash Reports/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+  - id: app.plex.updates
+    scope: user
+    match: '%LOCALAPPDATA%/Plex Media Server/Updates/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+
+  - id: app.jellyfin.cache
+    scope: machine
+    match: '%ProgramData%/Jellyfin/Server/cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+  - id: app.jellyfin.transcodes
+    scope: machine
+    match: '%ProgramData%/Jellyfin/Server/transcodes/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+  - id: app.jellyfin.log
+    scope: machine
+    match: '%ProgramData%/Jellyfin/Server/log/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+
+  - id: app.kodi.thumbnails
+    scope: user
+    match: '%APPDATA%/Kodi/userdata/Thumbnails/**'
+    verdict: ignore
+    source: 'vault apps-ctt §9'
+
+  - id: app.qbittorrent.logs
+    scope: user
+    match: '%LOCALAPPDATA%/qBittorrent/logs/**'
+    verdict: ignore
+    source: 'vault apps-ctt §10'
+
+  # --- Updater/sync caches (deny-list §A.3) ---
+  - id: app.chrome.updater
+    scope: user
+    match: '%LOCALAPPDATA%/Google/Update/**'
+    verdict: ignore
+    source: 'vault apps-ctt §2 / deny-list §A.3'
+  - id: app.edge.updater
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/EdgeUpdate/**'
+    verdict: ignore
+    source: 'vault apps-ctt §2 / deny-list §A.3'
+  - id: app.mozilla.updates
+    scope: user
+    match: '%LOCALAPPDATA%/Mozilla/updates/**'
+    verdict: ignore
+    source: 'vault apps-ctt §2 / deny-list §A.3'
+  - id: app.onedrive.app_binaries
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/OneDrive/**'
+    verdict: ignore
+    source: 'vault apps-ctt §6 / deny-list §A.3'
+    note: 'The app itself (binaries, logs, setup) — NOT the sync root, which is captured.'
+  - id: app.googledrive.content_cache
+    scope: user
+    match: '%LOCALAPPDATA%/Google/DriveFS/**/content_cache/**'
+    verdict: ignore
+    source: 'vault apps-ctt §10 / deny-list §A.3 (declared limit, review 0-4)'
+    note: 'DECLARED LIMIT: deny-list v2 wants queued-upload content reviewed, but pending uploads are not identifiable inside this cache without parsing DriveFS internals — detection is backlog; an offline edit not yet synced could sit here.'

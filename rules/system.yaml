@@ -1,0 +1,303 @@
+# yaml-language-server: $schema=./ruleset.schema.json
+# Anchored Windows-system rules (deny-list v2 §A.1-A.3): without them, every
+# default-REVIEW report would drown under C:\Windows. The OS tree defaults to
+# ignore via os.systemroot, whose exceptions are the §A.1/§C carve-outs that may
+# hold the only copy of user-meaningful data. Everything here is anchored at a
+# location token — never a localized or hardcoded path.
+schema_version: 1
+layer: deny
+rules:
+  - id: os.systemroot
+    scope: machine
+    match: '%SystemRoot%/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1 (IGNORE_EXC)'
+    note: 'OS-shipped content is reinstalled, not restored. Exceptions below are the §A.1/§C carve-outs; finer inbox-vs-custom splits (fonts, ADMX, DriverStore) need the inbox-baseline predicate (later block).'
+    exceptions:
+      - id: os.systemroot.csc
+        match: '%SystemRoot%/CSC/**'
+        verdict: review
+        prio: high
+        source: 'vault deny-list v2 §A.1 (faux-ami)'
+        note: 'Offline Files cache: may hold the only copy of unsynced offline edits.'
+      - id: os.systemroot.livekernelreports
+        match: '%SystemRoot%/LiveKernelReports/**'
+        verdict: review
+        prio: low
+        source: 'vault deny-list v2 §A.2 / §D-13'
+        note: 'Conservative pending validation; candidate IGNORE.'
+      - id: os.systemroot.etc
+        match: '%SystemRoot%/System32/drivers/etc/**'
+        verdict: capture:config
+        source: 'vault deny-list v2 §A.1 (System32 carve)'
+        note: 'hosts/lmhosts edits are deliberate machine config; tiny, so captured without a modified-vs-default diff (V1).'
+      - id: os.systemroot.tasks
+        match: '%SystemRoot%/System32/Tasks/**'
+        verdict: review
+        source: 'vault deny-list v2 §A.1 (System32 carve)'
+        note: 'Scheduled task definitions; the non-Microsoft filter via the Task Scheduler API is a later block.'
+      - id: os.systemroot.grouppolicy
+        match: '%SystemRoot%/System32/GroupPolicy*/**'
+        verdict: review
+        source: 'vault deny-list v2 §A.1 (System32 carve)'
+        note: 'Local GPO state (GroupPolicy, GroupPolicyUsers).'
+      - id: os.systemroot.hives
+        match: '%SystemRoot%/System32/config/**'
+        verdict: note_only
+        source: 'vault deny-list v2 §A.1 (System32 carve)'
+        note: 'Registry hives: located and noted; system-config capture goes through the registry pipeline (later block), never a raw hive copy.'
+      - id: os.systemroot.color_profiles
+        match: '%SystemRoot%/System32/spool/drivers/color/**'
+        verdict: review
+        prio: low
+        source: 'vault deny-list v2 §A.1 (System32 carve)'
+        note: 'Custom ICC profiles (calibrated displays).'
+      - id: os.systemroot.dotnet_config
+        match: '%SystemRoot%/Microsoft.NET/**/*.config'
+        verdict: review
+        prio: low
+        source: 'vault deny-list v2 §A.1'
+        note: 'machine.config/web.config possibly diverging from defaults; diff against defaults is a later block.'
+      - id: os.systemroot.apppatch_custom
+        match: '%SystemRoot%/AppPatch/Custom/**'
+        verdict: review
+        source: 'vault deny-list v2 §A.1'
+        note: 'Custom shim databases (*.sdb) are admin-authored.'
+
+  - id: os.windows_old
+    scope: machine
+    match: '%SystemDrive%/Windows.old/**'
+    verdict: review
+    prio: critical
+    source: 'vault deny-list v2 §A.1'
+    note: 'Previous installation, ~10-day retention and destroyed by the next reset: surface it with maximum urgency. Re-anchoring user rules onto its Users tree is a later block.'
+
+  - id: os.recovery
+    scope: machine
+    match: '%SystemDrive%/Recovery/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: os.upgrade_temp
+    scope: machine
+    match: '%SystemDrive%/$Windows.~*/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+    note: 'Windows upgrade staging ($Windows.~BT, $Windows.~WS).'
+
+  - id: os.winre_agent
+    scope: machine
+    match: '%SystemDrive%/$WinREAgent/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: os.sysreset
+    scope: machine
+    match: '%SystemDrive%/$SysReset/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: os.getcurrent
+    scope: machine
+    match: '%SystemDrive%/$GetCurrent/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: os.esd
+    scope: machine
+    match: '%SystemDrive%/ESD/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: os.perflogs
+    scope: machine
+    match: '%SystemDrive%/PerfLogs/**'
+    verdict: review
+    prio: low
+    source: 'vault deny-list v2 §A.1'
+    note: 'User-launched traces may land here; small, so conservative REVIEW (the empty-vs-populated predicate is a later block).'
+
+  - id: os.inetpub
+    scope: machine
+    match: '%SystemDrive%/inetpub/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+    exceptions:
+      - id: os.inetpub.wwwroot
+        match: '%SystemDrive%/inetpub/wwwroot/**'
+        verdict: review
+        prio: high
+        source: 'vault deny-list v2 §A.1'
+        note: 'Local IIS sites are user work.'
+
+  - id: os.config_msi
+    scope: volume
+    match: 'Config.Msi/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: vol.pagefile
+    scope: volume
+    match: 'pagefile.sys'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: vol.swapfile
+    scope: volume
+    match: 'swapfile.sys'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: vol.hiberfil
+    scope: volume
+    match: 'hiberfil.sys'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: vol.dumpstack
+    scope: volume
+    match: 'DumpStack.log*'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: vol.chkdsk_found
+    scope: volume
+    match: 'found.*/**'
+    verdict: review
+    source: 'vault deny-list v2 §A.1'
+    note: 'chkdsk-recovered fragments may be user data.'
+
+  - id: os.wer_machine
+    scope: machine
+    match: '%ProgramData%/Microsoft/Windows/WER/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: os.search_index
+    scope: machine
+    match: '%ProgramData%/Microsoft/Search/Data/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+    note: 'Windows Search index (Windows.edb can reach hundreds of GB); rebuilt automatically.'
+
+  - id: os.delivery_optimization
+    scope: machine
+    match: '%ProgramData%/Microsoft/Windows/DeliveryOptimization/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+
+  - id: os.diagnosis
+    scope: machine
+    match: '%ProgramData%/Microsoft/Diagnosis/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3 (telemetry, anchored)'
+
+  - id: av.defender
+    scope: machine
+    match: '%ProgramData%/Microsoft/Windows Defender/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+    note: 'Definitions, caches, logs. The quarantine carve-out stays the standalone av.defender_quarantine rule (more specific, so it wins).'
+
+  - id: user.wer
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Windows/WER/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: user.inetcookies
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Windows/INetCookies/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+    note: 'Documented deviation: legacy WinINet cookies only — modern cookies live in browser profiles, which are CAPTURE.'
+
+  - id: user.webcache
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Windows/WebCache/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+
+  - id: user.explorer_cache
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Windows/Explorer/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+    note: 'thumbcache_*, iconcache_*.'
+
+  - id: user.windows_caches
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Windows/Caches/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+
+  - id: user.d3dscache
+    scope: user
+    match: '%LOCALAPPDATA%/D3DSCache/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3 (GPU shader caches, anchored)'
+
+  - id: user.tracing
+    scope: user
+    match: '<UserProfile>/Tracing/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: user.input_personalization
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/InputPersonalization/**'
+    verdict: note_only
+    source: 'vault deny-list v2 §A.2 (privacy)'
+    note: 'Handwriting/ink personal dictionary: default is do-not-copy; capture only on explicit user opt-in.'
+
+  - id: user.recall
+    scope: user
+    match: '%LOCALAPPDATA%/CoreAIPlatform*/**'
+    verdict: note_only
+    source: 'vault deny-list v2 §A.3 (privacy)'
+    note: 'Recall/CoreAI snapshots: default is do-not-copy; capture only on explicit user opt-in.'
+
+  - id: user.ost
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Outlook/*.ost'
+    verdict: review
+    prio: low
+    source: 'vault deny-list v2 §A.3'
+    note: 'Server-synced replica — but a decommissioned account makes the OST the only copy. Never IGNORE; *.pst is absolute CAPTURE (mail.pst).'
+
+  - id: junk.thumbs_db
+    scope: drive
+    match: '**/Thumbs.db'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.2 / §D-11'
+
+  - id: junk.ds_store
+    scope: drive
+    match: '**/.DS_Store'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.2 / §D-11'
+
+  - id: junk.desktop_ini
+    scope: drive
+    match: '**/desktop.ini'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.2 / §D-11'
+
+  - id: junk.office_lock
+    scope: drive
+    match: '**/~$*'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.2 / §D-11'
+    note: 'Office owner-lock files.'
+
+  - id: junk.synology_eadir
+    scope: drive
+    match: '**/@eaDir/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.2 / §D-11'
+    note: 'Synology NAS metadata folders.'

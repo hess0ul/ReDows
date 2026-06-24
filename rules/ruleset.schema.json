@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReDows ruleset file",
+  "description": "One ruleset file: a schema version plus rules (with their layer), and/or app templates and their instantiations.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Ruleset schema version understood by the engine. A file declaring a newer version is refused (fail-closed)."
+    },
+    "layer": {
+      "type": "string",
+      "description": "Evaluation stage of every rule in this file (required when \u0027rules\u0027 is present). Stage order: carve_out \u2192 deny \u2192 capture; the first stage with a match decides.",
+      "pattern": "^(carve_out|deny|capture)$"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "description": "The classification rules of this file."
+    },
+    "templates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Template"
+      },
+      "description": "Per-app templates (apps-ctt catalogue): a shared pattern (P-CHROM\u2026) declared once, instantiated by \u0027apps\u0027 entries. Template rules carry their own layer."
+    },
+    "apps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/App"
+      },
+      "description": "Template instantiations: each app expands its template into ordinary rules with ids \u0027app.\u003Cname\u003E.\u003Csuffix\u003E\u0027."
+    }
+  },
+  "required": [
+    "schema_version"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "Rule": {
+      "title": "Rule",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable unique identifier, referenced by manifests and the review learning loop.",
+          "pattern": "^[a-z0-9]\u002B([._-][a-z0-9]\u002B)*$"
+        },
+        "scope": {
+          "type": "string",
+          "description": "Anchoring: machine (machine token), user (instantiated per profile), volume (volume root), drive (floating, must start with **/).",
+          "pattern": "^(machine|user|volume|drive)$"
+        },
+        "match": {
+          "type": "string",
+          "description": "Bounded glob with \u0027/\u0027 separators. First segment may be a location token: %SystemRoot%-style env token, FOLDERID_X Known Folder, or \u003CUserProfile\u003E. Absolute paths are forbidden."
+        },
+        "verdict": {
+          "type": "string",
+          "description": "Classification verdict. \u0027ignore with exceptions\u0027 is expressed with the exceptions list, not a separate verdict.",
+          "pattern": "^(ignore|review|note_only|capture:(user|config|secret))$"
+        },
+        "prio": {
+          "type": "string",
+          "description": "Priority axis (orthogonal to the verdict). Default: normal.",
+          "pattern": "^(critical|high|normal|low)$"
+        },
+        "bare_name_class": {
+          "type": "string",
+          "description": "Required on floating bare-name ignore rules (scope drive \u002B verdict ignore): collision_prone rules must carry a \u0027when\u0027 condition (deny-list \u00A70-8).",
+          "pattern": "^(distinctive|collision_prone)$"
+        },
+        "when": {
+          "$ref": "#/$defs/Condition",
+          "description": "Context condition gating the rule. When the condition is false the rule does not match."
+        },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Exception"
+          },
+          "description": "Nested exceptions with their own verdict, evaluated before this rule (deny-list \u00A70-9)."
+        },
+        "source": {
+          "type": "string",
+          "description": "Provenance: where this rule comes from (design note section, external source)."
+        },
+        "note": {
+          "type": "string",
+          "description": "Free-form rationale for human readers."
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Orthogonal flags (an axis, never encoded in the verdict). dpapi_machine_bound: the captured bytes are DPAPI-bound to this machine and unreadable after a reset \u2014 surfaced as a pre-reset alert (export/synchronize BEFORE)."
+        }
+      },
+      "required": [
+        "id",
+        "scope",
+        "match",
+        "verdict"
+      ],
+      "additionalProperties": false
+    },
+    "Exception": {
+      "title": "Rule exception",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable unique identifier (same namespace as rule ids).",
+          "pattern": "^[a-z0-9]\u002B([._-][a-z0-9]\u002B)*$"
+        },
+        "match": {
+          "type": "string",
+          "description": "Bounded glob, same grammar and anchoring as the parent rule. Must target paths inside the parent\u0027s zone."
+        },
+        "verdict": {
+          "type": "string",
+          "pattern": "^(ignore|review|note_only|capture:(user|config|secret))$"
+        },
+        "prio": {
+          "type": "string",
+          "pattern": "^(critical|high|normal|low)$"
+        },
+        "when": {
+          "$ref": "#/$defs/Condition"
+        },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Exception"
+          },
+          "description": "Nested exceptions to this exception (recursive)."
+        },
+        "source": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Orthogonal flags, same vocabulary as rule flags."
+        }
+      },
+      "required": [
+        "id",
+        "match",
+        "verdict"
+      ],
+      "additionalProperties": false
+    },
+    "Condition": {
+      "title": "Condition",
+      "description": "Exactly one of: all, any, ancestor_marker.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "True when every child condition is true."
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "True when at least one child condition is true."
+        },
+        "ancestor_marker": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "True when an ancestor directory of the item (up to the volume root) contains an entry matching one of these name globs (e.g. package.json, *.sln, .git)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Template": {
+      "title": "App template",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Template name, referenced by apps.",
+          "pattern": "^[a-z0-9]\u002B([._-][a-z0-9]\u002B)*$"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Parameter names this template requires. Every \u0027{param}\u0027 placeholder used in matches must be declared here."
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateRule"
+          },
+          "description": "The rules this template expands to, one per app instantiation."
+        }
+      },
+      "required": [
+        "name",
+        "rules"
+      ],
+      "additionalProperties": false
+    },
+    "TemplateRule": {
+      "title": "Template rule",
+      "type": "object",
+      "properties": {
+        "id_suffix": {
+          "type": "string",
+          "description": "Rule id becomes \u0027app.\u003Capp name\u003E.\u003Cid_suffix\u003E\u0027.",
+          "pattern": "^[a-z0-9]\u002B([._-][a-z0-9]\u002B)*$"
+        },
+        "layer": {
+          "type": "string",
+          "description": "Evaluation stage of this expanded rule (a template may mix stages: capture the profile, deny its caches).",
+          "pattern": "^(carve_out|deny|capture)$"
+        },
+        "scope": {
+          "type": "string",
+          "pattern": "^(machine|user|volume|drive)$"
+        },
+        "match": {
+          "type": "string",
+          "description": "Bounded glob; \u0027{param}\u0027 placeholders are substituted with the app\u0027s param values at expansion."
+        },
+        "verdict": {
+          "type": "string",
+          "pattern": "^(ignore|review|note_only|capture:(user|config|secret))$"
+        },
+        "prio": {
+          "type": "string",
+          "pattern": "^(critical|high|normal|low)$"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Orthogonal flags, same vocabulary as rule flags."
+        },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateException"
+          },
+          "description": "Nested exceptions; their ids are suffixed like rule ids."
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id_suffix",
+        "layer",
+        "scope",
+        "match",
+        "verdict"
+      ],
+      "additionalProperties": false
+    },
+    "TemplateException": {
+      "title": "Template exception",
+      "type": "object",
+      "properties": {
+        "id_suffix": {
+          "type": "string",
+          "pattern": "^[a-z0-9]\u002B([._-][a-z0-9]\u002B)*$"
+        },
+        "match": {
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string",
+          "pattern": "^(ignore|review|note_only|capture:(user|config|secret))$"
+        },
+        "prio": {
+          "type": "string",
+          "pattern": "^(critical|high|normal|low)$"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Orthogonal flags, same vocabulary as rule flags."
+        },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateException"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id_suffix",
+        "match",
+        "verdict"
+      ],
+      "additionalProperties": false
+    },
+    "App": {
+      "title": "App",
+      "description": "One template instantiation: an application from the apps-ctt catalogue.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Application name, used in expanded rule ids (\u0027app.\u003Cname\u003E.\u003Csuffix\u003E\u0027).",
+          "pattern": "^[a-z0-9]\u002B([._-][a-z0-9]\u002B)*$"
+        },
+        "template": {
+          "type": "string",
+          "description": "Name of the template to expand."
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Values for the template\u0027s declared params (exactly the declared set)."
+        },
+        "source": {
+          "type": "string",
+          "description": "Provenance (catalogue section)."
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "template"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

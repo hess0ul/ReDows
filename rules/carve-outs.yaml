@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=./ruleset.schema.json
+# Carve-out stage: zones that must NEVER be swallowed by an ignore rule
+# (deny-list §C). Evaluated before the deny stage. Verdict 'ignore' is
+# forbidden here (enforced by the loader).
+schema_version: 1
+layer: carve_out
+rules:
+  - id: carve.mobile_backups.itunes
+    scope: user
+    match: '%APPDATA%/Apple Computer/MobileSync/Backup/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault deny-list v2 §C-11'
+    note: 'iPhone/iPad backups: often the only copy. Never ignore, whatever matches around it.'
+
+  - id: carve.unsaved.vscode_hot_exit
+    scope: user
+    match: '%APPDATA%/Code/Backups/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault deny-list v2 §C-12'
+    note: 'VS Code hot-exit backups: unsaved work.'
+
+  - id: mail.pst
+    scope: drive
+    match: '**/*.pst'
+    verdict: capture:user
+    prio: critical
+    source: 'vault deny-list v2 §C-13'
+    note: 'Outlook personal archives: often the only copy of years of mail, wherever they sit — carve-out so no deny zone (Temp, caches, node_modules…) can ever swallow one.'
+
+  - id: dev.tfstate
+    scope: drive
+    match: '**/*.tfstate'
+    verdict: capture:user
+    prio: critical
+    source: 'vault deny-list v2 §A.5 / §C'
+    note: 'Unique infrastructure state: carve-out for the same reason as mail.pst. The nested dev.terraform.tfstate exception in deny.yaml is now redundant defense-in-depth.'

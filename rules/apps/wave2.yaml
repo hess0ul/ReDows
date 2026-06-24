@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Wave 2 app instantiations (apps-ctt §2-§10) — the rest of the catalogue.
+# Static (non-template) wave-2 rules live in wave2-*.yaml. Apps sharing a
+# vendor path with an already-instantiated one (Ungoogled-Chromium → Chromium,
+# Firefox ESR → Firefox) are deliberately absent: one zone, one verdict.
+schema_version: 1
+apps:
+  # --- Chromium family (P-CHROM) ---
+  - name: helium
+    template: chromium
+    params: { vendor_path: '%LOCALAPPDATA%/imput/Helium' }
+    source: 'vault apps-ctt §2 P-CHROM'
+
+  # --- Electron family (P-ELEC) ---
+  - name: protonmail
+    template: electron
+    params: { data_path: '%APPDATA%/Proton Mail' }
+    source: 'vault apps-ctt §3 P-ELEC'
+  - name: githubdesktop
+    template: electron
+    params: { data_path: '%APPDATA%/GitHub Desktop' }
+    source: 'vault apps-ctt §4 P-ELEC (token lives in Credential Manager, not files)'
+  - name: heroic
+    template: electron
+    params: { data_path: '%APPDATA%/heroic' }
+    source: 'vault apps-ctt §5 P-ELEC (config + GamesConfig)'
+
+  # --- VS Code family (P-VSCODE) ---
+  - name: vscode
+    template: vscode_fork
+    params: { data_path: '%APPDATA%/Code' }
+    source: 'vault apps-ctt §4'
+  - name: vscodium
+    template: vscode_fork
+    params: { data_path: '%APPDATA%/VSCodium' }
+    source: 'vault apps-ctt §4'
+  - name: cursor
+    template: vscode_fork
+    params: { data_path: '%APPDATA%/Cursor' }
+    source: 'vault apps-ctt §4'
+
+  # --- UWP / packaged (P-UWP) ---
+  - name: teams
+    template: uwp
+    params: { pfn: 'MSTeams_8wekyb3d8bbwe' }
+    source: 'vault apps-ctt §3 P-UWP'

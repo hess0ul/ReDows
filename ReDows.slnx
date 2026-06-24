@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ReDows.Cli/ReDows.Cli.csproj" />
+    <Project Path="src/ReDows.Core/ReDows.Core.csproj" />
+    <Project Path="src/ReDows.Providers.Windows/ReDows.Providers.Windows.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Wave 2 carve-outs: unsaved-work and only-copy zones (deny-list §C) that no
+# cache deny — present or future — may ever swallow. Stage order guarantees it.
+schema_version: 1
+layer: carve_out
+rules:
+  - id: carve.unsaved.jetbrains_localhistory
+    scope: user
+    match: '%LOCALAPPDATA%/JetBrains/**/LocalHistory/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §12 / deny-list §C-12'
+    note: 'Uncommitted work history, next to ignorable caches — the very reason this is a carve-out.'
+
+  - id: carve.unsaved.vscodium_hot_exit
+    scope: user
+    match: '%APPDATA%/VSCodium/Backups/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault deny-list v2 §C-12'
+
+  - id: carve.unsaved.cursor_hot_exit
+    scope: user
+    match: '%APPDATA%/Cursor/Backups/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault deny-list v2 §C-12'
+
+  - id: carve.unsaved.notepadpp_backup
+    scope: user
+    match: '%APPDATA%/Notepad++/backup/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §7 / deny-list §C-12'
+    note: 'Unsaved tabs live here, often for years.'
+
+  - id: carve.unsaved.audacity_sessions
+    scope: user
+    match: '%APPDATA%/audacity/SessionData/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §7 / deny-list §C-12'
+
+  - id: carve.unsaved.sublime_session
+    scope: user
+    match: '%LOCALAPPDATA%/Sublime Text/Session.sublime_session'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §4 / deny-list §C-12'
+    note: 'Hot-exit buffers (unsaved files) are serialized in the session.'
+
+  - id: secrets.keepass_vault
+    scope: drive
+    match: '**/*.kdbx'
+    verdict: capture:secret
+    prio: critical
+    source: 'code review 0-4 / deny-list §C family (only-copy secrets)'
+    note: 'KeePass vaults: the canonical only-copy secret file, often parked in Downloads/Temp/exports — no deny zone may ever swallow one (same shape as mail.pst).'
+
+  - id: carve.mobile_backups.itunes_store
+    scope: user
+    match: '%LOCALAPPDATA%/Packages/AppleInc.iTunes_*/LocalCache/**/MobileSync/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault apps-ctt §7 / deny-list §C-11 + §C-22'
+    note: 'Store-version iTunes keeps iPhone backups under LocalCache (virtualized AppData): often the only copy, despite the cache-sounding path.'

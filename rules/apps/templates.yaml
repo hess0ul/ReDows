@@ -1,0 +1,287 @@
+# yaml-language-server: $schema=../ruleset.schema.json
+# Shared per-app templates (apps-ctt catalogue §1). The decisive inversion:
+# CAPTURE the whole data/profile directory and DENY only its known caches —
+# over-capturing is benign, losing is forbidden. Deny runs before capture, so
+# the cache rules win automatically inside the captured zone.
+schema_version: 1
+templates:
+  # P-CHROM — Chromium-family browser (apps-ctt §1, deny-list §A.3).
+  - name: chromium
+    params: [vendor_path]
+    rules:
+      - id_suffix: profile
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/**'
+        verdict: capture:config
+        prio: high
+        note: 'Whole profile captured (bookmarks, History, extensions, Sessions, Preferences…); caches are denied below.'
+      - id_suffix: login_data
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/**/Login Data'
+        verdict: capture:secret
+        prio: critical
+        flags: [dpapi_machine_bound]
+        note: 'Passwords — DPAPI/App-Bound encrypted: unreadable after a reset, export or rely on account sync BEFORE.'
+      - id_suffix: cookies_abe
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/**/Network/Cookies'
+        verdict: capture:secret
+        prio: high
+        flags: [dpapi_machine_bound]
+        note: 'App-Bound Encryption (Chrome 127+/Edge): machine-bound.'
+      - id_suffix: web_data
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/**/Web Data'
+        verdict: capture:secret
+        prio: high
+        flags: [dpapi_machine_bound]
+        note: 'Autofill/payment data — DPAPI-bound.'
+      - id_suffix: login_data_accounts
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/**/Login Data For Account'
+        verdict: capture:secret
+        prio: critical
+        flags: [dpapi_machine_bound]
+        note: 'Account-bound password DB (sibling of Login Data) — same DPAPI fate.'
+      - id_suffix: cookies_legacy
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/**/Cookies'
+        verdict: capture:secret
+        prio: high
+        flags: [dpapi_machine_bound]
+        note: 'Pre-Network/ cookie DB location (older profiles) — DPAPI-bound like Network/Cookies.'
+      - id_suffix: local_state
+        layer: capture
+        scope: user
+        match: '{vendor_path}/User Data/Local State'
+        verdict: capture:secret
+        prio: high
+        flags: [dpapi_machine_bound]
+        note: 'Holds the os_crypt encrypted key: captured bytes are useless post-reset without it being re-derivable — export/sync BEFORE.'
+      - id_suffix: cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/Cache/**'
+        verdict: ignore
+      - id_suffix: code_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/Code Cache/**'
+        verdict: ignore
+      - id_suffix: gpu_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/GPUCache/**'
+        verdict: ignore
+      - id_suffix: media_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/Media Cache/**'
+        verdict: ignore
+      - id_suffix: sw_cachestorage
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/Service Worker/CacheStorage/**'
+        verdict: ignore
+      - id_suffix: sw_scriptcache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/Service Worker/ScriptCache/**'
+        verdict: ignore
+      - id_suffix: crx_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/component_crx_cache/**'
+        verdict: ignore
+      - id_suffix: crashpad
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/Crashpad/**'
+        verdict: ignore
+      - id_suffix: browser_metrics
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/BrowserMetrics/**'
+        verdict: ignore
+      - id_suffix: blob_storage
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/blob_storage/**'
+        verdict: ignore
+      - id_suffix: shader_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/ShaderCache/**'
+        verdict: ignore
+      - id_suffix: gr_shader_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/GrShaderCache/**'
+        verdict: ignore
+      - id_suffix: dawn_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/DawnCache/**'
+        verdict: ignore
+      - id_suffix: dawn_graphite_cache
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/DawnGraphiteCache/**'
+        verdict: ignore
+      - id_suffix: optimization_guide
+        layer: deny
+        scope: user
+        match: '{vendor_path}/User Data/**/OptimizationGuide*/**'
+        verdict: ignore
+
+  # P-GECKO — Mozilla family (apps-ctt §1): Roaming profile = data (portable
+  # logins.json/key4.db included), Local mirror = caches only.
+  - name: gecko
+    params: [vendor_roaming, vendor_local]
+    rules:
+      - id_suffix: profile
+        layer: capture
+        scope: user
+        match: '{vendor_roaming}/**'
+        verdict: capture:config
+        prio: high
+        note: 'Roaming vendor dir: profiles.ini + profiles (places, prefs, extensions, sessionstore). Relocated profiles (IsRelative=0) are claimed at scan time by the profiles.ini parser.'
+      - id_suffix: secrets
+        layer: capture
+        scope: user
+        match: '{vendor_roaming}/**/logins.json'
+        verdict: capture:secret
+        prio: critical
+        note: 'Portable (key4.db-encrypted), NOT machine-bound — capturable as-is.'
+      - id_suffix: keydb
+        layer: capture
+        scope: user
+        match: '{vendor_roaming}/**/key4.db'
+        verdict: capture:secret
+        prio: critical
+      - id_suffix: local_mirror
+        layer: deny
+        scope: user
+        match: '{vendor_local}/**'
+        verdict: ignore
+        note: 'Local mirror holds cache2/startupCache/shader-cache only.'
+
+  # P-ELEC — Electron app data dir (apps-ctt §1): config/data captured, the
+  # Chromium-style caches inside denied.
+  - name: electron
+    params: [data_path]
+    rules:
+      - id_suffix: data
+        layer: capture
+        scope: user
+        match: '{data_path}/**'
+        verdict: capture:config
+      - id_suffix: cache
+        layer: deny
+        scope: user
+        match: '{data_path}/**/Cache/**'
+        verdict: ignore
+      - id_suffix: code_cache
+        layer: deny
+        scope: user
+        match: '{data_path}/**/Code Cache/**'
+        verdict: ignore
+      - id_suffix: gpu_cache
+        layer: deny
+        scope: user
+        match: '{data_path}/**/GPUCache/**'
+        verdict: ignore
+      - id_suffix: sw_cachestorage
+        layer: deny
+        scope: user
+        match: '{data_path}/**/Service Worker/CacheStorage/**'
+        verdict: ignore
+      - id_suffix: crashpad
+        layer: deny
+        scope: user
+        match: '{data_path}/**/Crashpad/**'
+        verdict: ignore
+      - id_suffix: blob_storage
+        layer: deny
+        scope: user
+        match: '{data_path}/**/blob_storage/**'
+        verdict: ignore
+
+  # P-VSCODE — VS Code-family editor (apps-ctt §4/§12): User dir holds settings,
+  # keybindings, snippets, profiles, globalStorage and sync state; the
+  # Chromium-style caches around it are denied. Hot-exit backups are carved out
+  # separately (carve.unsaved.*) so no cache rule can ever swallow them.
+  - name: vscode_fork
+    params: [data_path]
+    rules:
+      - id_suffix: user
+        layer: capture
+        scope: user
+        match: '{data_path}/User/**'
+        verdict: capture:config
+        prio: high
+        note: 'Includes globalStorage, profiles and sync (apps-ctt §12) — extension data and multi-profiles would otherwise be lost.'
+      - id_suffix: cache
+        layer: deny
+        scope: user
+        match: '{data_path}/Cache/**'
+        verdict: ignore
+      - id_suffix: cached_data
+        layer: deny
+        scope: user
+        match: '{data_path}/CachedData/**'
+        verdict: ignore
+      - id_suffix: code_cache
+        layer: deny
+        scope: user
+        match: '{data_path}/Code Cache/**'
+        verdict: ignore
+      - id_suffix: gpu_cache
+        layer: deny
+        scope: user
+        match: '{data_path}/GPUCache/**'
+        verdict: ignore
+
+  # P-UWP — packaged app state (apps-ctt §1, capture framework §B): LocalState/
+  # Settings/RoamingState are the app's data; TempState and AC/INetCache are
+  # caches; LocalCache is VIRTUALIZED AppData — never bulk-ignored (§C-22).
+  - name: uwp
+    params: [pfn]
+    rules:
+      - id_suffix: localstate
+        layer: capture
+        scope: user
+        match: '%LOCALAPPDATA%/Packages/{pfn}/LocalState/**'
+        verdict: capture:config
+      - id_suffix: settings
+        layer: capture
+        scope: user
+        match: '%LOCALAPPDATA%/Packages/{pfn}/Settings/**'
+        verdict: capture:config
+      - id_suffix: roamingstate
+        layer: capture
+        scope: user
+        match: '%LOCALAPPDATA%/Packages/{pfn}/RoamingState/**'
+        verdict: capture:config
+      - id_suffix: localcache
+        layer: capture
+        scope: user
+        match: '%LOCALAPPDATA%/Packages/{pfn}/LocalCache/**'
+        verdict: capture:config
+        note: 'Virtualized AppData (§C-22): real data despite the name.'
+      - id_suffix: tempstate
+        layer: deny
+        scope: user
+        match: '%LOCALAPPDATA%/Packages/{pfn}/TempState/**'
+        verdict: ignore
+      - id_suffix: inetcache
+        layer: deny
+        scope: user
+        match: '%LOCALAPPDATA%/Packages/{pfn}/AC/INetCache/**'
+        verdict: ignore

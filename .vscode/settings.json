@@ -1,0 +1,5 @@
+{
+  "yaml.schemas": {
+    "./rules/ruleset.schema.json": ["rules/**/*.yaml", "rules/**/*.yml"]
+  }
+}

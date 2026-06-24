@@ -1,0 +1,98 @@
+# yaml-language-server: $schema=./ruleset.schema.json
+# Deny stage: zones that cannot contain anything useful post-reset
+# (deny-list v2 §A). Ignoring is whitelisted: everything not matched by an
+# explicit rule falls back to REVIEW (default-to-review invariant).
+schema_version: 1
+layer: deny
+rules:
+  - id: os.winsxs
+    scope: machine
+    match: '%SystemRoot%/WinSxS/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+
+  - id: os.machine_temp
+    scope: machine
+    match: '%SystemRoot%/Temp/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+
+  - id: os.fonts
+    scope: machine
+    match: '%SystemRoot%/Fonts/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.1'
+    note: 'Non-inbox fonts carve-out arrives with the inbox-baseline predicate (later block).'
+
+  - id: user.temp
+    scope: user
+    match: '%TEMP%/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+    note: 'Resolved from each profile own environment, never from the scanning session. Type-based heuristic net (§D-2) arrives in a later block.'
+
+  - id: user.inetcache
+    scope: user
+    match: '%LOCALAPPDATA%/Microsoft/Windows/INetCache/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.3'
+    exceptions:
+      - id: user.inetcache.office_content
+        match: '%LOCALAPPDATA%/Microsoft/Windows/INetCache/Content.*/**'
+        verdict: review
+        prio: high
+        source: 'vault deny-list v2 §A.3 (H2)'
+        note: 'Content.Outlook/Content.MSO/Content.Word: attachments edited without saving — possibly the only copy.'
+
+  - id: user.crashdumps
+    scope: user
+    match: '%LOCALAPPDATA%/CrashDumps/**'
+    verdict: ignore
+    source: 'vault deny-list v2 §A.2'
+
+  - id: dev.node_modules
+    scope: drive
+    match: '**/node_modules/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.5'
+
+  - id: dev.terraform
+    scope: drive
+    match: '**/.terraform/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'vault deny-list v2 §A.5'
+    exceptions:
+      - id: dev.terraform.tfstate
+        match: '**/.terraform/**/*.tfstate'
+        verdict: capture:user
+        prio: critical
+        source: 'vault deny-list v2 §A.5'
+        note: 'Terraform state is unique infrastructure data, even inside the .terraform cache.'
+
+  - id: dev.build_generic
+    scope: drive
+    match: '**/build/**'
+    verdict: ignore
+    bare_name_class: collision_prone
+    when:
+      any:
+        - ancestor_marker: ['package.json', '*.sln', 'Cargo.toml', '.git', 'pyproject.toml', 'go.mod', 'pom.xml']
+    source: 'vault deny-list v2 §A.5 (golden rule)'
+    note: 'V1 approximation: project marker only. The vcs-ignore predicate (marker AND .gitignore) arrives in a later block; until then this rule is intentionally less aggressive than §A.5 allows.'
+
+  - id: vol.recycle_bin
+    scope: volume
+    match: '$Recycle.Bin/**'
+    verdict: review
+    prio: low
+    source: 'vault deny-list v2 §A.7'
+    note: 'Deleted-but-recoverable user data: surface it, restore on demand, never silently drop.'
+
+  - id: av.defender_quarantine
+    scope: machine
+    match: '%ProgramData%/Microsoft/Windows Defender/Quarantine/**'
+    verdict: note_only
+    source: 'vault deny-list v2 §C-23'
+    note: 'Quarantined file may be a false positive = only copy. Pre-reset alert flag arrives with the flags axis (later block).'
