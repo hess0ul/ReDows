@@ -32,15 +32,21 @@ ReDows is the **before-reset** half of a pair; its sibling **[InDows](https://gi
 is the **after-reset** half that rebuilds a clean Windows install.
 
 > InDows builds a fresh ISO → you use the PC → ReDows captures what mattered → InDows rebuilds a clean,
-> similar ISO → and so on. ReDows can export your installed apps straight into an InDows-ready
-> `configuration.dsc.yaml`.
+> similar ISO → and so on. ReDows exports a complete InDows-ready profile — your installed apps as a winget
+> `configuration.dsc.yaml`, plus your settings grouped by the InDows module that re-applies them.
 
 ## 🔧 How it works
 
-1. **Scan** — walk the machine read-only and classify every file via the rule set (ignore / capture / review).
+1. **Scan** — walk the machine read-only and classify every file via the rule set (ignore / capture / review),
+   and optionally write a per-file manifest of everything worth keeping.
 2. **Inventory apps** — enumerate installed software across many sources and, where possible, attach an
    exact winget id for reinstall.
-3. **Export** — turn that inventory into an InDows-ready winget catalog.
+3. **Read settings** — read catalogued Windows settings (Explorer, privacy, power, features…) read-only and
+   group them by the InDows module that re-applies them.
+4. **Find registry secrets** — inventory app secrets/config that live only in the registry (PuTTY, WinSCP,
+   Remote Desktop…) by location only — a secret value is never read.
+5. **Export a profile** — emit a complete InDows-ready profile (winget app catalog + settings), closing the
+   ReDows → InDows loop.
 
 ## 🚀 Quick start
 
@@ -60,17 +66,25 @@ dotnet run --project src/ReDows.Cli -- scan --out scan-report.txt
 # inventory installed apps (add --enrich-winget to attach winget ids; this runs winget)
 dotnet run --project src/ReDows.Cli -- apps --out artifacts --enrich-winget
 
-# turn the inventory into an InDows winget catalog
-dotnet run --project src/ReDows.Cli -- export --from artifacts/apps.json --out configuration.dsc.yaml
+# read catalogued Windows settings (read-only), grouped by the InDows module that re-applies them
+dotnet run --project src/ReDows.Cli -- settings --by-module --out artifacts
+
+# inventory registry-only app secrets/config a file scan misses (read-only, locations only)
+dotnet run --project src/ReDows.Cli -- secrets
+
+# write the complete InDows-ready profile: apps catalog + settings + a plain-language README
+dotnet run --project src/ReDows.Cli -- profile --out profile --from artifacts/apps.json
 ```
 
 ## 📊 Status
 
-Working today: machine context discovery, read-only scan with a completeness report, the YAML rule set,
-the installed-apps inventory (with winget correlation), and the InDows apps export.
+Working today: machine context discovery, read-only scan with a completeness report and an optional
+per-file keep manifest, the YAML rule set, the installed-apps inventory (with winget correlation),
+reading Windows settings and grouping them by InDows module, finding registry-only app secrets
+(locations only, never values), and exporting a complete InDows-ready profile (apps + settings).
 
-Planned next: a tag to separate generic rules from personal ones, reading system settings (DNS, keyboard,
-time zone, startup apps…) and mapping them to InDows modules, and the actual file copy/restore.
+Planned next: the actual file copy into a destination with an encrypted vault for secrets, reading other
+user accounts' settings from offline hives, and richer correlation between secrets and installed apps.
 
 ## 📄 License
 

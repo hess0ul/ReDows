@@ -27,6 +27,7 @@ internal static class PowerShellQuery
                 },
             };
 
+            PinWindowsPowerShellModulePath(process.StartInfo);
             process.Start();
             var stdout = process.StandardOutput.ReadToEndAsync();
             var stderr = process.StandardError.ReadToEndAsync();
@@ -54,6 +55,21 @@ internal static class PowerShellQuery
         {
             return (null, $"cannot run PowerShell ({ex.GetType().Name})");
         }
+    }
+
+    /// <summary>
+    /// Pin the child to the Windows PowerShell (5.1) module path. When ReDows runs under a
+    /// PowerShell 7 host, the inherited PSModulePath lists the PS7 module directories first,
+    /// so powershell.exe finds the PS7 copy of a system module — e.g. Microsoft.PowerShell.Security,
+    /// which owns Get-ExecutionPolicy — and fails to load it ("the module could not be loaded").
+    /// Pinning the 5.1 path makes every query resolve its native modules, regardless of launcher.
+    /// </summary>
+    private static void PinWindowsPowerShellModulePath(ProcessStartInfo startInfo)
+    {
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var system = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        startInfo.EnvironmentVariables["PSModulePath"] =
+            $@"{programFiles}\WindowsPowerShell\Modules;{system}\WindowsPowerShell\v1.0\Modules";
     }
 
     private static string Summarize(string stderr, int exitCode) =>
