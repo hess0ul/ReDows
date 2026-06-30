@@ -1,0 +1,190 @@
+using System.Text;
+using ReDows.Core.Backup;
+using ReDows.Core.Scanning;
+using ReDows.Providers.Windows.Backup;
+
+namespace ReDows.Cli;
+
+/// <summary>
+/// 'redows copy' — copy the CAPTURE files of a scan manifest to a destination the user picks
+/// (local disk, USB key, or UNC network share). READ-ONLY on the source; every copied file is
+/// verified by hash. capture:secret files are counted but not copied here — they go into the
+/// encrypted vault (next step). Exit codes: 0 ok, 2 usage, 3 manifest missing/invalid, 4 error,
+/// 5 completed with failures.
+/// </summary>
+public static class CopyCommand
+{
+    public static int Run(string[] options)
+    {
+        try
+        {
+            return RunCore(options);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Unexpected error: {ex.GetType().Name}: {ex.Message}");
+            return 4;
+        }
+    }
+
+    private static int RunCore(string[] options)
+    {
+        string? manifestPath = null;
+        string? destination = null;
+        string? vaultPassword = null;
+
+        for (var i = 0; i < options.Length; i++)
+        {
+            switch (options[i])
+            {
+                case "--manifest" when i + 1 < options.Length:
+                    manifestPath = options[++i];
+                    break;
+                case "--to" when i + 1 < options.Length:
+                    destination = options[++i];
+                    break;
+                case "--vault-password" when i + 1 < options.Length:
+                    vaultPassword = options[++i];
+                    break;
+                default:
+                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows copy --manifest <file.jsonl> --to <destination> [--vault-password <pw>]");
+                    return 2;
+            }
+        }
+
+        if (manifestPath is null || destination is null)
+        {
+            Console.Error.WriteLine("Missing --manifest <file.jsonl> and/or --to <destination>. Usage: redows copy --manifest <file.jsonl> --to <destination>");
+            return 2;
+        }
+
+        if (!File.Exists(manifestPath))
+        {
+            Console.Error.WriteLine($"Manifest not found: '{manifestPath}'. Produce one first with 'redows scan --manifest <file.jsonl>'.");
+            return 3;
+        }
+
+        var fullDestination = Path.GetFullPath(destination);
+        Directory.CreateDirectory(fullDestination);
+
+        Console.Error.WriteLine($"Copying the manifest's CAPTURE files to '{fullDestination}' (read-only on the source)…");
+        if (vaultPassword is null)
+        {
+            Console.Error.WriteLine("  (no --vault-password: capture:secret files will be counted and deferred, never copied in clear.)");
+        }
+
+        string? vaultPath = vaultPassword is null ? null : Path.Combine(fullDestination, "secrets-vault.zip");
+        ZipVaultSink? vault = vaultPath is null
+            ? null
+            : new ZipVaultSink(new FileStream(vaultPath, FileMode.Create, FileAccess.Write, FileShare.None), vaultPassword!);
+
+        CopyReport report;
+        try
+        {
+            report = CopyEngine.Run(
+                ReadManifest(manifestPath),
+                new FileSystemCopySource(),
+                new FileSystemSink(fullDestination),
+                vault,
+                onProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} entries — {Sanitize(path)}"));
+        }
+        finally
+        {
+            vault?.Dispose(); // finalize the encrypted zip before verifying it
+        }
+
+        var vaultStatus = VerifyVault(vaultPath, vaultPassword, report.SecretsVaulted);
+
+        Console.WriteLine(Render(report, fullDestination, vaultStatus));
+        return report.Failures.Count > 0 ? 5 : 0;
+    }
+
+    /// <summary>Re-open the finished vault and read every entry back: prove it opens and is intact.</summary>
+    private static string? VerifyVault(string? vaultPath, string? vaultPassword, long expected)
+    {
+        if (vaultPath is null || vaultPassword is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var verified = ZipVaultSink.Verify(vaultPath, vaultPassword);
+            return verified == expected
+                ? $"vault OK — {verified:N0} secret(s) encrypted and verified ('{Path.GetFileName(vaultPath)}')"
+                : $"vault MISMATCH — verified {verified:N0} but vaulted {expected:N0} ✗";
+        }
+        catch (Exception ex)
+        {
+            return $"vault verify FAILED: {ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    /// <summary>Stream the JSONL manifest line by line (it can be large): blank/bad lines are skipped.</summary>
+    private static IEnumerable<ManifestEntry> ReadManifest(string path)
+    {
+        foreach (var line in File.ReadLines(path))
+        {
+            if (ManifestLine.Parse(line) is { } entry)
+            {
+                yield return entry;
+            }
+        }
+    }
+
+    private static string Render(CopyReport report, string destination, string? vaultStatus)
+    {
+        var text = new StringBuilder();
+        text.AppendLine("== ReDows copy ==");
+        text.AppendLine($"destination: {destination}");
+        text.AppendLine();
+        text.AppendLine($"  files copied & verified : {report.FilesCopied,12:N0}  {Bytes(report.BytesCopied)}");
+        text.AppendLine($"  directories (structure) : {report.Directories,12:N0}");
+        text.AppendLine($"  secrets → encrypted vault: {report.SecretsVaulted,11:N0}  {Bytes(report.SecretBytesVaulted)}");
+        text.AppendLine($"  secrets deferred (no pw): {report.SecretsDeferred,12:N0}  {Bytes(report.SecretBytesDeferred)}");
+        text.AppendLine($"  failed                  : {report.Failures.Count,12:N0}");
+        text.AppendLine(
+            $"  equation: {report.FilesCopied} + {report.Directories} + {report.SecretsVaulted} + {report.SecretsDeferred} + {report.Failures.Count} " +
+            $"= {report.Accounted:N0} accounted vs {report.TotalEntries:N0} entries → " +
+            (report.Unaccounted == 0 ? "0 unaccounted ✓" : $"{report.Unaccounted:N0} UNACCOUNTED ✗ (engine bug)"));
+        if (vaultStatus is not null)
+        {
+            text.AppendLine($"  {vaultStatus}");
+        }
+
+        if (report.Failures.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine($"== Failed ({report.Failures.Count}) — reported, never silently dropped ==");
+            foreach (var failure in report.Failures.Take(50))
+            {
+                text.AppendLine($"  {Sanitize(failure.Path)} — {Sanitize(failure.Reason)}");
+            }
+
+            if (report.Failures.Count > 50)
+            {
+                text.AppendLine($"  … and {report.Failures.Count - 50:N0} more.");
+            }
+        }
+
+        text.AppendLine();
+        text.AppendLine("== Declared limits (V1) ==");
+        foreach (var limit in CopyReport.V1Limits)
+        {
+            text.AppendLine($"  - {limit}");
+        }
+
+        return text.ToString();
+    }
+
+    private static string Sanitize(string text) => ConsoleText.Sanitize(text);
+
+    private static string Bytes(long bytes) => bytes switch
+    {
+        >= 1L << 40 => $"{bytes / (double)(1L << 40):F2} TB",
+        >= 1L << 30 => $"{bytes / (double)(1L << 30):F2} GB",
+        >= 1L << 20 => $"{bytes / (double)(1L << 20):F2} MB",
+        >= 1L << 10 => $"{bytes / (double)(1L << 10):F1} KB",
+        _ => $"{bytes} B",
+    };
+}

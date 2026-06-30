@@ -43,8 +43,27 @@ public static class ManifestLine
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
         WriteIndented = false,
     };
 
     public static string Format(ManifestEntry entry) => JsonSerializer.Serialize(entry, Options);
+
+    /// <summary>Parse one JSONL manifest line back into an entry; null on a blank or malformed line.</summary>
+    public static ManifestEntry? Parse(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ManifestEntry>(line, Options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }
