@@ -101,11 +101,43 @@
         </Setter>
     </Style>
 
+    <!-- Custom bullet so the radio circle is readable/clickable (the default WPF bullet is a fixed
+         ~13px and ignores FontSize): an 18px ring with an accent dot when selected. -->
     <Style TargetType="RadioButton">
         <Setter Property="Foreground" Value="{StaticResource App.Text}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Margin" Value="0,0,18,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border Background="Transparent" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <StackPanel Orientation="Horizontal">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Ellipse x:Name="Ring" Stroke="{StaticResource App.Border}" StrokeThickness="2" Fill="Transparent"/>
+                                <Ellipse x:Name="Dot" Width="9" Height="9" Fill="{StaticResource App.Accent}" Visibility="Collapsed"/>
+                            </Grid>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource App.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource App.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="TextBox">
