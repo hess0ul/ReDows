@@ -538,6 +538,11 @@ public static partial class RulesetLoader
             set.Add("any");
         }
 
+        if (dto.None is not null)
+        {
+            set.Add("none");
+        }
+
         if (dto.AncestorMarker is not null)
         {
             set.Add("ancestor_marker");
@@ -546,7 +551,7 @@ public static partial class RulesetLoader
         if (set.Count != 1)
         {
             errors.Add(new RulesetError(file, ruleId,
-                $"a condition must contain exactly one of all/any/ancestor_marker (found: {(set.Count == 0 ? "none" : string.Join(", ", set))})"));
+                $"a condition must contain exactly one of all/any/none/ancestor_marker (found: {(set.Count == 0 ? "none" : string.Join(", ", set))})"));
             return null;
         }
 
@@ -571,7 +576,7 @@ public static partial class RulesetLoader
             return new AncestorMarkerCondition(dto.AncestorMarker);
         }
 
-        var children = dto.All ?? dto.Any!;
+        var children = dto.All ?? dto.Any ?? dto.None!;
         if (children.Count == 0)
         {
             errors.Add(new RulesetError(file, ruleId, $"{set[0]} must list at least one condition"));
@@ -590,7 +595,12 @@ public static partial class RulesetLoader
             built.Add(condition);
         }
 
-        return dto.All is not null ? new AllOfCondition(built) : new AnyOfCondition(built);
+        if (dto.All is not null)
+        {
+            return new AllOfCondition(built);
+        }
+
+        return dto.Any is not null ? new AnyOfCondition(built) : new NoneOfCondition(built);
     }
 
     private static string? ValidateId(

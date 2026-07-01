@@ -56,6 +56,27 @@ public sealed record AnyOfCondition(IReadOnlyList<RuleCondition> Conditions) : R
 }
 
 /// <summary>
+/// True when NONE of the child conditions is true (logical NOT-any). Completes the
+/// all/any/none algebra so a rule can require the absence of a marker — e.g. a
+/// standalone executable is one whose tree has an *.exe but NO uninstaller.
+/// </summary>
+public sealed record NoneOfCondition(IReadOnlyList<RuleCondition> Conditions) : RuleCondition
+{
+    public override bool Evaluate(in ConditionContext context)
+    {
+        foreach (var condition in Conditions)
+        {
+            if (condition.Evaluate(context))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+/// <summary>
 /// True when any ancestor directory of the matched item (up to and including the
 /// volume root) contains an entry whose name matches one of the marker globs.
 /// This is how a collision-prone bare-name ignore proves it sits inside a real

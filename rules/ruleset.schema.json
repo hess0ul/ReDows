@@ -162,7 +162,7 @@
     },
     "Condition": {
       "title": "Condition",
-      "description": "Exactly one of: all, any, ancestor_marker.",
+      "description": "Exactly one of: all, any, none, ancestor_marker.",
       "type": "object",
       "properties": {
         "all": {
@@ -178,6 +178,13 @@
             "$ref": "#/$defs/Condition"
           },
           "description": "True when at least one child condition is true."
+        },
+        "none": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "True when none of the child conditions is true (logical NOT-any) \u2014 e.g. a marker is absent."
         },
         "ancestor_marker": {
           "type": "array",

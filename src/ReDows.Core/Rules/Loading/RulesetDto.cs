@@ -207,7 +207,7 @@ public sealed class ExceptionDto
 }
 
 [Title("Condition")]
-[Description("Exactly one of: all, any, ancestor_marker.")]
+[Description("Exactly one of: all, any, none, ancestor_marker.")]
 public sealed class ConditionDto
 {
     [Description("True when every child condition is true.")]
@@ -215,6 +215,9 @@ public sealed class ConditionDto
 
     [Description("True when at least one child condition is true.")]
     public List<ConditionDto>? Any { get; set; }
+
+    [Description("True when none of the child conditions is true (logical NOT-any) — e.g. a marker is absent.")]
+    public List<ConditionDto>? None { get; set; }
 
     [Description("True when an ancestor directory of the item (up to the volume root) contains an entry matching one of these name globs (e.g. package.json, *.sln, .git).")]
     public List<string>? AncestorMarker { get; set; }
