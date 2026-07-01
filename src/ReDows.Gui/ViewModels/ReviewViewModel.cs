@@ -55,6 +55,21 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public DropSelection Trash { get; } = new();
 
+    /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
+    public event Action? TrashChanged;
+
+    /// <summary>Re-apply a saved session's trash (path → size) without raising a change — resuming, not deciding.</summary>
+    public void RestoreTrash(IReadOnlyDictionary<string, long> trash)
+    {
+        foreach (var (path, bytes) in trash)
+        {
+            Trash.Drop(path, bytes);
+        }
+
+        RefreshTrash();
+        RaiseSummary();
+    }
+
     public ObservableCollection<EntryRow> Entries { get; } = [];
 
     public ObservableCollection<TrashRow> TrashItems { get; } = [];
@@ -211,6 +226,7 @@ public sealed class ReviewViewModel : ViewModelBase
         Entries.Remove(entry);
         RefreshTrash();
         RaiseSummary();
+        TrashChanged?.Invoke();
     }
 
     public async Task DropCurrentFolderAsync()
@@ -223,6 +239,7 @@ public sealed class ReviewViewModel : ViewModelBase
         var (path, bytes) = _trail[^1];
         Trash.Drop(path, bytes);
         RefreshTrash();
+        TrashChanged?.Invoke();
 
         if (!AtFolderRoot)
         {
@@ -244,6 +261,7 @@ public sealed class ReviewViewModel : ViewModelBase
         Trash.Restore(trashed.FullPath);
         RefreshTrash();
         RaiseSummary();
+        TrashChanged?.Invoke();
         if (HasFolder)
         {
             await LoadCurrentAsync(); // bring the item back into view if it belongs here

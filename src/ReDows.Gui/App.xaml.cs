@@ -5,6 +5,7 @@ using ReDows.Gui.Context;
 using ReDows.Gui.Restore;
 using ReDows.Gui.Reviewing;
 using ReDows.Gui.Scanning;
+using ReDows.Gui.Session;
 using ReDows.Gui.ViewModels;
 
 namespace ReDows.Gui;
@@ -18,7 +19,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner());
+        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner(), new FileSessionStore());
         var window = new MainWindow(shell);
         shell.Initialize();
         window.Show();

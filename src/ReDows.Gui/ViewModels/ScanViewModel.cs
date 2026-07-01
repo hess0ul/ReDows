@@ -95,6 +95,12 @@ public sealed class ScanViewModel : ViewModelBase
         private set => Set(ref _result, value);
     }
 
+    /// <summary>Raised after a scan finishes successfully — the shell persists the session on this signal.</summary>
+    public event Action? Scanned;
+
+    /// <summary>Put a result back without scanning (resuming a saved session): drives Review + Backup.</summary>
+    public void Restore(ScanResultView result) => Result = result;
+
     public string? Error
     {
         get => _error;
@@ -143,6 +149,7 @@ public sealed class ScanViewModel : ViewModelBase
                 RecognizeInstalledApps);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
+            Scanned?.Invoke(); // let the shell persist the session (scan summary + manifest to back up)
         }
         catch (OperationCanceledException)
         {
