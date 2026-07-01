@@ -11,8 +11,9 @@
 #      (saves, configs, licences, keys) are promoted to the carve_out stage
 #      (carve-outs.yaml), which runs BEFORE deny — so they win, wherever they sit.
 #   2. For the UNCATALOGUED long tail, a generic name heuristic pulls any subtree
-#      whose folder name signals user data (config*, save*, profile*, settings,
-#      userdata, mods, backup*, preset*) back to REVIEW (not capture: the name is
+#      whose folder name signals user data (config*, save*, profile*, preset*,
+#      settings, userdata, mods, backup*, keys, licen*) back to REVIEW (not
+#      capture: the name is
 #      a hint, not a certainty — default-to-review decides, the human confirms).
 #      Collision-prone program names (data, assets, bin, content, cache, logs,
 #      plugins) are deliberately NOT listed: they almost always mean program
@@ -69,6 +70,16 @@ rules:
         match: '%ProgramFiles%/**/backup*/**'
         verdict: review
         note: 'backup / backups: may be the only copy of something.'
+      - id: appzone.program_files.keep_keys
+        match: '%ProgramFiles%/**/keys/**'
+        verdict: review
+        prio: high
+        note: 'keys: a folder named keys usually holds cryptographic or licence keys.'
+      - id: appzone.program_files.keep_license
+        match: '%ProgramFiles%/**/licen*/**'
+        verdict: review
+        prio: high
+        note: 'licen* (license/licence/licenses/licensing): licence material kept in the install dir.'
 
   - id: appzone.program_files_x86
     scope: machine
@@ -114,3 +125,13 @@ rules:
         match: '%ProgramFiles(x86)%/**/backup*/**'
         verdict: review
         note: 'backup / backups: may be the only copy of something.'
+      - id: appzone.program_files_x86.keep_keys
+        match: '%ProgramFiles(x86)%/**/keys/**'
+        verdict: review
+        prio: high
+        note: 'keys: a folder named keys usually holds cryptographic or licence keys.'
+      - id: appzone.program_files_x86.keep_license
+        match: '%ProgramFiles(x86)%/**/licen*/**'
+        verdict: review
+        prio: high
+        note: 'licen* (license/licence/licenses/licensing): licence material kept in the install dir.'
