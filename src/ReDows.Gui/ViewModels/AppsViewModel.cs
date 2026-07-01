@@ -7,15 +7,16 @@ namespace ReDows.Gui.ViewModels;
 /// <summary>
 /// The Apps screen's brain. It loads this PC's installed apps off the UI thread (winget-enriched, so as
 /// many as possible can reinstall automatically), lists them with a tick each (all on by default), and
-/// writes the chosen ones into an InDows reinstall profile (configuration.dsc.yaml) — the apps half of the
-/// ReDows → InDows loop. All state is plain and testable off a fake <see cref="IAppsRunner"/>.
+/// writes the chosen ones plus this PC's Windows settings into a FULL InDows profile (apps + settings +
+/// README) — the complete ReDows → InDows hand-off. Both operations run in the background with progress and
+/// Cancel. All state is plain and testable off a fake <see cref="IAppsRunner"/>.
 /// </summary>
 public sealed class AppsViewModel : ViewModelBase
 {
     private readonly IAppsRunner _runner;
     private CancellationTokenSource? _cancellation;
 
-    private bool _isLoading;
+    private bool _isBusy;
     private bool _loaded;
     private string _progressText = "";
     private string _summary = "";
@@ -27,7 +28,7 @@ public sealed class AppsViewModel : ViewModelBase
         _runner = runner;
         SelectAllCommand = new RelayCommand(_ => SetAll(true));
         SelectNoneCommand = new RelayCommand(_ => SetAll(false));
-        CancelCommand = new RelayCommand(_ => Cancel(), _ => IsLoading);
+        CancelCommand = new RelayCommand(_ => Cancel(), _ => IsBusy);
     }
 
     /// <summary>The installed apps, each with a tick for "reinstall after the reset".</summary>
@@ -39,10 +40,11 @@ public sealed class AppsViewModel : ViewModelBase
 
     public RelayCommand CancelCommand { get; }
 
-    public bool IsLoading
+    /// <summary>Loading the inventory or writing the profile — either way, busy (progress + Cancel shown).</summary>
+    public bool IsBusy
     {
-        get => _isLoading;
-        private set { Set(ref _isLoading, value); CancelCommand.RaiseCanExecuteChanged(); }
+        get => _isBusy;
+        private set { Set(ref _isBusy, value); Raise(nameof(CanExport)); CancelCommand.RaiseCanExecuteChanged(); }
     }
 
     public string ProgressText
@@ -70,10 +72,13 @@ public sealed class AppsViewModel : ViewModelBase
         private set => Set(ref _exportResult, value);
     }
 
+    /// <summary>Ready to export: the inventory has loaded and no operation is in flight.</summary>
+    public bool CanExport => !IsBusy && _loaded && Apps.Count > 0;
+
     /// <summary>Load the inventory once (on first visit). Winget enrichment is on so the profile is useful.</summary>
     public async Task LoadAsync()
     {
-        if (IsLoading || _loaded)
+        if (IsBusy || _loaded)
         {
             return;
         }
@@ -81,7 +86,7 @@ public sealed class AppsViewModel : ViewModelBase
         Error = null;
         ExportResult = null;
         ProgressText = "Starting…";
-        IsLoading = true;
+        IsBusy = true;
         _cancellation = new CancellationTokenSource();
         var progress = new Progress<string>(text => ProgressText = text);
         try
@@ -96,6 +101,7 @@ public sealed class AppsViewModel : ViewModelBase
             Summary = result.Summary;
             ProgressText = "";
             _loaded = true;
+            Raise(nameof(CanExport));
         }
         catch (OperationCanceledException)
         {
@@ -108,30 +114,52 @@ public sealed class AppsViewModel : ViewModelBase
         }
         finally
         {
-            IsLoading = false;
+            IsBusy = false;
             _cancellation?.Dispose();
             _cancellation = null;
         }
     }
 
-    /// <summary>Write the ticked apps into an InDows reinstall profile (configuration.dsc.yaml) in a folder.</summary>
-    public void Export(string folder)
+    /// <summary>Write the FULL InDows profile (ticked apps + Windows settings + README) into a folder.</summary>
+    public async Task ExportAsync(string folder)
     {
+        if (IsBusy || !_loaded)
+        {
+            return;
+        }
+
         Error = null;
         ExportResult = null;
+        ProgressText = "Starting export…";
+        IsBusy = true;
+        _cancellation = new CancellationTokenSource();
+        var progress = new Progress<string>(text => ProgressText = text);
         try
         {
             var selected = Apps.Where(app => app.IsSelected).Select(app => app.Entry).ToList();
-            var result = _runner.Export(selected, folder);
-            var commented = result.CandidateCount + result.ManualCount;
+            var result = await _runner.ExportProfileAsync(selected, folder, progress, _cancellation.Token);
             ExportResult =
-                $"Wrote {result.ActiveCount:N0} app(s) that reinstall automatically to configuration.dsc.yaml" +
-                (commented > 0 ? $" ({commented:N0} listed as comments to review — no winget id)" : "") +
-                $". Drop this file into InDows to reinstall them. → {result.Path}";
+                $"Wrote the InDows profile: {result.AppsActive:N0} app(s) reinstall automatically" +
+                (result.AppsCommented > 0 ? $" ({result.AppsCommented:N0} to review)" : "") +
+                $", {result.SettingsRead:N0} settings captured" +
+                (result.SettingsManual > 0 ? $" ({result.SettingsManual:N0} need a manual touch)" : "") +
+                $". Drop this folder into InDows. → {result.Folder}";
+            ProgressText = "";
+        }
+        catch (OperationCanceledException)
+        {
+            ProgressText = "Export cancelled — a partial profile may be in the folder.";
         }
         catch (Exception ex)
         {
             Error = ex.Message;
+            ProgressText = "";
+        }
+        finally
+        {
+            IsBusy = false;
+            _cancellation?.Dispose();
+            _cancellation = null;
         }
     }
 

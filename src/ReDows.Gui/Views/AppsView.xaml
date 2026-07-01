@@ -4,11 +4,11 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="26,22" MaxWidth="920" HorizontalAlignment="Left">
             <TextBlock Text="Apps" FontSize="18" FontWeight="SemiBold"/>
-            <TextBlock Text="Your installed apps. Tick the ones to reinstall after the reset, then export an InDows profile — InDows reads it to reinstall them automatically at first logon."
+            <TextBlock Text="Your installed apps. Tick the ones to reinstall after the reset, then export a full InDows profile — apps + your Windows settings + a README. InDows reads it to reinstall the apps and re-apply the settings automatically at first logon."
                        Foreground="{StaticResource App.Muted}" Margin="0,4,0,16" TextWrapping="Wrap"/>
 
-            <!-- Loading -->
-            <StackPanel Margin="0,0,0,10" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <!-- Busy: loading the inventory or writing the profile -->
+            <StackPanel Margin="0,0,0,10" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
                 <ProgressBar IsIndeterminate="True" Height="4" BorderThickness="0"
                              Foreground="{StaticResource App.Accent}" Background="{StaticResource App.Card}"/>
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
@@ -101,10 +101,10 @@
             <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="16" Margin="0,14,0,0"
                     BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                 <StackPanel>
-                    <TextBlock Text="Export InDows reinstall profile" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock Text="Export the full InDows profile" FontWeight="SemiBold" Margin="0,0,0,6"/>
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,10"
-                               Text="Writes configuration.dsc.yaml (winget DSC) for the ticked apps. Apps with a confirmed winget id reinstall automatically; the rest are listed as comments to review — nothing is dropped."/>
-                    <Button Content="Export InDows profile…" Click="Export_Click"/>
+                               Text="Writes a folder InDows reads: configuration.dsc.yaml (the ticked apps — winget-matched ones reinstall automatically, the rest listed as comments to review), settings-profile.json/.md (your Windows settings) and a README. Reads settings read-only; no secret value is ever read. Nothing is dropped."/>
+                    <Button Content="Export InDows profile…" Click="Export_Click" IsEnabled="{Binding CanExport}"/>
                     <TextBlock Margin="0,10,0,0" Foreground="{StaticResource App.Good}" FontSize="12" TextWrapping="Wrap"
                                Text="{Binding ExportResult}">
                         <TextBlock.Style>

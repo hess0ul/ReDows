@@ -10,12 +10,12 @@ public partial class AppsView : UserControl
 {
     public AppsView() => InitializeComponent();
 
-    private void Export_Click(object sender, RoutedEventArgs e)
+    private async void Export_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog { Title = "Choose where to write the InDows profile" };
         if (dialog.ShowDialog() == true && DataContext is AppsViewModel viewModel)
         {
-            viewModel.Export(dialog.FolderName);
+            await viewModel.ExportAsync(dialog.FolderName);
         }
     }
 }

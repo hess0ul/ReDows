@@ -99,8 +99,8 @@ public static class ProfileCommand
 
         Directory.CreateDirectory(outDirectory);
         File.WriteAllText(Path.Combine(outDirectory, "configuration.dsc.yaml"), catalog.Yaml);
-        File.WriteAllText(Path.Combine(outDirectory, "settings-profile.json"), SettingsCommand.RenderProfileJson(profile));
-        File.WriteAllText(Path.Combine(outDirectory, "settings-profile.md"), SettingsCommand.RenderProfile(profile));
+        File.WriteAllText(Path.Combine(outDirectory, "settings-profile.json"), SettingsProfileEmitter.RenderJson(profile));
+        File.WriteAllText(Path.Combine(outDirectory, "settings-profile.md"), SettingsProfileEmitter.RenderMarkdown(profile));
         File.WriteAllText(Path.Combine(outDirectory, "README.md"), InDowsProfileReadme.Render(catalog, profile));
 
         Console.Error.WriteLine($"InDows profile written to '{outDirectory}' (configuration.dsc.yaml, settings-profile.json, settings-profile.md, README.md).");

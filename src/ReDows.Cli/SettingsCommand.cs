@@ -77,7 +77,7 @@ public static class SettingsCommand
         var report = WindowsSettingsReader.Read(catalog);
 
         var profile = byModule ? SettingsProfileBuilder.Build(report) : null;
-        var markdown = profile is not null ? RenderProfile(profile) : RenderMarkdown(report);
+        var markdown = profile is not null ? SettingsProfileEmitter.RenderMarkdown(profile) : RenderMarkdown(report);
         var json = asJson || outputDirectory is not null
             ? JsonSerializer.Serialize((object?)profile ?? report, JsonOptions)
             : null;
@@ -97,119 +97,7 @@ public static class SettingsCommand
         return 0;
     }
 
-    internal static string RenderProfileJson(SettingsProfile profile) => JsonSerializer.Serialize(profile, JsonOptions);
-
-    internal static string RenderProfile(SettingsProfile profile)
-    {
-        var text = new StringBuilder();
-        text.AppendLine("# InDows settings profile (ReDows)");
-        text.AppendLine();
-        text.AppendLine("The settings ReDows read on this PC, grouped by the InDows module that re-applies them — the \"settings\" half of the ReDows → InDows profile.");
-
-        text.AppendLine();
-        text.AppendLine("Comes back automatically (an existing module re-applies it):");
-
-        foreach (var module in profile.ExistingModules)
-        {
-            text.AppendLine();
-            text.AppendLine($"## Module: {module.Module} ({module.Settings.Count})");
-            text.AppendLine();
-            text.AppendLine("| Setting | Value to apply |");
-            text.AppendLine("| --- | --- |");
-            foreach (var reading in module.Settings)
-            {
-                text.AppendLine($"| {Cell(reading.Definition.Name)} | {Cell(Desired(reading))} |");
-            }
-        }
-
-        if (profile.ByBase.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine($"## Comes back via the InDows base install — not a module ({profile.ByBase.Count})");
-            text.AppendLine();
-            foreach (var reading in profile.ByBase)
-            {
-                text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(Desired(reading))}");
-            }
-        }
-
-        if (profile.NewModules.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine("## New InDows modules to build");
-            text.AppendLine();
-            foreach (var module in profile.NewModules)
-            {
-                text.AppendLine($"- **{Cell(module.Module)}** — {Cell(string.Join(", ", module.Settings.Select(s => s.Definition.Name)))}");
-            }
-        }
-
-        if (profile.PersoOnly.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine($"## Private config only — the public InDows leaves the default ({profile.PersoOnly.Count})");
-            text.AppendLine();
-            foreach (var reading in profile.PersoOnly)
-            {
-                text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(Desired(reading))}");
-            }
-        }
-
-        if (profile.NotApplied.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine("## Module is the home, but the line is OFF today (needs wiring to restore)");
-            foreach (var module in profile.NotApplied)
-            {
-                text.AppendLine();
-                text.AppendLine($"### {module.Module} — not applied yet ({module.Settings.Count})");
-                text.AppendLine();
-                foreach (var reading in module.Settings)
-                {
-                    text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(Desired(reading))}");
-                }
-            }
-        }
-
-        if (profile.Manual.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine($"## Nothing restores this — redo by hand after reset ({profile.Manual.Count})");
-            text.AppendLine();
-            foreach (var reading in profile.Manual)
-            {
-                text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(Desired(reading))}");
-            }
-        }
-
-        if (profile.NotInLoop.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine($"## Read-only — no InDows module, capture only ({profile.NotInLoop.Count})");
-            text.AppendLine();
-            foreach (var reading in profile.NotInLoop.OrderBy(r => r.Definition.Name, StringComparer.OrdinalIgnoreCase))
-            {
-                text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(Desired(reading))}");
-            }
-        }
-
-        if (profile.Unreadable.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine($"## Unreadable ({profile.Unreadable.Count})");
-            text.AppendLine();
-            foreach (var reading in profile.Unreadable.OrderBy(r => r.Definition.Name, StringComparer.OrdinalIgnoreCase))
-            {
-                text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(reading.Error)}");
-            }
-        }
-
-        return text.ToString();
-    }
-
-    /// <summary>The value InDows should re-apply: the current value, or the default when absent.</summary>
-    private static string Desired(SettingReading reading) =>
-        reading.Present ? $"{reading.RawValue} ({reading.Meaning})" : reading.Meaning;
+    // The profile (module-grouped) renderers now live in Core (SettingsProfileEmitter), shared with the GUI.
 
     internal static string ResolveCatalog(string requested)
     {
@@ -227,8 +115,6 @@ public static class SettingsCommand
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
     };
-
-    private static string RenderJson(SettingsReport report) => JsonSerializer.Serialize(report, JsonOptions);
 
     private static string RenderMarkdown(SettingsReport report)
     {
