@@ -55,9 +55,10 @@ static int Usage(int exitCode)
     Console.WriteLine("  redows settings [--out <dir>] [--catalog <dir>] [--json] [--by-module]");
     Console.WriteLine("                                          Read catalogued Windows settings (read-only). --by-module = group by InDows module (profile).");
     Console.WriteLine("                                          Catalog = YAML under 'settings/'. Exit: 0 ok, 1 invalid catalog, 2 usage, 4 error.");
-    Console.WriteLine("  redows copy --manifest <file.jsonl> --to <destination>");
+    Console.WriteLine("  redows copy --manifest <file.jsonl> --to <destination> [--vault-password <pw>] [--no-vss]");
     Console.WriteLine("                                          Copy the manifest's CAPTURE files to a path (disk / USB / UNC share), read-only + verified.");
-    Console.WriteLine("                                          secrets go to the vault (next step). Exit: 0 ok, 2 usage, 3 manifest, 4 error, 5 failures.");
+    Console.WriteLine("                                          Elevated: locked files are rescued from a volume shadow copy (--no-vss opts out).");
+    Console.WriteLine("                                          Secrets -> encrypted vault with --vault-password. Exit: 0 ok, 2 usage, 3 manifest, 4 error, 5 failures.");
     Console.WriteLine("  redows secrets [--out <dir>] [--catalog <dir>] [--json]");
     Console.WriteLine("                                          Inventory registry-only app secrets/config a file scan misses (read-only, locations only).");
     Console.WriteLine("                                          Headline = the 'export before reset' alert list. Exit: 0 ok, 1 invalid catalog, 2 usage, 4 error.");

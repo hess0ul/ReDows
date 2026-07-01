@@ -62,6 +62,6 @@ public sealed record CopyReport(
         "capture:secret files go into the encrypted vault when --vault-password is given; without it they are counted and deferred, never copied in clear.",
         "A copied file's bytes are its logical size; alternate data streams and on-disk compression are not carried.",
         "A cloud placeholder is copied by reading it, which can trigger hydration (a download); a later increment will skip already-synced placeholders instead.",
-        "A file locked by another process may fail to open and is reported as a failure (never a silent skip); a shadow-copy read is a later increment.",
+        "A file locked by another process is rescued from a volume shadow copy when the copy runs elevated; without elevation it is reported as a failure (never a silent skip).",
     ];
 }

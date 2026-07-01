@@ -1,6 +1,7 @@
 using System.Text;
 using ReDows.Core.Backup;
 using ReDows.Core.Scanning;
+using ReDows.Providers.Windows;
 using ReDows.Providers.Windows.Backup;
 
 namespace ReDows.Cli;
@@ -32,6 +33,7 @@ public static class CopyCommand
         string? manifestPath = null;
         string? destination = null;
         string? vaultPassword = null;
+        var noVss = false;
 
         for (var i = 0; i < options.Length; i++)
         {
@@ -46,8 +48,11 @@ public static class CopyCommand
                 case "--vault-password" when i + 1 < options.Length:
                     vaultPassword = options[++i];
                     break;
+                case "--no-vss":
+                    noVss = true;
+                    break;
                 default:
-                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows copy --manifest <file.jsonl> --to <destination> [--vault-password <pw>]");
+                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows copy --manifest <file.jsonl> --to <destination> [--vault-password <pw>] [--no-vss]");
                     return 2;
             }
         }
@@ -73,30 +78,63 @@ public static class CopyCommand
             Console.Error.WriteLine("  (no --vault-password: capture:secret files will be counted and deferred, never copied in clear.)");
         }
 
+        // Locked-file rescue: on an elevated run we read a locked file from a volume shadow copy
+        // (a frozen snapshot) so it is captured, not lost. The shadow is only made if a lock is
+        // actually hit, so an unlocked run costs nothing. --no-vss opts out; no admin means we
+        // report the locked files instead of rescuing them.
+        var elevated = Elevation.IsElevated();
+        var useVss = !noVss && elevated;
+        AnnounceVssMode(noVss, elevated);
+
+        ShadowCopySource? shadow = useVss
+            ? new ShadowCopySource(new FileSystemCopySource(), new WmiVolumeSnapshotSet())
+            : null;
+        ICopySource copySource = shadow ?? (ICopySource)new FileSystemCopySource();
+
         string? vaultPath = vaultPassword is null ? null : Path.Combine(fullDestination, "secrets-vault.zip");
         ZipVaultSink? vault = vaultPath is null
             ? null
             : new ZipVaultSink(new FileStream(vaultPath, FileMode.Create, FileAccess.Write, FileShare.None), vaultPassword!);
 
         CopyReport report;
+        long? rescued = null;
         try
         {
             report = CopyEngine.Run(
                 ReadManifest(manifestPath),
-                new FileSystemCopySource(),
+                copySource,
                 new FileSystemSink(fullDestination),
                 vault,
                 onProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} entries — {Sanitize(path)}"));
+            rescued = shadow?.RescuedPaths.Count;
         }
         finally
         {
-            vault?.Dispose(); // finalize the encrypted zip before verifying it
+            vault?.Dispose();  // finalize the encrypted zip before verifying it
+            shadow?.Dispose(); // delete any volume shadow copies we created
         }
 
         var vaultStatus = VerifyVault(vaultPath, vaultPassword, report.SecretsVaulted);
 
-        Console.WriteLine(Render(report, fullDestination, vaultStatus));
+        Console.WriteLine(Render(report, fullDestination, vaultStatus, rescued));
         return report.Failures.Count > 0 ? 5 : 0;
+    }
+
+    /// <summary>Say, on stderr, how locked files will be handled this run — never leave it implicit.</summary>
+    private static void AnnounceVssMode(bool noVss, bool elevated)
+    {
+        if (noVss)
+        {
+            Console.Error.WriteLine("  --no-vss: shadow-copy rescue disabled; locked files will be reported, not copied.");
+        }
+        else if (elevated)
+        {
+            Console.Error.WriteLine("  locked files will be rescued from a volume shadow copy (running elevated).");
+        }
+        else
+        {
+            Console.Error.WriteLine("  not elevated: locked files cannot be rescued (they will be reported) — re-run as administrator to capture them.");
+        }
     }
 
     /// <summary>Re-open the finished vault and read every entry back: prove it opens and is intact.</summary>
@@ -132,13 +170,18 @@ public static class CopyCommand
         }
     }
 
-    private static string Render(CopyReport report, string destination, string? vaultStatus)
+    private static string Render(CopyReport report, string destination, string? vaultStatus, long? rescuedFromShadow)
     {
         var text = new StringBuilder();
         text.AppendLine("== ReDows copy ==");
         text.AppendLine($"destination: {destination}");
         text.AppendLine();
         text.AppendLine($"  files copied & verified : {report.FilesCopied,12:N0}  {Bytes(report.BytesCopied)}");
+        if (rescuedFromShadow is { } rescued)
+        {
+            text.AppendLine($"    of which locked→shadow: {rescued,12:N0}  (read from a frozen volume snapshot)");
+        }
+
         text.AppendLine($"  directories (structure) : {report.Directories,12:N0}");
         text.AppendLine($"  secrets → encrypted vault: {report.SecretsVaulted,11:N0}  {Bytes(report.SecretBytesVaulted)}");
         text.AppendLine($"  secrets deferred (no pw): {report.SecretsDeferred,12:N0}  {Bytes(report.SecretBytesDeferred)}");
