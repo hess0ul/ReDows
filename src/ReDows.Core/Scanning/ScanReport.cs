@@ -102,6 +102,43 @@ public sealed record ReinstallZone
     public string PathPrefix { get; }
 }
 
+/// <summary>
+/// A dynamic zone fed at scan time from the application inventory: a directory
+/// where an installed app keeps its DATA (its %AppData% / %LocalAppData% folder).
+/// The mirror of <see cref="ReinstallZone"/> — increment 3 ignores the program,
+/// this keeps the data. Additive-only (review/capture, never ignore, like
+/// <see cref="ClaimedZone"/>): a wrong name-guess over-captures (benign) but never
+/// loses data. Evaluated AFTER the ruleset and ONLY over a REVIEW verdict, so an
+/// already-classified capture/carve-out/secret is never overridden or downgraded.
+/// </summary>
+public sealed record AppDataZone
+{
+    public AppDataZone(string id, string pathPrefix, Verdict verdict)
+    {
+        if (verdict is Verdict.Ignore or Verdict.NoteOnly)
+        {
+            throw new ArgumentException(
+                $"an app-data zone may only review or capture, never '{verdict.Format()}' (it keeps data, never drops it)", nameof(verdict));
+        }
+
+        if (string.IsNullOrEmpty(id) || !id.Contains(':'))
+        {
+            throw new ArgumentException(
+                "app-data zone ids must carry a ':' namespace (e.g. 'appdata:arp:Foo')", nameof(id));
+        }
+
+        Id = id;
+        PathPrefix = pathPrefix;
+        Verdict = verdict;
+    }
+
+    public string Id { get; }
+
+    public string PathPrefix { get; }
+
+    public Verdict Verdict { get; }
+}
+
 /// <summary>Items classified by a rule carrying the dpapi_machine_bound flag: export/sync BEFORE the reset.</summary>
 public sealed record PreResetAlert(string RuleId, long Items);
 
@@ -124,7 +161,8 @@ public sealed record ScanOptions(
     long ProgressInterval = 50_000,
     IReadOnlyList<ClaimedZone>? ClaimedZones = null,
     Action<ManifestEntry>? OnCapture = null,
-    IReadOnlyList<ReinstallZone>? ReinstallZones = null);
+    IReadOnlyList<ReinstallZone>? ReinstallZones = null,
+    IReadOnlyList<AppDataZone>? AppDataZones = null);
 
 public sealed record VerdictTotals(long Items, long Bytes);
 
@@ -171,6 +209,6 @@ public sealed record ScanReport(
         "Cloud placeholders (OneDrive Files-On-Demand…) are counted at their logical size; no content is downloaded.",
         "A reparse-point directory with an unknown or unreadable tag is not traversed: it is one counted REVIEW item (engine.unknown_reparse) and its contents are absent from every figure.",
         "Dynamic deny-list sources (FilesNotToBackup…) are a later block.",
-        "The application inventory feeds re-installable install-dir zones: their re-downloadable content is IGNORED where the ruleset would only REVIEW, never over a keep and never a data-named subtree — enabled unless --no-reinstall.",
+        "The application inventory feeds two kinds of zones (unless --no-reinstall): install dirs whose re-downloadable content is IGNORED where the ruleset would only REVIEW (never over a keep, never a data-named subtree), and each app's data folders — its %AppData% is CAPTURED and its %LocalAppData% surfaced for REVIEW, again only where the ruleset would otherwise REVIEW. App-data folder names are matched to the app name (best-effort), so an app whose data folder is named differently is not linked.",
     ];
 }

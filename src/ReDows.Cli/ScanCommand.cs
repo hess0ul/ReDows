@@ -107,17 +107,28 @@ public static class ScanCommand
         // re-downloadable content is ignored where the ruleset would only REVIEW —
         // never over a keep, never a data-named subtree. On unless --no-reinstall.
         IReadOnlyList<ReinstallZone> reinstallZones = [];
+        IReadOnlyList<AppDataZone> appDataZones = [];
         if (noReinstall)
         {
-            Console.Error.WriteLine("App inventory: skipped (--no-reinstall); recognised install dirs stay in REVIEW.");
+            Console.Error.WriteLine("App inventory: skipped (--no-reinstall); recognised install dirs and app data stay in REVIEW.");
         }
         else
         {
             var inventory = AppInventoryProvider.Build(enrichWithWinget: false);
             reinstallZones = ReinstallZoneBuilder.Build(inventory);
+
+            var profileRoots = windowsContext.Context.Profiles
+                .Where(p => p.Environment.ContainsKey("AppData") && p.Environment.ContainsKey("LocalAppData"))
+                .Select(p => new AppDataZoneBuilder.ProfileDataRoots(p.Environment["AppData"], p.Environment["LocalAppData"]))
+                .ToList();
+            appDataZones = AppDataZoneBuilder.Build(inventory, profileRoots)
+                .Where(z => Directory.Exists(z.PathPrefix))
+                .ToList();
+
             Console.Error.WriteLine(
                 $"App inventory: {inventory.Entries.Count} app(s) → {reinstallZones.Count} reinstall zone(s) " +
-                "(re-downloadable install dirs ignored where the ruleset would only review).");
+                $"+ {appDataZones.Count} app-data zone(s) (install dirs ignored where the ruleset would only review; " +
+                "each app's %AppData% kept, %LocalAppData% surfaced for review).");
         }
 
         using var cancellation = new CancellationTokenSource();
@@ -164,7 +175,8 @@ public static class ScanCommand
                 OnProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} items — {Sanitize(path)}"),
                 ClaimedZones: indexZones.Zones,
                 OnCapture: onCapture,
-                ReinstallZones: reinstallZones);
+                ReinstallZones: reinstallZones,
+                AppDataZones: appDataZones);
 
             Console.Error.WriteLine(root is null
                 ? $"Scanning {windowsContext.Context.Volumes.Count} volume(s)…"
@@ -178,7 +190,7 @@ public static class ScanCommand
                 scanOptions,
                 cancellation.Token);
 
-            var rendered = asJson ? RenderJson(report, indexZones, reinstallZones) : RenderText(report, windowsContext, indexZones);
+            var rendered = asJson ? RenderJson(report, indexZones, reinstallZones, appDataZones) : RenderText(report, windowsContext, indexZones);
             Console.WriteLine(rendered);
             if (fullOutputPath is not null)
             {
@@ -211,12 +223,14 @@ public static class ScanCommand
 
     private static string Sanitize(string text) => ConsoleText.Sanitize(text);
 
-    private static string RenderJson(ScanReport report, IndexZoneDiscovery indexZones, IReadOnlyList<ReinstallZone> reinstallZones) =>
+    private static string RenderJson(
+        ScanReport report, IndexZoneDiscovery indexZones,
+        IReadOnlyList<ReinstallZone> reinstallZones, IReadOnlyList<AppDataZone> appDataZones) =>
         // Envelope: the index-derived zones, their notes (volume-absent ALERTs…)
-        // and the app-inventory reinstall zones are scan inputs, not ScanReport
-        // fields — but they must survive into machine-readable output (forget-nothing).
+        // and the app-inventory reinstall / app-data zones are scan inputs, not
+        // ScanReport fields — but they must survive into machine-readable output.
         JsonSerializer.Serialize(
-            new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes, ReinstallZones = reinstallZones },
+            new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes, ReinstallZones = reinstallZones, AppDataZones = appDataZones },
             new JsonSerializerOptions
             {
                 WriteIndented = true,
@@ -361,6 +375,22 @@ public static class ScanCommand
             foreach (var hit in reinstallHits.Take(15))
             {
                 text.AppendLine($"  {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
+            }
+        }
+
+        var appDataHits = report.RuleHits.Where(h => h.Stage == ScanEngine.AppDataStage).ToList();
+        if (appDataHits.Count > 0)
+        {
+            var kept = appDataHits.Where(h => h.Verdict.IsCapture()).ToList();
+            var surfaced = appDataHits.Where(h => h.Verdict == Verdict.Review).ToList();
+            text.AppendLine();
+            text.AppendLine(
+                $"== App data (app inventory) — {kept.Sum(h => h.Items):N0} items kept ({Bytes(kept.Sum(h => h.Bytes))}), " +
+                $"{surfaced.Sum(h => h.Items):N0} surfaced for review ==");
+            text.AppendLine("   Each recognised app's %AppData% is captured; its %LocalAppData% (mixed config/cache) stays in REVIEW.");
+            foreach (var hit in appDataHits.OrderByDescending(h => h.Bytes).Take(15))
+            {
+                text.AppendLine($"  {hit.Verdict.Format(),-14} {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
             }
         }
 

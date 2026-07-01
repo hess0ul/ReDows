@@ -20,6 +20,9 @@ public static class ScanEngine
     /// <summary>Stage name of app-inventory reinstall-zone ignores in rule hits (app-zones increment 3).</summary>
     public const string ReinstallStage = "reinstall";
 
+    /// <summary>Stage name of app-inventory data-zone keeps in rule hits (app-zones increment 4).</summary>
+    public const string AppDataStage = "appdata";
+
     /// <summary>Aggregation depth of the REVIEW rollup, in segments below each root.</summary>
     private const int ReviewBucketDepth = 2;
 
@@ -76,6 +79,9 @@ public static class ScanEngine
             .Select(z => (Zone: z, Prefix: ScanPaths.Normalize(z.PathPrefix)))
             .Where(z => !protectedRoots.Exists(root => IsUnder(root, z.Prefix)))
             .ToList();
+        var appDataZones = (options.AppDataZones ?? [])
+            .Select(z => (Zone: z, Prefix: ScanPaths.Normalize(z.PathPrefix)))
+            .ToList();
 
         long files = 0, directories = 0, unknownSubtrees = 0, bytes = 0, items = 0;
         var byVerdict = new Dictionary<Verdict, (long Items, long Bytes)>();
@@ -117,7 +123,7 @@ public static class ScanEngine
                     files++;
                 }
 
-                var classification = Classify(classifier, entry, path, segments, excludedOutputs, orphanRoots, claimedZones, reinstallZones);
+                var classification = Classify(classifier, entry, path, segments, excludedOutputs, orphanRoots, claimedZones, reinstallZones, appDataZones);
                 if (classification.HasFlag(RuleFlag.DpapiMachineBound))
                 {
                     alerts[classification.RuleId] = alerts.GetValueOrDefault(classification.RuleId) + 1;
@@ -201,7 +207,8 @@ public static class ScanEngine
         IReadOnlyList<string> excludedOutputs,
         IReadOnlyList<string> orphanRoots,
         IReadOnlyList<(ClaimedZone Zone, string Prefix)> claimedZones,
-        IReadOnlyList<(ReinstallZone Zone, string Prefix)> reinstallZones)
+        IReadOnlyList<(ReinstallZone Zone, string Prefix)> reinstallZones,
+        IReadOnlyList<(AppDataZone Zone, string Prefix)> appDataZones)
     {
         if (entry.Error is not null)
         {
@@ -266,19 +273,65 @@ public static class ScanEngine
 
         var classification = classifier.Classify(segments);
 
-        // App-inventory reinstall zones (app-zones increment 3): a folder the
-        // inventory identified as a re-acquirable app install. Downgrade REVIEW →
-        // IGNORE for its re-downloadable content only — never a keep (a carve-out
-        // or capture already decided and is respected), never a data-named subtree
-        // (config/save/userdata… stays REVIEW). Deliberately the LAST word, after
-        // the ruleset, so the forget-nothing stages always win.
-        if (classification.Verdict == Verdict.Review
-            && TryReinstallIgnore(path, segments, reinstallZones, out var reinstallId))
+        // App-inventory zones act ONLY over a REVIEW verdict (increments 3 & 4),
+        // so an already-classified keep (capture / carve_out / secret) or ignore is
+        // never overridden — the forget-nothing ruleset stages always win.
+        if (classification.Verdict != Verdict.Review)
+        {
+            return classification;
+        }
+
+        // Increment 4 — app data zones (%AppData% kept, %LocalAppData% surfaced):
+        // checked FIRST so keeping data beats ignoring a re-acquirable install when
+        // the two ever overlap. Additive-only (review/capture), so it can only make
+        // a REVIEW item more conservative.
+        if (TryAppDataKeep(path, appDataZones, out var appDataId, out var appDataVerdict))
+        {
+            return new Classification(appDataVerdict, appDataId, AppDataStage);
+        }
+
+        // Increment 3 — reinstall zones: a folder the inventory identified as a
+        // re-acquirable app install. Downgrade REVIEW → IGNORE for its
+        // re-downloadable content only, never a data-named subtree.
+        if (TryReinstallIgnore(path, segments, reinstallZones, out var reinstallId))
         {
             return new Classification(Verdict.Ignore, reinstallId, ReinstallStage);
         }
 
         return classification;
+    }
+
+    /// <summary>
+    /// A REVIEW item belongs to an app's data folder when it sits under an
+    /// inventory-derived %AppData%/%LocalAppData% zone. Longest matching prefix
+    /// wins; on a tie the most conservative verdict wins (capture over review).
+    /// </summary>
+    private static bool TryAppDataKeep(
+        string path,
+        IReadOnlyList<(AppDataZone Zone, string Prefix)> appDataZones,
+        out string zoneId,
+        out Verdict verdict)
+    {
+        zoneId = string.Empty;
+        verdict = Verdict.Review;
+        var bestLength = -1;
+        foreach (var (zone, prefix) in appDataZones)
+        {
+            if (!IsUnder(path, prefix))
+            {
+                continue;
+            }
+
+            if (prefix.Length > bestLength
+                || (prefix.Length == bestLength && zone.Verdict.ConservativenessRank() > verdict.ConservativenessRank()))
+            {
+                bestLength = prefix.Length;
+                zoneId = zone.Id;
+                verdict = zone.Verdict;
+            }
+        }
+
+        return bestLength >= 0;
     }
 
     /// <summary>
