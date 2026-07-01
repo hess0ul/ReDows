@@ -1,0 +1,10 @@
+# Category module: vector graphics & editable design/diagram files.
+# Extension detection. Deliberately EXCLUDED: emf/wmf (clipart / program assets),
+# ps/pdf (print/document formats handled elsewhere), fig (MATLAB-figure collision).
+schema_version: 1
+name: vector-graphics
+label: "Vector graphics & design files"
+default_action: review
+detect:
+  extensions: [svg, svgz, ai, eps, cdr, cgm, odg, vsdx, vsd, drawio, sketch, afdesign, graffle]
+save_carve_backs: true

@@ -1,0 +1,9 @@
+# Category module: .torrent files. Single unambiguous extension, zero collision;
+# small metadata files a user may want to keep (re-seed) or drop.
+schema_version: 1
+name: torrents
+label: "Torrent files"
+default_action: review
+detect:
+  extensions: [torrent]
+save_carve_backs: true

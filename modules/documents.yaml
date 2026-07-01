@@ -1,0 +1,11 @@
+# Category module: office & text documents scattered outside the Documents folder.
+# Extension detection. Deliberately EXCLUDED: txt/md/csv (code/logs/data collision),
+# tex (LaTeX source), dot (Graphviz source), key (private-key SECRET), and the
+# spreadsheet/presentation/ebook formats (they have their own modules).
+schema_version: 1
+name: documents
+label: "Office & text documents (PDF, Word, ODT…)"
+default_action: review
+detect:
+  extensions: [pdf, doc, docx, docm, dotx, dotm, odt, ott, rtf, wpd, wps, pages, abw, fodt, sxw, hwp, xps, oxps]
+save_carve_backs: true

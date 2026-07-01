@@ -1,0 +1,11 @@
+# Category module: exported / saved e-mail messages scattered on the machine.
+# Extension detection. Single-message formats only; live mail STORES (pst/ost/mbox)
+# are deliberately excluded — they are huge and already captured by the ruleset,
+# and must never be bulk-ignorable.
+schema_version: 1
+name: email
+label: "E-mail messages"
+default_action: review
+detect:
+  extensions: [eml, emlx, msg]
+save_carve_backs: true

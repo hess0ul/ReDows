@@ -1,0 +1,10 @@
+# Category module: e-books and comic-book archives scattered on the machine.
+# Extension detection. pdf/djvu (generic documents), chm (app help) and sidecar
+# metadata (opf/ncx) are excluded; pdf is covered by the documents module.
+schema_version: 1
+name: ebooks
+label: "E-books & comic-book archives"
+default_action: review
+detect:
+  extensions: [epub, mobi, azw, azw3, azw4, kfx, fb2, fbz, lit, lrf, lrx, ibooks, htmlz, cbz, cbr, cb7, cbt, cba, acsm]
+save_carve_backs: true

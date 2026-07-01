@@ -1,0 +1,10 @@
+# Category module: audio (DAW) & video (NLE) editing project files — irreplaceable
+# creative work, distinct from the finished media. Extension detection; curated to
+# distinctive, low-collision project extensions only.
+schema_version: 1
+name: media-projects
+label: "Audio & video editing projects"
+default_action: review
+detect:
+  extensions: [flp, als, rpp, aup3, ptx, prproj, veg, aep, fcpxml, kdenlive]
+save_carve_backs: true

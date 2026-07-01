@@ -1,0 +1,11 @@
+# Category module: 3D models & scene files scattered on the machine.
+# Extension detection. Deliberately EXCLUDED: obj (compiled C/C++ object files),
+# abc (ABC music notation / generic), off (generic token), asm (assembly source),
+# x/mesh/geo/scn (too generic) — all collision-prone under an ignore setting.
+schema_version: 1
+name: 3d-models
+label: "3D models & scenes"
+default_action: review
+detect:
+  extensions: [fbx, blend, blend1, dae, gltf, glb, 3ds, max, ma, mb, c4d, skp, stl, 3mf, amf, ply, dxf, iges, igs, step, stp, sldprt, sldasm, ztl, zpr, zbp, usd, usda, usdc, usdz, lwo, lws, x3d, wrl, mtl]
+save_carve_backs: true

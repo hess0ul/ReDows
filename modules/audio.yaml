@@ -1,0 +1,10 @@
+# Category module: audio / music files scattered outside the standard Music folder.
+# Extension detection (language-neutral). Playlists (m3u/pls/cue), DRM audiobooks
+# (aa/aax) and collision-prone tokens (raw/mp2/mpc/au) are deliberately excluded.
+schema_version: 1
+name: audio
+label: "Audio / music files"
+default_action: review
+detect:
+  extensions: [mp3, aac, m4a, m4b, ogg, oga, opus, wma, flac, alac, wav, aiff, aif, aifc, ape, wv, tak, tta, dsf, dff, mka, amr, ac3, dts, mid, midi, kar, caf, snd, ra, voc]
+save_carve_backs: true

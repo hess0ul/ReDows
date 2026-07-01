@@ -1,0 +1,13 @@
+# Category module: disk & optical images scattered on the machine (often huge).
+#
+# These are typically re-acquirable (OS install ISOs, disc clones). VIRTUAL-MACHINE
+# disks are deliberately EXCLUDED (vhd/vhdx/avhdx/vmdk/vdi/qcow2/ova/hdd/tib/gho…):
+# they are a live guest filesystem = irreplaceable user data, never bulk-ignorable —
+# they stay in REVIEW. Also excluded: img/bin/raw (overloaded with firmware/photos).
+schema_version: 1
+name: disk-images
+label: "Disk & optical images (ISO…)"
+default_action: review
+detect:
+  extensions: [iso, cue, mdf, mds, nrg, ccd, cdi, isz, daa, wim, swm, dmg, dsk]
+save_carve_backs: true

@@ -1,0 +1,11 @@
+# Category module: spreadsheet files scattered on the machine.
+# Extension detection. Deliberately EXCLUDED: csv/tsv (generic data exports),
+# dif (diff/patch collision), dbf/mdb (database files), xml/html (generic),
+# key (private-key SECRET).
+schema_version: 1
+name: spreadsheets
+label: "Spreadsheet files"
+default_action: review
+detect:
+  extensions: [xls, xlsx, xlsm, xlsb, xltx, xltm, xlt, xlam, xla, ods, ots, fods, numbers, gnumeric, wk1, wk3, wk4, wq1, wq2, "123", et, ett, sxc, stc]
+save_carve_backs: true

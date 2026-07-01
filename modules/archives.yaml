@@ -1,0 +1,15 @@
+# Category module: compressed archives scattered on the machine.
+#
+# WARNING (kept as REVIEW by default on purpose): an archive can hold the ONLY copy
+# of anything — secrets, source, backups. Setting this module to "ignore" is the
+# single riskiest choice in the whole design, so it is opt-in and never the default.
+# Deliberately EXCLUDED: installer/package artifacts (msi/cab/jar/apk/deb/rpm…, they
+# are re-acquirable program assets), disk images (iso/img/vhd…, their own module),
+# and self-extracting .exe.
+schema_version: 1
+name: archives
+label: "Compressed archives"
+default_action: review
+detect:
+  extensions: [zip, rar, 7z, tar, gz, tgz, bz2, tbz2, tbz, xz, txz, zst, tzst, lz, lzma, lzh, lha, zipx, zoo, cpio, gzip, bzip2]
+save_carve_backs: true

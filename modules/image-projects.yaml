@@ -1,0 +1,10 @@
+# Category module: layered / editable image project files (irreplaceable user work,
+# distinct from the flat images in the photos module). Extension detection; these
+# formats are very low-collision.
+schema_version: 1
+name: image-projects
+label: "Layered image / edit projects"
+default_action: review
+detect:
+  extensions: [psd, psb, xcf, kra, clip, procreate, pdn, cpt, ora, sai]
+save_carve_backs: true

@@ -1,0 +1,10 @@
+# Category module: calendars & contacts (personal data worth preserving).
+# Extension detection. These are small, high-value and near-zero collision —
+# almost always a keep candidate before a reset.
+schema_version: 1
+name: calendar-contacts
+label: "Calendars & contacts"
+default_action: review
+detect:
+  extensions: [ics, vcf, vcs, ical]
+save_carve_backs: true

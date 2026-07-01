@@ -1,0 +1,11 @@
+# Category module: subtitle & caption files scattered on the machine.
+# Extension detection. Deliberately EXCLUDED: idx (git pack-index collision),
+# stl (3D model collision), cap (packet capture), smi (Mac disk-image collision),
+# lrc (audio-synced lyrics, not subtitles).
+schema_version: 1
+name: subtitles
+label: "Subtitle & caption files"
+default_action: review
+detect:
+  extensions: [srt, ass, ssa, vtt, sub, sbv, sami, ttml, dfxp, usf, mpl2, scc]
+save_carve_backs: true

@@ -1,0 +1,10 @@
+# Category module: font files scattered outside the standard Fonts folder.
+# Extension detection. svg (vector graphics), fnt/bin (ambiguous binaries) and
+# bootloader/obscure formats are excluded to avoid dropping non-font files.
+schema_version: 1
+name: fonts
+label: "Font files"
+default_action: review
+detect:
+  extensions: [ttf, otf, ttc, otc, woff, woff2, eot, pfb, pfa, pfm, afm, fon, dfont, bdf, pcf, sfd, glyphs]
+save_carve_backs: true

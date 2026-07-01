@@ -1,0 +1,11 @@
+# Category module: presentations / slide decks scattered on the machine.
+# Extension detection. Deliberately EXCLUDED: key (Keynote, but overwhelmingly a
+# private-key SECRET — never ignorable), pot (gettext PO template = i18n source),
+# thmx (shared Office theme asset), odg (drawing, → vector module).
+schema_version: 1
+name: presentations
+label: "Presentations & slide decks"
+default_action: review
+detect:
+  extensions: [ppt, pptx, pptm, pps, ppsx, ppsm, potx, potm, sldx, sldm, odp, otp, fodp, shw]
+save_carve_backs: true

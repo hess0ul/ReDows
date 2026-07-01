@@ -1,0 +1,10 @@
+# Category module: icon and cursor files scattered outside the standard folders.
+# Detection is by file extension (language-neutral). Generic raster/vector formats
+# (png/svg/bmp/gif) and code-like formats (xbm) are deliberately excluded.
+schema_version: 1
+name: icons
+label: "Icon & cursor files"
+default_action: review
+detect:
+  extensions: [ico, cur, ani, icns, xpm, cursorfx, curxptheme, ipack]
+save_carve_backs: true

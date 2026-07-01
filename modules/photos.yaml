@@ -14,9 +14,8 @@ label: "Photo / image files (outside the standard Pictures folder)"
 default_action: review
 
 detect:
-  # Common photo formats + camera RAW + editable masters. Deliberately NOT svg / ico:
-  # svg is usually a vector/program asset (a candidate for a future 3D/vector module)
-  # and ico is an icon (a candidate for a future icons module).
-  extensions: [jpg, jpeg, png, gif, bmp, tif, tiff, webp, heic, heif, avif, raw, cr2, cr3, nef, arw, dng, orf, rw2, raf, psd, xcf]
+  # Common photo formats + camera RAW. NOT svg/ico (→ vector-graphics / icons modules)
+  # and NOT psd/xcf/kra… (layered edit projects → the image-projects module).
+  extensions: [jpg, jpeg, png, gif, bmp, tif, tiff, webp, heic, heif, avif, jxl, raw, cr2, cr3, nef, arw, dng, orf, rw2, raf]
 
 save_carve_backs: true
