@@ -115,11 +115,11 @@
                     <Border Background="Transparent" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <StackPanel Orientation="Horizontal">
-                            <Grid Width="18" Height="18" VerticalAlignment="Center">
-                                <Ellipse x:Name="Ring" Stroke="{StaticResource App.Border}" StrokeThickness="2" Fill="Transparent"/>
-                                <Ellipse x:Name="Dot" Width="9" Height="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            <Border x:Name="Ring" Width="18" Height="18" CornerRadius="9" BorderThickness="2"
+                                    BorderBrush="{StaticResource App.Border}" Background="Transparent" VerticalAlignment="Center">
+                                <Ellipse x:Name="Dot" Width="8" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center"
                                          Fill="{StaticResource App.Accent}" Visibility="Collapsed"/>
-                            </Grid>
+                            </Border>
                             <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
                                               RecognizesAccessKey="True"/>
                         </StackPanel>
@@ -127,10 +127,10 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
-                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource App.Accent}"/>
+                            <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource App.Accent}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource App.Accent}"/>
+                            <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource App.Accent}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
