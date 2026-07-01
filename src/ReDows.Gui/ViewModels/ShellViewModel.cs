@@ -14,10 +14,10 @@ public sealed class ShellViewModel : ViewModelBase
 {
     private object _currentViewModel;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog)
     {
         Home = new HomeViewModel(contextSource);
-        Scan = new ScanViewModel(scanRunner);
+        Scan = new ScanViewModel(scanRunner, moduleCatalog);
         Review = new ReviewViewModel(folderBrowser);
         _currentViewModel = Home;
 

@@ -1,7 +1,13 @@
+using ReDows.Core.Scanning;
+
 namespace ReDows.Gui.Scanning;
 
-/// <summary>What to scan. <see cref="FolderRoot"/> null = the whole PC (all in-scope volumes); else that subtree.</summary>
-public sealed record ScanRequest(string? FolderRoot);
+/// <summary>
+/// What to scan. <see cref="FolderRoot"/> null = the whole PC (all in-scope volumes); else that subtree.
+/// <see cref="CategoryModules"/> are the user's per-category choices (games, media…): each acts only
+/// where the ruleset would REVIEW, so an empty list simply means "no category overrides".
+/// </summary>
+public sealed record ScanRequest(string? FolderRoot, IReadOnlyList<CategoryModule>? CategoryModules = null);
 
 /// <summary>Live progress while a scan runs: how many items seen so far and the path currently being walked.</summary>
 public sealed record ScanProgress(long Items, string CurrentPath);

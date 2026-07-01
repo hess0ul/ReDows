@@ -29,6 +29,39 @@
                 </StackPanel>
             </Border>
 
+            <!-- Category options (optional): bulk-decide whole file types -->
+            <Expander Margin="0,12,0,0" Header="Category options — bulk-decide whole file types (optional)">
+                <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="14" Margin="0,8,0,0"
+                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,10"
+                                   Text="Every category starts on “review”. Set one to Keep or Ignore to bulk-classify scattered files of that type. This only affects files the scan would otherwise review — a keep, a secret, or a save-named folder is never touched."/>
+                        <ItemsControl ItemsSource="{Binding Modules}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,0,12,0"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <RadioButton Content="Keep" GroupName="{Binding Name}" Margin="0,0,10,0"
+                                                         IsChecked="{Binding IsKeep, Mode=TwoWay}"/>
+                                            <RadioButton Content="Review" GroupName="{Binding Name}" Margin="0,0,10,0"
+                                                         IsChecked="{Binding IsReview, Mode=TwoWay}"/>
+                                            <RadioButton Content="Ignore" GroupName="{Binding Name}"
+                                                         IsChecked="{Binding IsIgnore, Mode=TwoWay}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Expander>
+
             <!-- Actions -->
             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                 <Button Content="Run scan" Command="{Binding RunCommand}"/>

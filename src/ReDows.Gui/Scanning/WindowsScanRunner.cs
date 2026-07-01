@@ -42,7 +42,8 @@ public sealed class WindowsScanRunner : IScanRunner
         var options = new ScanOptions(
             Roots: request.FolderRoot is null ? null : [Path.GetFullPath(request.FolderRoot)],
             OnProgress: (items, path) => progress.Report(new ScanProgress(items, path)),
-            ClaimedZones: indexZones.Zones);
+            ClaimedZones: indexZones.Zones,
+            CategoryModules: request.CategoryModules);
 
         var report = ScanEngine.Run(
             ruleset,

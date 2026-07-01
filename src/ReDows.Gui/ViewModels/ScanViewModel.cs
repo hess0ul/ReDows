@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Scanning;
 
@@ -20,12 +21,17 @@ public sealed class ScanViewModel : ViewModelBase
     private ScanResultView? _result;
     private string? _error;
 
-    public ScanViewModel(IScanRunner runner)
+    public ScanViewModel(IScanRunner runner, IModuleCatalog moduleCatalog)
     {
         _runner = runner;
+        Modules = new ObservableCollection<ModuleRowViewModel>(
+            moduleCatalog.Load().Select(definition => new ModuleRowViewModel(definition)));
         RunCommand = new RelayCommand(async _ => await RunAsync(), _ => !IsRunning && ScopeIsValid());
         CancelCommand = new RelayCommand(_ => Cancel(), _ => IsRunning);
     }
+
+    /// <summary>The category modules (games, media…) the user can set to keep / review / ignore before scanning.</summary>
+    public ObservableCollection<ModuleRowViewModel> Modules { get; }
 
     public RelayCommand RunCommand { get; }
 
@@ -84,7 +90,9 @@ public sealed class ScanViewModel : ViewModelBase
         var progress = new Progress<ScanProgress>(p => ProgressText = $"{p.Items:N0} items — {p.CurrentPath}");
         try
         {
-            var request = new ScanRequest(WholePc ? null : FolderPath);
+            var request = new ScanRequest(
+                WholePc ? null : FolderPath,
+                Modules.Select(module => module.ToCategoryModule()).ToList());
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
         }
