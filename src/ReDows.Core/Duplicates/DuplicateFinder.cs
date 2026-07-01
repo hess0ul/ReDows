@@ -4,14 +4,27 @@ namespace ReDows.Core.Duplicates;
 public sealed record FileRef(string Path, long Size);
 
 /// <summary>
+/// One place a given content was found: its path and last-modified time (UTC). The recency picks the
+/// "truth" copy to keep; the path is remembered so a restore can put the content back there.
+/// </summary>
+public sealed record FileLocation(string Path, DateTime LastModifiedUtc);
+
+/// <summary>
 /// A set of byte-identical files. Keeping ONE copy would free the rest, so
 /// <see cref="ReclaimableBytes"/> is the size times the number of extra copies.
+/// <see cref="Locations"/> are ordered most-recently-modified first: <see cref="Primary"/> is the
+/// copy to keep (the "truth"), the others are the remaining places the SAME content lives — recorded
+/// so a later restore can write it back to one, some, or all of them. The content is identical, so
+/// only the locations differ: a backup can store a single copy and lose nothing.
 /// </summary>
-public sealed record DuplicateGroup(string ContentHash, long Size, IReadOnlyList<string> Paths)
+public sealed record DuplicateGroup(string ContentHash, long Size, IReadOnlyList<FileLocation> Locations)
 {
-    public int Count => Paths.Count;
+    /// <summary>The copy to keep: the most recently modified one.</summary>
+    public FileLocation Primary => Locations[0];
 
-    public long ReclaimableBytes => Size * (Paths.Count - 1);
+    public int Count => Locations.Count;
+
+    public long ReclaimableBytes => Size * (Locations.Count - 1);
 }
 
 /// <summary>
@@ -39,11 +52,17 @@ public static class DuplicateFinder
     /// Three passes, cheapest first: same size → same prefix hash → same full hash. Most files are
     /// alone at their exact size and are dropped without being read at all; of the rest, a cheap
     /// prefix hash separates the ones that differ early; only the survivors are fully hashed.
-    /// Empty files and files below <paramref name="minSize"/> are ignored. <paramref name="onFullHash"/>
-    /// fires once per full hash (progress). Groups are returned most-reclaimable first.
+    /// <paramref name="lastModifiedUtc"/> is called only for files that turn out to be duplicates
+    /// (to pick the most-recent "truth" copy) — never for the whole tree. Empty files and files below
+    /// <paramref name="minSize"/> are ignored. <paramref name="onFullHash"/> fires once per full hash
+    /// (progress). Groups are returned most-reclaimable first.
     /// </summary>
     public static IReadOnlyList<DuplicateGroup> Find(
-        IEnumerable<FileRef> files, IFileHasher hasher, long minSize = 1, Action<long>? onFullHash = null)
+        IEnumerable<FileRef> files,
+        IFileHasher hasher,
+        Func<string, DateTime> lastModifiedUtc,
+        long minSize = 1,
+        Action<long>? onFullHash = null)
     {
         var bySize = new Dictionary<long, List<string>>();
         foreach (var file in files)
@@ -96,10 +115,18 @@ public static class DuplicateFinder
 
                 foreach (var (hash, identical) in byFull)
                 {
-                    if (identical.Count >= 2)
+                    if (identical.Count < 2)
                     {
-                        groups.Add(new DuplicateGroup(hash, size, identical));
+                        continue;
                     }
+
+                    // Most-recently-modified first: Primary is the "truth" copy to keep.
+                    var locations = identical
+                        .Select(path => new FileLocation(path, lastModifiedUtc(path)))
+                        .OrderByDescending(location => location.LastModifiedUtc)
+                        .ThenBy(location => location.Path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    groups.Add(new DuplicateGroup(hash, size, locations));
                 }
             }
         }

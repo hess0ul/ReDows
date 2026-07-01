@@ -89,7 +89,7 @@ public static class DuplicatesCommand
         Console.Error.WriteLine($"{files.Count:N0} files collected — hashing same-size candidates…");
 
         long hashed = 0;
-        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), minSize, onFullHash: _ =>
+        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), SafeLastModifiedUtc, minSize, onFullHash: _ =>
         {
             if (++hashed % 2_000 == 0)
             {
@@ -121,9 +121,15 @@ public static class DuplicatesCommand
             {
                 text.AppendLine(
                     $"  {Bytes(group.ReclaimableBytes)} reclaimable · {group.Count} copies · {Bytes(group.Size)} each");
-                foreach (var path in group.Paths)
+                text.AppendLine($"      keep (most recent): {ConsoleText.Sanitize(group.Primary.Path)}");
+                var others = group.Locations.Skip(1).ToList();
+                if (others.Count > 0)
                 {
-                    text.AppendLine($"      {ConsoleText.Sanitize(path)}");
+                    text.AppendLine("      also found at:");
+                    foreach (var location in others)
+                    {
+                        text.AppendLine($"        {ConsoleText.Sanitize(location.Path)}");
+                    }
                 }
             }
         }
@@ -155,6 +161,18 @@ public static class DuplicatesCommand
 
         bytes = Math.Max(1, (long)(value * multiplier));
         return true;
+    }
+
+    private static DateTime SafeLastModifiedUtc(string path)
+    {
+        try
+        {
+            return File.GetLastWriteTimeUtc(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DateTime.MinValue; // vanished/denied: it just won't win the "most recent" tiebreak
+        }
     }
 
     private static string Bytes(long bytes) => bytes switch
