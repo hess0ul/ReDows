@@ -16,6 +16,7 @@ public sealed class ScanViewModel : ViewModelBase
 
     private bool _wholePc = true;
     private string _folderPath = "";
+    private bool _recognizeInstalledApps = true;
     private bool _findDuplicates;
     private bool _duplicatesGlobal = true;
     private bool _isRunning;
@@ -49,6 +50,17 @@ public sealed class ScanViewModel : ViewModelBase
     {
         get => _folderPath;
         set { Set(ref _folderPath, value); RaiseCommands(); }
+    }
+
+    /// <summary>
+    /// Recognize this PC's installed apps (on by default, like the CLI): their install folders become
+    /// re-downloadable (ignored where the scan would only review) and their settings are kept. Off =
+    /// the CLI's --no-reinstall — everything stays in review.
+    /// </summary>
+    public bool RecognizeInstalledApps
+    {
+        get => _recognizeInstalledApps;
+        set => Set(ref _recognizeInstalledApps, value);
     }
 
     /// <summary>Also hunt byte-identical files during the scan (a slower extra pass; read-only).</summary>
@@ -127,7 +139,8 @@ public sealed class ScanViewModel : ViewModelBase
             var request = new ScanRequest(
                 WholePc ? null : FolderPath,
                 Modules.Select(module => module.ToCategoryModule()).ToList(),
-                BuildDuplicateScan());
+                BuildDuplicateScan(),
+                RecognizeInstalledApps);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
         }

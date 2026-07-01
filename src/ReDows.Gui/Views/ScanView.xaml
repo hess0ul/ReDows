@@ -26,6 +26,11 @@
                         <Button Grid.Column="1" Content="Browse…" Style="{StaticResource GhostButton}"
                                 Margin="8,0,0,0" Click="Browse_Click"/>
                     </Grid>
+
+                    <CheckBox Content="Recognize installed apps (re-downloadable)" FontWeight="SemiBold" Margin="0,16,0,0"
+                              IsChecked="{Binding RecognizeInstalledApps, Mode=TwoWay}"/>
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
+                               Text="Install folders of apps this PC has are treated as re-downloadable and moved out of review; each app's settings are kept and its local data surfaced for review. Only affects files the scan would otherwise review — a keep or a secret is never touched."/>
                 </StackPanel>
             </Border>
 
@@ -204,6 +209,32 @@
                         <TextBlock Text="Total accounting — nothing left uncounted" FontWeight="SemiBold" FontSize="12"/>
                         <TextBlock Text="{Binding Result.EquationText}" Foreground="{StaticResource App.Muted}"
                                    FontSize="12" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Recognized installed apps: what that saved you from reviewing by hand (shown only when the option ran) -->
+                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,10" Margin="0,10,0,0"
+                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.InstalledApps}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" FontSize="12">
+                            <Run Text="Recognized "/><Run Text="{Binding Result.InstalledApps.Apps, Mode=OneWay}"/><Run Text=" installed apps"/>
+                        </TextBlock>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap">
+                            <Run Text="Install folders ignored as re-downloadable: "/><Run Text="{Binding Result.InstalledApps.IgnoredText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap">
+                            <Run Text="App settings kept: "/><Run Text="{Binding Result.InstalledApps.KeptText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/><Run Text="   ·   local app data surfaced for review: "/><Run Text="{Binding Result.InstalledApps.SurfacedText, Mode=OneWay}"/>
+                        </TextBlock>
                     </StackPanel>
                 </Border>
 

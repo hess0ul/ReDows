@@ -1,4 +1,5 @@
 using System.IO;
+using ReDows.Core.Apps;
 using ReDows.Core.Classification;
 using ReDows.Core.Duplicates;
 using ReDows.Core.Rules;
@@ -40,10 +41,48 @@ public sealed class WindowsScanRunner : IScanRunner
         var windowsContext = WindowsScanContextProvider.Build();
         var indexZones = IndexZoneProvider.Discover(windowsContext.Context);
 
+        // App inventory → reinstall + app-data zones (same as the CLI, on by default): a directory the
+        // inventory recognises as an installed app is re-acquirable, so its re-downloadable content is
+        // ignored where the ruleset would only REVIEW; each app's %AppData% is kept and %LocalAppData%
+        // surfaced. Acts ONLY over a review verdict, never a keep/secret. Fail-safe: if the inventory
+        // cannot be built for any reason, the scan still runs — just without this recognition.
+        IReadOnlyList<ReinstallZone> reinstallZones = [];
+        IReadOnlyList<AppDataZone> appDataZones = [];
+        var appCount = 0;
+        var recognized = false;
+        if (request.RecognizeInstalledApps)
+        {
+            try
+            {
+                var inventory = AppInventoryProvider.Build(enrichWithWinget: false);
+                reinstallZones = ReinstallZoneBuilder.Build(inventory);
+
+                var profileRoots = windowsContext.Context.Profiles
+                    .Where(p => p.Environment.ContainsKey("AppData") && p.Environment.ContainsKey("LocalAppData"))
+                    .Select(p => new AppDataZoneBuilder.ProfileDataRoots(p.Environment["AppData"], p.Environment["LocalAppData"]))
+                    .ToList();
+                appDataZones = AppDataZoneBuilder.Build(inventory, profileRoots)
+                    .Where(z => Directory.Exists(z.PathPrefix))
+                    .ToList();
+
+                appCount = inventory.Entries.Count;
+                recognized = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                // Recognition is a best-effort enhancement: never let it fail the whole scan.
+                reinstallZones = [];
+                appDataZones = [];
+                recognized = false;
+            }
+        }
+
         var options = new ScanOptions(
             Roots: request.FolderRoot is null ? null : [Path.GetFullPath(request.FolderRoot)],
             OnProgress: (items, path) => progress.Report(new ScanProgress(items, path)),
             ClaimedZones: indexZones.Zones,
+            ReinstallZones: reinstallZones,
+            AppDataZones: appDataZones,
             CategoryModules: request.CategoryModules);
 
         var report = ScanEngine.Run(
@@ -55,6 +94,10 @@ public sealed class WindowsScanRunner : IScanRunner
             cancellationToken);
 
         var result = Shape(report);
+        if (recognized)
+        {
+            result = result with { InstalledApps = InstalledAppsImpactOf(report, appCount) };
+        }
 
         // Optional second pass: hunt byte-identical files. Read-only. If it is cancelled, the
         // classification result above is still returned — just without a duplicates section.
@@ -158,6 +201,27 @@ public sealed class WindowsScanRunner : IScanRunner
     {
         var nextToExe = Path.Combine(AppContext.BaseDirectory, "rules");
         return Directory.Exists(nextToExe) ? nextToExe : "rules";
+    }
+
+    /// <summary>
+    /// What recognizing installed apps did, read straight off the engine's own counted rule hits:
+    /// the reinstall stage = install folders ignored as re-downloadable; the app-data stage splits
+    /// into config kept (a capture verdict) and local data surfaced for review.
+    /// </summary>
+    private static InstalledAppsImpact InstalledAppsImpactOf(ScanReport report, int appCount)
+    {
+        static string Line(long items, long bytes) => $"{Format.Bytes(bytes)} · {items:N0} items";
+
+        var reinstall = report.RuleHits.Where(h => h.Stage == ScanEngine.ReinstallStage).ToList();
+        var appData = report.RuleHits.Where(h => h.Stage == ScanEngine.AppDataStage).ToList();
+        var kept = appData.Where(h => h.Verdict.IsCapture()).ToList();
+        var surfaced = appData.Where(h => h.Verdict == Verdict.Review).ToList();
+
+        return new InstalledAppsImpact(
+            appCount,
+            Line(reinstall.Sum(h => h.Items), reinstall.Sum(h => h.Bytes)),
+            Line(kept.Sum(h => h.Items), kept.Sum(h => h.Bytes)),
+            Line(surfaced.Sum(h => h.Items), surfaced.Sum(h => h.Bytes)));
     }
 
     private static ScanResultView Shape(ScanReport report)
