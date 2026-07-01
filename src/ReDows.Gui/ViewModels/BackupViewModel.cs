@@ -19,6 +19,7 @@ public sealed class BackupViewModel : ViewModelBase
     private string _destination = "";
     private bool _useVault;
     private bool _useVss;
+    private bool _dedupe;
     private bool _isRunning;
     private string _progressText = "";
     private BackupResultView? _result;
@@ -78,6 +79,13 @@ public sealed class BackupViewModel : ViewModelBase
         set => Set(ref _useVss, value);
     }
 
+    /// <summary>Store byte-identical files only once (the most-recent copy) and record the rest in a restore map.</summary>
+    public bool Dedupe
+    {
+        get => _dedupe;
+        set => Set(ref _dedupe, value);
+    }
+
     public bool IsRunning
     {
         get => _isRunning;
@@ -124,7 +132,7 @@ public sealed class BackupViewModel : ViewModelBase
         var progress = new Progress<BackupProgress>(p => ProgressText = $"{p.Items:N0} entries — {p.CurrentPath}");
         try
         {
-            var request = new BackupRequest(ManifestPath!, Destination, UseVault ? vaultPassword : null, UseVss, ExcludedPaths);
+            var request = new BackupRequest(ManifestPath!, Destination, UseVault ? vaultPassword : null, UseVss, ExcludedPaths, Dedupe);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Balanced
                 ? "Done — every file copied and verified."

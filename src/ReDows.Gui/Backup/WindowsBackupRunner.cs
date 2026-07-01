@@ -1,5 +1,8 @@
 using System.IO;
+using System.Text.Json;
 using ReDows.Core.Backup;
+using ReDows.Core.Duplicates;
+using ReDows.Core.Rules;
 using ReDows.Core.Scanning;
 using ReDows.Providers.Windows;
 using ReDows.Providers.Windows.Backup;
@@ -51,12 +54,17 @@ public sealed class WindowsBackupRunner : IBackupRunner
         var trashed = request.ExcludedPaths ?? [];
         long excludedItems = 0, excludedBytes = 0;
 
+        // Optional de-duplication pre-pass: find byte-identical files across the plain-copy set (never
+        // secrets), so only the most-recent copy is written and the other places it belongs are recorded
+        // in a restore map. Read-only. A file that cannot be hashed is simply treated as unique (copied).
+        var plan = request.Dedupe ? BuildDedupePlan(request.ManifestPath, trashed, progress, cancellationToken) : null;
+
         CopyReport report;
         long? rescued = null;
         try
         {
             report = CopyEngine.Run(
-                ReadManifest(request.ManifestPath, trashed, cancellationToken, entry => { excludedItems++; excludedBytes += entry.Bytes; }),
+                ReadManifest(request.ManifestPath, trashed, plan?.SkipPaths, cancellationToken, entry => { excludedItems++; excludedBytes += entry.Bytes; }),
                 source,
                 new FileSystemSink(destination),
                 vault,
@@ -69,18 +77,89 @@ public sealed class WindowsBackupRunner : IBackupRunner
             shadow?.Dispose(); // delete any volume shadow copies we created
         }
 
+        // Record where each de-duplicated content belongs, so a later restore can replicate it.
+        if (plan is { Map.Count: > 0 })
+        {
+            WriteRestoreMap(destination, plan.Map);
+        }
+
         var vaultStatus = VerifyVault(vaultPath, request.VaultPassword, report.SecretsVaulted);
         var excludedText = excludedItems > 0 ? $"{excludedItems:N0} items · {Format.Bytes(excludedBytes)}" : null;
-        return Shape(report, vaultStatus, rescued) with { ExcludedText = excludedText };
+        var dedupeText = plan is null
+            ? null
+            : plan.DedupedItems > 0
+                ? $"{plan.DedupedItems:N0} duplicate files stored once · {Format.Bytes(plan.SavedBytes)} saved (see redows-restore-map.json)"
+                : "no duplicate files found";
+        return Shape(report, vaultStatus, rescued) with { ExcludedText = excludedText, DedupeText = dedupeText };
+    }
+
+    /// <summary>
+    /// De-duplication pre-pass: hash the plain-copy files (never secrets, never directories, and not the
+    /// trashed items) and group the byte-identical ones, so the copy stores each content once. Reuses the
+    /// same <see cref="DuplicateFinder"/> as the scan's duplicate tool.
+    /// </summary>
+    private static BackupDedupePlan BuildDedupePlan(
+        string manifestPath, IReadOnlyList<string> trashed, IProgress<BackupProgress> progress, CancellationToken cancellationToken)
+    {
+        var files = new List<FileRef>();
+        foreach (var line in File.ReadLines(manifestPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (ManifestLine.Parse(line) is { } entry && IsPlainCopy(entry) && !BackupSelection.IsTrashed(entry, trashed))
+            {
+                files.Add(new FileRef(entry.Path, entry.Bytes));
+            }
+        }
+
+        long hashed = 0;
+        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++hashed % 500 == 0)
+            {
+                progress.Report(new BackupProgress(hashed, "looking for duplicate files to store once…"));
+            }
+        });
+
+        return BackupDedupePlan.Build(groups);
+    }
+
+    private static readonly string SecretVerdict = Verdict.CaptureSecret.Format();
+
+    /// <summary>A file the copy writes in clear (not a directory, not a secret — secrets go to the vault).</summary>
+    private static bool IsPlainCopy(ManifestEntry entry) =>
+        !entry.IsDirectory && !string.Equals(entry.Verdict, SecretVerdict, StringComparison.OrdinalIgnoreCase);
+
+    private static DateTime SafeLastModifiedUtc(string path)
+    {
+        try
+        {
+            return File.GetLastWriteTimeUtc(path.Replace('/', '\\'));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DateTime.MinValue;
+        }
+    }
+
+    /// <summary>Write the de-duplication restore map at the destination root (human-readable JSON).</summary>
+    private static void WriteRestoreMap(string destination, IReadOnlyList<RestoreMapEntry> map)
+    {
+        var json = JsonSerializer.Serialize(
+            new { version = 1, duplicates = map },
+            new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        File.WriteAllText(Path.Combine(destination, "redows-restore-map.json"), json);
     }
 
     /// <summary>
     /// Stream the JSONL manifest, dropping the review items the user trashed (counted via
-    /// <paramref name="onExcluded"/>, never silently). Cancellation is honored between lines (the engine
-    /// takes no token).
+    /// <paramref name="onExcluded"/>, never silently) and the duplicate copies de-duplication stores
+    /// elsewhere (<paramref name="dedupeSkip"/>). Cancellation is honored between lines (the engine takes
+    /// no token).
     /// </summary>
     private static IEnumerable<ManifestEntry> ReadManifest(
-        string path, IReadOnlyList<string> trashed, CancellationToken cancellationToken, Action<ManifestEntry> onExcluded)
+        string path, IReadOnlyList<string> trashed, IReadOnlySet<string>? dedupeSkip,
+        CancellationToken cancellationToken, Action<ManifestEntry> onExcluded)
     {
         foreach (var line in File.ReadLines(path))
         {
@@ -94,6 +173,11 @@ public sealed class WindowsBackupRunner : IBackupRunner
             {
                 onExcluded(entry);
                 continue;
+            }
+
+            if (dedupeSkip is not null && dedupeSkip.Contains(entry.Path))
+            {
+                continue; // an identical copy is stored once via its most-recent twin (in the restore map)
             }
 
             yield return entry;

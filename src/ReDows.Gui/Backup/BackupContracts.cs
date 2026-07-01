@@ -7,6 +7,8 @@ namespace ReDows.Gui.Backup;
 /// <see cref="UseVss"/> = try to rescue locked files from a volume shadow copy (only takes effect when
 /// the app runs elevated). <see cref="ExcludedPaths"/> = the review trash (paths the user dropped in the
 /// sorter): a REVIEW item under one of these is skipped, but a CAPTURE item is never dropped by the trash.
+/// <see cref="Dedupe"/> = store byte-identical files only once (the most-recent copy) and record the
+/// other places they belong in a restore map, to save space. Secrets are never de-duplicated.
 /// Read-only on the source; every copied file is verified by hash.
 /// </summary>
 public sealed record BackupRequest(
@@ -14,7 +16,8 @@ public sealed record BackupRequest(
     string Destination,
     string? VaultPassword,
     bool UseVss,
-    IReadOnlyList<string>? ExcludedPaths = null);
+    IReadOnlyList<string>? ExcludedPaths = null,
+    bool Dedupe = false);
 
 /// <summary>Live progress while a backup runs: how many manifest entries processed, and the current path.</summary>
 public sealed record BackupProgress(long Items, string CurrentPath);
@@ -38,7 +41,8 @@ public sealed record BackupResultView(
     string EquationText,
     string? VaultStatus,
     IReadOnlyList<BackupFailureRow> TopFailures,
-    string? ExcludedText = null);
+    string? ExcludedText = null,
+    string? DedupeText = null);
 
 /// <summary>
 /// Runs a backup off the UI thread. A seam: the real implementation drives <c>CopyEngine</c> on this PC

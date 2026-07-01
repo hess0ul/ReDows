@@ -144,6 +144,17 @@
                 </StackPanel>
             </Border>
 
+            <!-- De-duplicate -->
+            <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="16" Margin="0,12,0,0"
+                    BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                <StackPanel>
+                    <CheckBox Content="Store duplicate files only once (save space)" FontWeight="SemiBold"
+                              IsChecked="{Binding Dedupe, Mode=TwoWay}"/>
+                    <TextBlock Margin="24,6,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
+                               Text="When the same file (byte-for-byte) sits in several places, only the most recent copy is saved; the other places it belongs are written to a restore map (redows-restore-map.json) so a later restore can put it back everywhere. Secrets are never de-duplicated. A slower extra pass — nothing is deleted from your PC."/>
+                </StackPanel>
+            </Border>
+
             <!-- Actions -->
             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                 <Button Content="Back up now" Click="Run_Click" IsEnabled="{Binding CanRun}"/>
@@ -221,6 +232,20 @@
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Result.ExcludedText}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <TextBlock Margin="0,4,0,0" Foreground="{StaticResource App.Good}" FontSize="12" TextWrapping="Wrap"
+                           Text="{Binding Result.DedupeText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.DedupeText}" Value="{x:Null}">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>
