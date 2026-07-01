@@ -1,0 +1,125 @@
+<UserControl x:Class="ReDows.Gui.Views.AppsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="26,22" MaxWidth="920" HorizontalAlignment="Left">
+            <TextBlock Text="Apps" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock Text="Your installed apps. Tick the ones to reinstall after the reset, then export an InDows profile — InDows reads it to reinstall them automatically at first logon."
+                       Foreground="{StaticResource App.Muted}" Margin="0,4,0,16" TextWrapping="Wrap"/>
+
+            <!-- Loading -->
+            <StackPanel Margin="0,0,0,10" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                <ProgressBar IsIndeterminate="True" Height="4" BorderThickness="0"
+                             Foreground="{StaticResource App.Accent}" Background="{StaticResource App.Card}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="{Binding ProgressText}" Foreground="{StaticResource App.Muted}" FontSize="12"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}"
+                            Margin="12,0,0,0" Padding="10,4"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Error -->
+            <Border Background="#3A2A2A" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Error}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding Error}" Foreground="#FF9B9B"/>
+            </Border>
+
+            <!-- Toolbar: summary + select all/none -->
+            <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Summary}" Foreground="{StaticResource App.Muted}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Select all" Style="{StaticResource GhostButton}" Command="{Binding SelectAllCommand}" Margin="0,0,6,0"/>
+                    <Button Content="Select none" Style="{StaticResource GhostButton}" Command="{Binding SelectNoneCommand}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- App list -->
+            <ItemsControl ItemsSource="{Binding Apps}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,5"
+                                BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <!-- Reinstall badge: green when automatic, muted when manual -->
+                                <Border Grid.Column="2" CornerRadius="9" Padding="8,2" Margin="8,0,10,0" VerticalAlignment="Center"
+                                        Background="{StaticResource App.Surface}" BorderThickness="1">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="{StaticResource App.Good}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAuto}" Value="False">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource App.Border}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding ReinstallBadge}" FontSize="11">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource App.Good}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAuto}" Value="False">
+                                                        <Setter Property="Foreground" Value="{StaticResource App.Muted}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                                <TextBlock Grid.Column="3" Text="{Binding Source}" Foreground="{StaticResource App.Muted}"
+                                           FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Export -->
+            <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="16" Margin="0,14,0,0"
+                    BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Export InDows reinstall profile" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,10"
+                               Text="Writes configuration.dsc.yaml (winget DSC) for the ticked apps. Apps with a confirmed winget id reinstall automatically; the rest are listed as comments to review — nothing is dropped."/>
+                    <Button Content="Export InDows profile…" Click="Export_Click"/>
+                    <TextBlock Margin="0,10,0,0" Foreground="{StaticResource App.Good}" FontSize="12" TextWrapping="Wrap"
+                               Text="{Binding ExportResult}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ExportResult}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

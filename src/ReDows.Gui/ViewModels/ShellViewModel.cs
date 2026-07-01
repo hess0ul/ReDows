@@ -1,3 +1,4 @@
+using ReDows.Gui.Apps;
 using ReDows.Gui.Backup;
 using ReDows.Gui.Context;
 using ReDows.Gui.Navigation;
@@ -16,13 +17,14 @@ public sealed class ShellViewModel : ViewModelBase
 {
     private object _currentViewModel;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner)
     {
         Home = new HomeViewModel(contextSource);
         Scan = new ScanViewModel(scanRunner, moduleCatalog);
         Review = new ReviewViewModel(folderBrowser);
         Backup = new BackupViewModel(backupRunner);
         Restore = new RestoreViewModel(restoreRunner);
+        Apps = new AppsViewModel(appsRunner);
         _currentViewModel = Home;
 
         ShowHomeCommand = new RelayCommand(_ => CurrentViewModel = Home);
@@ -41,6 +43,11 @@ public sealed class ShellViewModel : ViewModelBase
             CurrentViewModel = Backup;
         });
         ShowRestoreCommand = new RelayCommand(_ => CurrentViewModel = Restore);
+        ShowAppsCommand = new RelayCommand(_ =>
+        {
+            CurrentViewModel = Apps;
+            _ = Apps.LoadAsync(); // loads once on first visit (winget enrichment runs in the background)
+        });
     }
 
     public HomeViewModel Home { get; }
@@ -53,6 +60,8 @@ public sealed class ShellViewModel : ViewModelBase
 
     public RestoreViewModel Restore { get; }
 
+    public AppsViewModel Apps { get; }
+
     public RelayCommand ShowHomeCommand { get; }
 
     public RelayCommand ShowScanCommand { get; }
@@ -62,6 +71,8 @@ public sealed class ShellViewModel : ViewModelBase
     public RelayCommand ShowBackupCommand { get; }
 
     public RelayCommand ShowRestoreCommand { get; }
+
+    public RelayCommand ShowAppsCommand { get; }
 
     public object CurrentViewModel
     {

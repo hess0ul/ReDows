@@ -1,4 +1,5 @@
 using System.Windows;
+using ReDows.Gui.Apps;
 using ReDows.Gui.Backup;
 using ReDows.Gui.Context;
 using ReDows.Gui.Restore;
@@ -17,7 +18,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner());
+        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner());
         var window = new MainWindow(shell);
         shell.Initialize();
         window.Show();
