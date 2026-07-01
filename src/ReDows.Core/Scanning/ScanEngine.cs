@@ -152,6 +152,9 @@ public static class ScanEngine
 
                 if (classification.Verdict == Verdict.Review)
                 {
+                    // Per-item REVIEW sink (the GUI's backup-candidate manifest): one call per review item.
+                    options.OnReview?.Invoke(ManifestEntry.From(path, classification, entryBytes, entry.IsDirectory));
+
                     // Aggregate under an ancestor directory: never deeper than the item's parent.
                     var bucket = string.Join('/', segments.Take(Math.Min(Math.Max(segments.Length - 1, 1), bucketDepth)));
                     var bucketTotals = reviewBuckets.GetValueOrDefault(bucket);

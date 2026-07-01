@@ -32,8 +32,10 @@ public sealed class ShellViewModel : ViewModelBase
         });
         ShowBackupCommand = new RelayCommand(_ =>
         {
-            // Feed the Backup screen the manifest the last scan wrote (null if nothing scanned yet).
+            // Feed the Backup screen the manifest the last scan wrote (null if nothing scanned yet) and
+            // the review trash, so it copies the kept-minus-trash selection.
             Backup.ManifestPath = Scan.Result?.ManifestPath;
+            Backup.ExcludedPaths = Review.Trash.Items.Keys.ToList();
             CurrentViewModel = Backup;
         });
     }

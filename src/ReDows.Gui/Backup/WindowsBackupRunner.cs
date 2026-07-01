@@ -47,12 +47,16 @@ public sealed class WindowsBackupRunner : IBackupRunner
             ? null
             : new ZipVaultSink(new FileStream(vaultPath, FileMode.Create, FileAccess.Write, FileShare.None), request.VaultPassword!);
 
+        // The review trash removes REVIEW items the user dropped in the sorter (never a CAPTURE/secret).
+        var trashed = request.ExcludedPaths ?? [];
+        long excludedItems = 0, excludedBytes = 0;
+
         CopyReport report;
         long? rescued = null;
         try
         {
             report = CopyEngine.Run(
-                ReadManifest(request.ManifestPath, cancellationToken),
+                ReadManifest(request.ManifestPath, trashed, cancellationToken, entry => { excludedItems++; excludedBytes += entry.Bytes; }),
                 source,
                 new FileSystemSink(destination),
                 vault,
@@ -66,19 +70,33 @@ public sealed class WindowsBackupRunner : IBackupRunner
         }
 
         var vaultStatus = VerifyVault(vaultPath, request.VaultPassword, report.SecretsVaulted);
-        return Shape(report, vaultStatus, rescued);
+        var excludedText = excludedItems > 0 ? $"{excludedItems:N0} items · {Format.Bytes(excludedBytes)}" : null;
+        return Shape(report, vaultStatus, rescued) with { ExcludedText = excludedText };
     }
 
-    /// <summary>Stream the JSONL manifest; cancellation is honored between lines (the engine takes no token).</summary>
-    private static IEnumerable<ManifestEntry> ReadManifest(string path, CancellationToken cancellationToken)
+    /// <summary>
+    /// Stream the JSONL manifest, dropping the review items the user trashed (counted via
+    /// <paramref name="onExcluded"/>, never silently). Cancellation is honored between lines (the engine
+    /// takes no token).
+    /// </summary>
+    private static IEnumerable<ManifestEntry> ReadManifest(
+        string path, IReadOnlyList<string> trashed, CancellationToken cancellationToken, Action<ManifestEntry> onExcluded)
     {
         foreach (var line in File.ReadLines(path))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (ManifestLine.Parse(line) is { } entry)
+            if (ManifestLine.Parse(line) is not { } entry)
             {
-                yield return entry;
+                continue;
             }
+
+            if (BackupSelection.IsTrashed(entry, trashed))
+            {
+                onExcluded(entry);
+                continue;
+            }
+
+            yield return entry;
         }
     }
 

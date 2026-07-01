@@ -154,6 +154,13 @@ public sealed record PreResetAlert(string RuleId, long Items);
 /// tally, so a sink that writes one line per call emits exactly as many lines as the
 /// report counts CAPTURE items (the manifest's self-consistency guarantee).
 /// </param>
+/// <param name="OnReview">
+/// Called once for every REVIEW-verdict item, in scan order — the per-item sink for the
+/// "human decides" pile. Optional: the CLI leaves it null (its manifest lists only CAPTURE),
+/// while the GUI uses it to record the full backup-candidate set (CAPTURE + REVIEW) so the
+/// user's kept-minus-trash selection can be copied. Verdicts are preserved, so a secret stays
+/// a secret (it is a CAPTURE verdict, never REVIEW) and is routed to the vault, never copied in clear.
+/// </param>
 public sealed record ScanOptions(
     IReadOnlyList<string>? Roots = null,
     IReadOnlyList<string>? ExcludedOutputPaths = null,
@@ -163,7 +170,8 @@ public sealed record ScanOptions(
     Action<ManifestEntry>? OnCapture = null,
     IReadOnlyList<ReinstallZone>? ReinstallZones = null,
     IReadOnlyList<AppDataZone>? AppDataZones = null,
-    IReadOnlyList<CategoryModule>? CategoryModules = null);
+    IReadOnlyList<CategoryModule>? CategoryModules = null,
+    Action<ManifestEntry>? OnReview = null);
 
 public sealed record VerdictTotals(long Items, long Bytes);
 

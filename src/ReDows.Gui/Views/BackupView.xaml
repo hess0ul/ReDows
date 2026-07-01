@@ -214,6 +214,20 @@
                     <Run Text="Directories recreated: "/><Run Text="{Binding Result.DirectoriesText, Mode=OneWay}"/><Run Text="   ·   secrets deferred (no password): "/><Run Text="{Binding Result.DeferredText, Mode=OneWay}"/>
                 </TextBlock>
 
+                <TextBlock Margin="0,4,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap">
+                    <Run Text="Skipped because you trashed them: "/><Run Text="{Binding Result.ExcludedText, Mode=OneWay}"/><Run Text=" (review items only — a kept config or secret is never dropped by the trash)."/>
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.ExcludedText}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
                 <TextBlock Margin="0,6,0,0" Foreground="{StaticResource App.Good}" FontSize="12" TextWrapping="Wrap"
                            Text="{Binding Result.RescuedText}">
                     <TextBlock.Style>

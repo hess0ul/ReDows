@@ -78,10 +78,12 @@ public sealed class WindowsScanRunner : IScanRunner
             }
         }
 
-        // Write the CAPTURE items to an app-managed manifest as they are classified — the seed of
-        // the future "scan + decisions" session file, and the input the Backup screen copies. Written
-        // via the SAME OnCapture the CLI's --manifest uses. If it cannot be written, the scan still
-        // runs; there is simply no manifest to back up (best-effort).
+        // Write the backup-candidate items to an app-managed manifest as they are classified — the seed
+        // of the "scan + decisions" session file, and the input the Backup screen copies. Both CAPTURE
+        // (auto-kept: config / user / secret) and REVIEW (the "human decides" pile) are recorded, with
+        // their verdicts, so the backup can copy the user's kept-minus-trash selection while a secret
+        // still routes to the vault. If it cannot be written, the scan still runs — there is simply no
+        // manifest to back up (best-effort).
         var manifestPath = ResolveManifestPath();
         StreamWriter? manifestWriter = TryOpenManifest(manifestPath);
         var wroteManifest = manifestWriter is not null;
@@ -91,6 +93,7 @@ public sealed class WindowsScanRunner : IScanRunner
             OnProgress: (items, path) => progress.Report(new ScanProgress(items, path)),
             ClaimedZones: indexZones.Zones,
             OnCapture: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
+            OnReview: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
             ReinstallZones: reinstallZones,
             AppDataZones: appDataZones,
             CategoryModules: request.CategoryModules);

@@ -15,6 +15,7 @@ public sealed class BackupViewModel : ViewModelBase
     private CancellationTokenSource? _cancellation;
 
     private string? _manifestPath;
+    private IReadOnlyList<string> _excludedPaths = [];
     private string _destination = "";
     private bool _useVault;
     private bool _useVss;
@@ -49,6 +50,13 @@ public sealed class BackupViewModel : ViewModelBase
     }
 
     public bool HasManifest => !string.IsNullOrEmpty(ManifestPath);
+
+    /// <summary>The review trash (paths dropped in the sorter). Review items under these are skipped; captures never are.</summary>
+    public IReadOnlyList<string> ExcludedPaths
+    {
+        get => _excludedPaths;
+        set => Set(ref _excludedPaths, value);
+    }
 
     public string Destination
     {
@@ -116,7 +124,7 @@ public sealed class BackupViewModel : ViewModelBase
         var progress = new Progress<BackupProgress>(p => ProgressText = $"{p.Items:N0} entries — {p.CurrentPath}");
         try
         {
-            var request = new BackupRequest(ManifestPath!, Destination, UseVault ? vaultPassword : null, UseVss);
+            var request = new BackupRequest(ManifestPath!, Destination, UseVault ? vaultPassword : null, UseVss, ExcludedPaths);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Balanced
                 ? "Done — every file copied and verified."
