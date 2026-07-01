@@ -117,7 +117,8 @@
                         <StackPanel Orientation="Horizontal">
                             <Grid Width="18" Height="18" VerticalAlignment="Center">
                                 <Ellipse x:Name="Ring" Stroke="{StaticResource App.Border}" StrokeThickness="2" Fill="Transparent"/>
-                                <Ellipse x:Name="Dot" Width="9" Height="9" Fill="{StaticResource App.Accent}" Visibility="Collapsed"/>
+                                <Ellipse x:Name="Dot" Width="9" Height="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                         Fill="{StaticResource App.Accent}" Visibility="Collapsed"/>
                             </Grid>
                             <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
                                               RecognizesAccessKey="True"/>
