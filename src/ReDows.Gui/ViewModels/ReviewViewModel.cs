@@ -108,6 +108,12 @@ public sealed class ReviewViewModel : ViewModelBase
     /// <summary>On a folder with no next one — the wizard's end, where "Next" becomes "Back up →".</summary>
     public bool OnLastFolder => HasFolder && !HasNext;
 
+    /// <summary>
+    /// Whether to offer "Back up →" instead of "Next": at the end of the wizard, OR right after a scan
+    /// that flagged nothing to review (no folders to walk) — so the user is never stuck on a dead "Next".
+    /// </summary>
+    public bool ShowBackUp => OnLastFolder || (_scanned && !HasRoots);
+
     public bool HasPrevious => _folderIndex > 0;
 
     public bool AtFolderRoot => _trail.Count <= 1;
@@ -365,6 +371,7 @@ public sealed class ReviewViewModel : ViewModelBase
         Raise(nameof(HasFolder));
         Raise(nameof(HasNext));
         Raise(nameof(OnLastFolder));
+        Raise(nameof(ShowBackUp));
         Raise(nameof(HasPrevious));
         Raise(nameof(AtFolderRoot));
         UpCommand.RaiseCanExecuteChanged();

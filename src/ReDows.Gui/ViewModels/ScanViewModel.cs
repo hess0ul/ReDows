@@ -92,8 +92,14 @@ public sealed class ScanViewModel : ViewModelBase
     public ScanResultView? Result
     {
         get => _result;
-        private set => Set(ref _result, value);
+        private set { Set(ref _result, value); Raise(nameof(HasReview)); }
     }
+
+    /// <summary>
+    /// True when the last scan flagged something to review. When false after a scan, there is nothing to
+    /// sort by hand — the "Review these" button becomes "Back up what I'm keeping" and skips Review.
+    /// </summary>
+    public bool HasReview => Result?.TopReview.Count > 0;
 
     /// <summary>Raised after a scan finishes successfully — the shell persists the session on this signal.</summary>
     public event Action? Scanned;

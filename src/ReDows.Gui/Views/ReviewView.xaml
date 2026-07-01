@@ -188,13 +188,13 @@
                        Margin="12,0,12,0" TextTrimming="CharacterEllipsis"/>
             <Button Grid.Column="2" Content="{Binding TrashButtonText}" Style="{StaticResource GhostButton}"
                     Command="{Binding ToggleTrashCommand}" Margin="0,0,10,0"/>
-            <!-- Last folder → the "Next" button becomes "Back up →" (jumps to the Backup screen). -->
+            <!-- End of the wizard (or nothing to review) → the "Next" button becomes "Back up →" (jumps to Backup). -->
             <Button Grid.Column="3" Content="Next ▶" Command="{Binding NextCommand}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                         <Setter Property="Visibility" Value="Visible"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding OnLastFolder}" Value="True">
+                            <DataTrigger Binding="{Binding ShowBackUp}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                         </Style.Triggers>
@@ -207,7 +207,7 @@
                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                         <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding OnLastFolder}" Value="True">
+                            <DataTrigger Binding="{Binding ShowBackUp}" Value="True">
                                 <Setter Property="Visibility" Value="Visible"/>
                             </DataTrigger>
                         </Style.Triggers>
