@@ -26,6 +26,9 @@
             <DataTemplate DataType="{x:Type vm:BackupViewModel}">
                 <views:BackupView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:RestoreViewModel}">
+                <views:RestoreView/>
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

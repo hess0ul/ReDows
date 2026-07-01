@@ -33,6 +33,7 @@
                     <Button Content="Scan" Style="{StaticResource NavButton}" Command="{Binding ShowScanCommand}"/>
                     <Button Content="Review" Style="{StaticResource NavButton}" Command="{Binding ShowReviewCommand}"/>
                     <Button Content="Backup" Style="{StaticResource NavButton}" Command="{Binding ShowBackupCommand}"/>
+                    <Button Content="Restore" Style="{StaticResource NavButton}" Command="{Binding ShowRestoreCommand}"/>
                     <Button Content="Apps" Style="{StaticResource NavButton}" IsEnabled="False"/>
                     <Button Content="Settings" Style="{StaticResource NavButton}" IsEnabled="False"/>
                     <Button Content="Secrets" Style="{StaticResource NavButton}" IsEnabled="False"/>

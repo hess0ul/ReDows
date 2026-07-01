@@ -1,6 +1,7 @@
 using ReDows.Gui.Backup;
 using ReDows.Gui.Context;
 using ReDows.Gui.Navigation;
+using ReDows.Gui.Restore;
 using ReDows.Gui.Reviewing;
 using ReDows.Gui.Scanning;
 
@@ -15,12 +16,13 @@ public sealed class ShellViewModel : ViewModelBase
 {
     private object _currentViewModel;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner)
     {
         Home = new HomeViewModel(contextSource);
         Scan = new ScanViewModel(scanRunner, moduleCatalog);
         Review = new ReviewViewModel(folderBrowser);
         Backup = new BackupViewModel(backupRunner);
+        Restore = new RestoreViewModel(restoreRunner);
         _currentViewModel = Home;
 
         ShowHomeCommand = new RelayCommand(_ => CurrentViewModel = Home);
@@ -38,6 +40,7 @@ public sealed class ShellViewModel : ViewModelBase
             Backup.ExcludedPaths = Review.Trash.Items.Keys.ToList();
             CurrentViewModel = Backup;
         });
+        ShowRestoreCommand = new RelayCommand(_ => CurrentViewModel = Restore);
     }
 
     public HomeViewModel Home { get; }
@@ -48,6 +51,8 @@ public sealed class ShellViewModel : ViewModelBase
 
     public BackupViewModel Backup { get; }
 
+    public RestoreViewModel Restore { get; }
+
     public RelayCommand ShowHomeCommand { get; }
 
     public RelayCommand ShowScanCommand { get; }
@@ -55,6 +60,8 @@ public sealed class ShellViewModel : ViewModelBase
     public RelayCommand ShowReviewCommand { get; }
 
     public RelayCommand ShowBackupCommand { get; }
+
+    public RelayCommand ShowRestoreCommand { get; }
 
     public object CurrentViewModel
     {

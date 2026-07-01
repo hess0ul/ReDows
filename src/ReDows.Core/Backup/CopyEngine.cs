@@ -7,7 +7,7 @@ namespace ReDows.Core.Backup;
 /// <summary>
 /// Copies the CAPTURE items of a manifest from a read-only <see cref="ICopySource"/> into
 /// an <see cref="IBackupSink"/>, verifying each file by hash. All I/O is behind the two
-/// interfaces, so the whole engine is testable on fakes. Routing (step 1 of the copy block):
+/// interfaces, so the whole engine is testable on fakes. Routing (first step of the copy):
 /// directories are skipped (recreated implicitly), <c>capture:secret</c> files are deferred
 /// to the encrypted vault, everything else is copied and verified.
 /// </summary>
@@ -126,6 +126,18 @@ public static class CopyEngine
     /// </summary>
     public static string RelativePath(string sourcePath) =>
         string.Join('/', ScanPaths.Split(sourcePath).Select(segment => segment.Replace(":", "", StringComparison.Ordinal)));
+
+    /// <summary>
+    /// The inverse of <see cref="RelativePath"/>: turn a destination-relative path back into its original
+    /// source path (<c>C/Users/x</c> → <c>C:/Users/x</c>). Only the drive segment ever loses a ':'
+    /// (Windows file names can't contain one), so restoring it to the first segment is exact. Used by a
+    /// restore to put a backed-up file back where it came from.
+    /// </summary>
+    public static string OriginalPath(string relativePath)
+    {
+        var slash = relativePath.IndexOf('/');
+        return slash < 0 ? relativePath + ":" : relativePath[..slash] + ":" + relativePath[slash..];
+    }
 
     private static string CopyAndHash(Stream input, Stream output)
     {

@@ -55,4 +55,24 @@ public sealed class ZipVaultSink : IVaultSink
 
         return verified;
     }
+
+    /// <summary>
+    /// Open the vault with the passphrase and hand each secret (its stored relative name + a decrypting
+    /// content stream) to <paramref name="onEntry"/>, so a restore can write it back to disk. Read-only
+    /// on the vault; throws if the passphrase is wrong or an entry is corrupt.
+    /// </summary>
+    public static void ExtractEach(string vaultPath, string passphrase, Action<string, Stream> onEntry)
+    {
+        using var zip = new ZipFile(vaultPath) { Password = passphrase };
+        foreach (ZipEntry entry in zip)
+        {
+            if (!entry.IsFile)
+            {
+                continue;
+            }
+
+            using var stream = zip.GetInputStream(entry);
+            onEntry(entry.Name, stream);
+        }
+    }
 }
