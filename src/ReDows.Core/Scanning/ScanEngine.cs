@@ -17,6 +17,9 @@ public static class ScanEngine
     /// <summary>Stage name of index-claimed zone verdicts in rule hits (INDEX_EXTERNE §D-15).</summary>
     public const string ClaimedStage = "claimed";
 
+    /// <summary>Stage name of app-inventory reinstall-zone ignores in rule hits (app-zones increment 3).</summary>
+    public const string ReinstallStage = "reinstall";
+
     /// <summary>Aggregation depth of the REVIEW rollup, in segments below each root.</summary>
     private const int ReviewBucketDepth = 2;
 
@@ -60,6 +63,19 @@ public static class ScanEngine
         var claimedZones = (options.ClaimedZones ?? [])
             .Select(z => (Zone: z, Prefix: ScanPaths.Normalize(z.PathPrefix)))
             .ToList();
+        // Safety net (forget-nothing): a reinstall zone may ignore, so it must never
+        // sweep a user profile or a captured Known Folder. Drop any zone that
+        // CONTAINS one (a bogus InstallLocation pointing at a profile root would
+        // otherwise ignore un-captured AppData). A legit per-app install dir
+        // contains no such root, so it passes untouched.
+        var protectedRoots = context.Profiles
+            .SelectMany(p => p.KnownFolders.Values.Append(p.RootPath))
+            .Select(ScanPaths.Normalize)
+            .ToList();
+        var reinstallZones = (options.ReinstallZones ?? [])
+            .Select(z => (Zone: z, Prefix: ScanPaths.Normalize(z.PathPrefix)))
+            .Where(z => !protectedRoots.Exists(root => IsUnder(root, z.Prefix)))
+            .ToList();
 
         long files = 0, directories = 0, unknownSubtrees = 0, bytes = 0, items = 0;
         var byVerdict = new Dictionary<Verdict, (long Items, long Bytes)>();
@@ -101,7 +117,7 @@ public static class ScanEngine
                     files++;
                 }
 
-                var classification = Classify(classifier, entry, path, segments, excludedOutputs, orphanRoots, claimedZones);
+                var classification = Classify(classifier, entry, path, segments, excludedOutputs, orphanRoots, claimedZones, reinstallZones);
                 if (classification.HasFlag(RuleFlag.DpapiMachineBound))
                 {
                     alerts[classification.RuleId] = alerts.GetValueOrDefault(classification.RuleId) + 1;
@@ -184,7 +200,8 @@ public static class ScanEngine
         string[] segments,
         IReadOnlyList<string> excludedOutputs,
         IReadOnlyList<string> orphanRoots,
-        IReadOnlyList<(ClaimedZone Zone, string Prefix)> claimedZones)
+        IReadOnlyList<(ClaimedZone Zone, string Prefix)> claimedZones,
+        IReadOnlyList<(ReinstallZone Zone, string Prefix)> reinstallZones)
     {
         if (entry.Error is not null)
         {
@@ -247,7 +264,67 @@ public static class ScanEngine
             return new Classification(bestZone.Verdict, bestZone.Id, ClaimedStage);
         }
 
-        return classifier.Classify(segments);
+        var classification = classifier.Classify(segments);
+
+        // App-inventory reinstall zones (app-zones increment 3): a folder the
+        // inventory identified as a re-acquirable app install. Downgrade REVIEW →
+        // IGNORE for its re-downloadable content only — never a keep (a carve-out
+        // or capture already decided and is respected), never a data-named subtree
+        // (config/save/userdata… stays REVIEW). Deliberately the LAST word, after
+        // the ruleset, so the forget-nothing stages always win.
+        if (classification.Verdict == Verdict.Review
+            && TryReinstallIgnore(path, segments, reinstallZones, out var reinstallId))
+        {
+            return new Classification(Verdict.Ignore, reinstallId, ReinstallStage);
+        }
+
+        return classification;
+    }
+
+    /// <summary>
+    /// A REVIEW item is re-installable when it sits under an inventory install dir
+    /// AND no path segment below that dir is a user-data name (the app-zones
+    /// carve-backs, reused via <see cref="AppDataFolders"/>). Longest matching
+    /// prefix wins for report attribution.
+    /// </summary>
+    private static bool TryReinstallIgnore(
+        string path,
+        string[] segments,
+        IReadOnlyList<(ReinstallZone Zone, string Prefix)> reinstallZones,
+        out string zoneId)
+    {
+        zoneId = string.Empty;
+        var bestLength = -1;
+        foreach (var (zone, prefix) in reinstallZones)
+        {
+            if (prefix.Length <= bestLength || !IsUnder(path, prefix))
+            {
+                continue;
+            }
+
+            if (HasDataNamedSegmentBelow(segments, prefix))
+            {
+                continue;
+            }
+
+            bestLength = prefix.Length;
+            zoneId = zone.Id;
+        }
+
+        return bestLength >= 0;
+    }
+
+    private static bool HasDataNamedSegmentBelow(string[] segments, string prefix)
+    {
+        for (var depth = ScanPaths.Split(prefix).Length; depth < segments.Length; depth++)
+        {
+            if (AppDataFolders.IsDataName(segments[depth]))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsUnderAny(string path, IReadOnlyList<string> prefixes)

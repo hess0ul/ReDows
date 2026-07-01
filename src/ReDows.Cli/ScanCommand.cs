@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ReDows.Core.Apps;
 using ReDows.Core.Rules;
 using ReDows.Core.Rules.Loading;
 using ReDows.Core.Scanning;
@@ -37,6 +38,7 @@ public static class ScanCommand
         string? outputFile = null;
         string? manifestFile = null;
         var asJson = false;
+        var noReinstall = false;
 
         for (var i = 0; i < options.Length; i++)
         {
@@ -57,8 +59,11 @@ public static class ScanCommand
                 case "--json":
                     asJson = true;
                     break;
+                case "--no-reinstall":
+                    noReinstall = true;
+                    break;
                 default:
-                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json]");
+                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json] [--no-reinstall]");
                     return 2;
             }
         }
@@ -95,6 +100,24 @@ public static class ScanCommand
         {
             Console.Error.WriteLine(
                 $"App indexes: {indexZones.Zones.Count} claimed zone(s), {indexZones.Notes.Count} note(s).");
+        }
+
+        // App inventory → reinstall zones (app-zones increment 3): a directory the
+        // inventory recognises as an installed app is re-acquirable, so its
+        // re-downloadable content is ignored where the ruleset would only REVIEW —
+        // never over a keep, never a data-named subtree. On unless --no-reinstall.
+        IReadOnlyList<ReinstallZone> reinstallZones = [];
+        if (noReinstall)
+        {
+            Console.Error.WriteLine("App inventory: skipped (--no-reinstall); recognised install dirs stay in REVIEW.");
+        }
+        else
+        {
+            var inventory = AppInventoryProvider.Build(enrichWithWinget: false);
+            reinstallZones = ReinstallZoneBuilder.Build(inventory);
+            Console.Error.WriteLine(
+                $"App inventory: {inventory.Entries.Count} app(s) → {reinstallZones.Count} reinstall zone(s) " +
+                "(re-downloadable install dirs ignored where the ruleset would only review).");
         }
 
         using var cancellation = new CancellationTokenSource();
@@ -140,7 +163,8 @@ public static class ScanCommand
                 ExcludedOutputPaths: excludedOutputs.Count > 0 ? excludedOutputs : null,
                 OnProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} items — {Sanitize(path)}"),
                 ClaimedZones: indexZones.Zones,
-                OnCapture: onCapture);
+                OnCapture: onCapture,
+                ReinstallZones: reinstallZones);
 
             Console.Error.WriteLine(root is null
                 ? $"Scanning {windowsContext.Context.Volumes.Count} volume(s)…"
@@ -154,7 +178,7 @@ public static class ScanCommand
                 scanOptions,
                 cancellation.Token);
 
-            var rendered = asJson ? RenderJson(report, indexZones) : RenderText(report, windowsContext, indexZones);
+            var rendered = asJson ? RenderJson(report, indexZones, reinstallZones) : RenderText(report, windowsContext, indexZones);
             Console.WriteLine(rendered);
             if (fullOutputPath is not null)
             {
@@ -187,12 +211,12 @@ public static class ScanCommand
 
     private static string Sanitize(string text) => ConsoleText.Sanitize(text);
 
-    private static string RenderJson(ScanReport report, IndexZoneDiscovery indexZones) =>
-        // Envelope: the index-derived zones and their notes (volume-absent
-        // ALERTs…) are scan inputs, not ScanReport fields — but they must
-        // survive into machine-readable output (forget-nothing).
+    private static string RenderJson(ScanReport report, IndexZoneDiscovery indexZones, IReadOnlyList<ReinstallZone> reinstallZones) =>
+        // Envelope: the index-derived zones, their notes (volume-absent ALERTs…)
+        // and the app-inventory reinstall zones are scan inputs, not ScanReport
+        // fields — but they must survive into machine-readable output (forget-nothing).
         JsonSerializer.Serialize(
-            new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes },
+            new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes, ReinstallZones = reinstallZones },
             new JsonSerializerOptions
             {
                 WriteIndented = true,
@@ -322,6 +346,21 @@ public static class ScanCommand
             foreach (var hit in captures)
             {
                 text.AppendLine($"  {hit.RuleId,-32} {hit.Verdict.Format(),-14} {hit.Items,10:N0} items  {Bytes(hit.Bytes),12}");
+            }
+        }
+
+        var reinstallHits = report.RuleHits.Where(h => h.Stage == ScanEngine.ReinstallStage).ToList();
+        if (reinstallHits.Count > 0)
+        {
+            var items = reinstallHits.Sum(h => h.Items);
+            var bytes = reinstallHits.Sum(h => h.Bytes);
+            text.AppendLine();
+            text.AppendLine(
+                $"== Re-installable (app inventory) — install dirs ignored as re-downloadable: {items:N0} items, {Bytes(bytes)} moved out of REVIEW ==");
+            text.AppendLine("   User data inside them (config/save/userdata… names, and any capture/carve-out) stayed in REVIEW/CAPTURE.");
+            foreach (var hit in reinstallHits.Take(15))
+            {
+                text.AppendLine($"  {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
             }
         }
 

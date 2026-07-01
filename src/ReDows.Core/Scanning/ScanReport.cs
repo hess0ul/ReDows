@@ -72,6 +72,36 @@ public sealed record ClaimedZone
     public string? Note { get; }
 }
 
+/// <summary>
+/// A dynamic zone fed at scan time from the application inventory: a directory the
+/// inventory identified as an installed app's location (ARP InstallLocation, a game
+/// library, a package-manager folder). The app is re-acquirable, so its
+/// re-downloadable content is IGNORE — but ONLY where the ruleset would otherwise
+/// REVIEW it (never over a keep: a carve-out / capture survives), and never inside a
+/// data-named subtree (config/save/userdata… stay REVIEW, see <see cref="AppDataFolders"/>).
+/// Evaluated AFTER the ruleset, so the forget-nothing stages always win — this is the
+/// one engine-fed zone that may ignore, and it is deliberately the last word.
+/// </summary>
+public sealed record ReinstallZone
+{
+    public ReinstallZone(string id, string pathPrefix)
+    {
+        if (string.IsNullOrEmpty(id) || !id.Contains(':'))
+        {
+            throw new ArgumentException(
+                "reinstall zone ids must carry a ':' namespace (e.g. 'app:arp:Notepad++') — ':' cannot appear " +
+                "in rule or engine ids, so report attribution can never collide", nameof(id));
+        }
+
+        Id = id;
+        PathPrefix = pathPrefix;
+    }
+
+    public string Id { get; }
+
+    public string PathPrefix { get; }
+}
+
 /// <summary>Items classified by a rule carrying the dpapi_machine_bound flag: export/sync BEFORE the reset.</summary>
 public sealed record PreResetAlert(string RuleId, long Items);
 
@@ -93,7 +123,8 @@ public sealed record ScanOptions(
     Action<long, string>? OnProgress = null,
     long ProgressInterval = 50_000,
     IReadOnlyList<ClaimedZone>? ClaimedZones = null,
-    Action<ManifestEntry>? OnCapture = null);
+    Action<ManifestEntry>? OnCapture = null,
+    IReadOnlyList<ReinstallZone>? ReinstallZones = null);
 
 public sealed record VerdictTotals(long Items, long Bytes);
 
@@ -139,6 +170,7 @@ public sealed record ScanReport(
         "A directory that could not be enumerated is one 'unknown subtree' item: its contents are absent from every figure. 'Zero gaps' therefore means zero KNOWN gaps.",
         "Cloud placeholders (OneDrive Files-On-Demand…) are counted at their logical size; no content is downloaded.",
         "A reparse-point directory with an unknown or unreadable tag is not traversed: it is one counted REVIEW item (engine.unknown_reparse) and its contents are absent from every figure.",
-        "Dynamic deny-list sources (FilesNotToBackup…) and the application inventory are later blocks.",
+        "Dynamic deny-list sources (FilesNotToBackup…) are a later block.",
+        "The application inventory feeds re-installable install-dir zones: their re-downloadable content is IGNORED where the ruleset would only REVIEW, never over a keep and never a data-named subtree — enabled unless --no-reinstall.",
     ];
 }
