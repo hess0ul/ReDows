@@ -6,10 +6,12 @@ namespace ReDows.Providers.Windows;
 
 /// <summary>
 /// The real <see cref="IFileHasher"/>: SHA-256 over file bytes, read-only. Opens with a permissive
-/// share mode so a file another process is using can still be read (best-effort). A file that cannot
-/// be read (locked, denied, vanished) yields null — the finder then leaves it out of any group.
-/// The partial hash covers the first <see cref="PrefixBytes"/> only, so files that differ near the
-/// start are separated without reading them whole.
+/// share mode so a file another process is using can still be read (best-effort), and with the
+/// SEQUENTIAL-SCAN hint so Windows trims already-read pages instead of filling standby ("cached")
+/// memory with the whole disk while hashing — the tool's own footprint stays modest. A file that
+/// cannot be read (locked, denied, vanished) yields null — the finder then leaves it out of any
+/// group. The partial hash covers the first <see cref="PrefixBytes"/> only, so files that differ
+/// near the start are separated without reading them whole.
 /// </summary>
 public sealed class Sha256FileHasher : IFileHasher
 {
@@ -23,8 +25,14 @@ public sealed class Sha256FileHasher : IFileHasher
     {
         try
         {
-            using var stream = new FileStream(
-                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var stream = new FileStream(path, new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.ReadWrite | FileShare.Delete,
+                Options = FileOptions.SequentialScan,
+                BufferSize = PrefixBytes,
+            });
             using var sha = SHA256.Create();
 
             if (wholeFile is null)
