@@ -76,6 +76,43 @@
                 </Border>
             </Expander>
 
+            <!-- Duplicate files (optional) -->
+            <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="16" Margin="0,12,0,0"
+                    BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                <StackPanel>
+                    <CheckBox Content="Also find duplicate files (read-only)" FontWeight="SemiBold"
+                              IsChecked="{Binding FindDuplicates, Mode=TwoWay}"/>
+                    <StackPanel Margin="24,8,0,0" Visibility="{Binding FindDuplicates, Converter={StaticResource BoolToVis}}">
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8"
+                                   Text="For each set of byte-identical files, the most recent copy is the one to keep; the other locations are noted so a restore can put it back anywhere. A slower extra pass — and nothing is ever deleted."/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Content="All files" GroupName="dupmode" Margin="0,0,16,0"
+                                         IsChecked="{Binding DuplicatesGlobal, Mode=TwoWay}"/>
+                            <RadioButton Content="Only certain types" GroupName="dupmode"
+                                         IsChecked="{Binding DuplicatesGlobal, Converter={StaticResource Not}, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Modules}" Margin="0,10,0,0">
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DuplicatesGlobal}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Label}" FontSize="13" Margin="0,3"
+                                              IsChecked="{Binding DedupeSelected, Mode=TwoWay}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- Actions -->
             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                 <Button Content="Run scan" Command="{Binding RunCommand}"/>
@@ -217,6 +254,48 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <!-- Duplicate files (shown only when the optional pass ran) -->
+                <StackPanel Margin="0,20,0,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.Duplicates}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Duplicate files" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap">
+                        <Run Text="{Binding Result.Duplicates.Groups, Mode=OneWay}"/><Run Text=" groups · "/><Run Text="{Binding Result.Duplicates.Reclaimable, Mode=OneWay}"/><Run Text=" reclaimable if one copy of each is kept (nothing is deleted)."/>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding Result.Duplicates.Top}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,6"
+                                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock>
+                                            <Run Text="{Binding Reclaimable, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding Copies, Mode=OneWay}"/><Run Text=" copies · "/><Run Text="{Binding SizeEach, Mode=OneWay}"/><Run Text=" each"/>
+                                        </TextBlock>
+                                        <TextBlock Foreground="{StaticResource App.Good}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis">
+                                            <Run Text="keep (most recent): "/><Run Text="{Binding KeepPath, Mode=OneWay}"/>
+                                        </TextBlock>
+                                        <ItemsControl ItemsSource="{Binding OtherPaths}" Margin="0,2,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" Foreground="{StaticResource App.Muted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
 
                 <Button Content="Review these →" Margin="0,20,0,0" HorizontalAlignment="Left"
                         Command="{Binding DataContext.ShowReviewCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"/>

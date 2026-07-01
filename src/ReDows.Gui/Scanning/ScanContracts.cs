@@ -6,8 +6,20 @@ namespace ReDows.Gui.Scanning;
 /// What to scan. <see cref="FolderRoot"/> null = the whole PC (all in-scope volumes); else that subtree.
 /// <see cref="CategoryModules"/> are the user's per-category choices (games, media…): each acts only
 /// where the ruleset would REVIEW, so an empty list simply means "no category overrides".
+/// <see cref="Duplicates"/> null = don't hunt duplicates.
 /// </summary>
-public sealed record ScanRequest(string? FolderRoot, IReadOnlyList<CategoryModule>? CategoryModules = null);
+public sealed record ScanRequest(
+    string? FolderRoot,
+    IReadOnlyList<CategoryModule>? CategoryModules = null,
+    DuplicateScan? Duplicates = null);
+
+/// <summary>
+/// Whether to also find byte-identical files, and — for a per-type run — the lower-cased extensions
+/// (no dot) to limit the hunt to. <see cref="Extensions"/> null = every file (the "global" mode);
+/// a list = only files with one of those extensions (the "per type" mode). Read-only: this only
+/// reports duplicates and the space one copy each would free — nothing is ever deleted.
+/// </summary>
+public sealed record DuplicateScan(bool Enabled, IReadOnlyList<string>? Extensions);
 
 /// <summary>Live progress while a scan runs: how many items seen so far and the path currently being walked.</summary>
 public sealed record ScanProgress(long Items, string CurrentPath);
@@ -17,6 +29,15 @@ public sealed record AlertRow(string Rule, string Items);
 
 /// <summary>One head directory in the REVIEW work queue. <see cref="Bytes"/> is the raw size (for the review explorer).</summary>
 public sealed record ReviewFolderRow(string Size, string Items, string Folder, long Bytes);
+
+/// <summary>
+/// One duplicate group, shaped for display: <see cref="KeepPath"/> is the copy to keep (the most
+/// recently modified "truth"), <see cref="OtherPaths"/> the other places the identical content lives.
+/// </summary>
+public sealed record DuplicateGroupRow(string Reclaimable, string SizeEach, int Copies, string KeepPath, IReadOnlyList<string> OtherPaths);
+
+/// <summary>Duplicate-file findings for the Scan screen: how many groups, the space one copy each would free, and the biggest.</summary>
+public sealed record DuplicateSummary(int Groups, int ExtraCopies, string Reclaimable, IReadOnlyList<DuplicateGroupRow> Top);
 
 /// <summary>
 /// A scan result shaped for friendly display (formatted strings, not raw records) — what the
@@ -32,7 +53,8 @@ public sealed record ScanResultView(
     bool Balanced,
     string EquationText,
     IReadOnlyList<AlertRow> Alerts,
-    IReadOnlyList<ReviewFolderRow> TopReview);
+    IReadOnlyList<ReviewFolderRow> TopReview,
+    DuplicateSummary? Duplicates = null);
 
 /// <summary>
 /// Runs a scan off the UI thread. A seam: the real implementation drives the engine on this PC;

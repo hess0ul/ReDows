@@ -1,5 +1,6 @@
 using System.IO;
 using ReDows.Core.Classification;
+using ReDows.Core.Duplicates;
 using ReDows.Core.Rules;
 using ReDows.Core.Rules.Loading;
 using ReDows.Core.Scanning;
@@ -53,7 +54,103 @@ public sealed class WindowsScanRunner : IScanRunner
             options,
             cancellationToken);
 
-        return Shape(report);
+        var result = Shape(report);
+
+        // Optional second pass: hunt byte-identical files. Read-only. If it is cancelled, the
+        // classification result above is still returned — just without a duplicates section.
+        if (request.Duplicates is { Enabled: true } duplicateScan)
+        {
+            var duplicateRoots = request.FolderRoot is null
+                ? windowsContext.Context.Volumes.Select(v => v.RootPath).ToList()
+                : [Path.GetFullPath(request.FolderRoot)];
+            try
+            {
+                result = result with { Duplicates = FindDuplicates(duplicateRoots, duplicateScan, progress, cancellationToken) };
+            }
+            catch (OperationCanceledException)
+            {
+                // keep the classification result, drop the (incomplete) duplicate hunt
+            }
+        }
+
+        return result;
+    }
+
+    private static DuplicateSummary FindDuplicates(
+        IReadOnlyList<string> roots, DuplicateScan scan, IProgress<ScanProgress> progress, CancellationToken cancellationToken)
+    {
+        var extensions = scan.Extensions is null
+            ? null
+            : new HashSet<string>(scan.Extensions, StringComparer.OrdinalIgnoreCase);
+
+        var walker = new WindowsFileSystemWalker();
+        var files = new List<FileRef>();
+        foreach (var root in roots)
+        {
+            foreach (var entry in walker.Walk(root))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (entry.Error is not null || entry.IsDirectory)
+                {
+                    continue;
+                }
+
+                if (extensions is null || extensions.Contains(ExtensionOf(entry.Path)))
+                {
+                    files.Add(new FileRef(entry.Path, entry.SizeBytes));
+                }
+            }
+        }
+
+        long hashed = 0;
+        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++hashed % 500 == 0)
+            {
+                progress.Report(new ScanProgress(hashed, "comparing possible duplicate files…"));
+            }
+        });
+
+        var top = groups.Take(25)
+            .Select(group => new DuplicateGroupRow(
+                Format.Bytes(group.ReclaimableBytes),
+                Format.Bytes(group.Size),
+                group.Count,
+                group.Primary.Path,
+                group.Locations.Skip(1).Select(location => location.Path).ToList()))
+            .ToList();
+
+        return new DuplicateSummary(
+            groups.Count,
+            groups.Sum(group => group.Count - 1),
+            Format.Bytes(groups.Sum(group => group.ReclaimableBytes)),
+            top);
+    }
+
+    private static string ExtensionOf(string path)
+    {
+        var name = path.AsSpan();
+        var slash = name.LastIndexOfAny('/', '\\');
+        if (slash >= 0)
+        {
+            name = name[(slash + 1)..];
+        }
+
+        var dot = name.LastIndexOf('.');
+        return dot >= 0 && dot < name.Length - 1 ? name[(dot + 1)..].ToString().ToLowerInvariant() : "";
+    }
+
+    private static DateTime SafeLastModifiedUtc(string path)
+    {
+        try
+        {
+            return File.GetLastWriteTimeUtc(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DateTime.MinValue;
+        }
     }
 
     /// <summary>Rules ship next to the executable (distribution); fall back to the working directory (dev).</summary>

@@ -13,6 +13,7 @@ public sealed class ModuleRowViewModel : ViewModelBase
 {
     private readonly ModuleDefinition _definition;
     private ModuleAction _action;
+    private bool _dedupeSelected;
 
     public ModuleRowViewModel(ModuleDefinition definition)
     {
@@ -23,6 +24,16 @@ public sealed class ModuleRowViewModel : ViewModelBase
     public string Name => _definition.Name;
 
     public string Label => _definition.Label;
+
+    /// <summary>The file extensions this category matches (lower-case, no dot); empty for a folder-name category (games).</summary>
+    public IReadOnlyList<string> Extensions => _definition.Extensions;
+
+    /// <summary>Whether the user ticked this category for duplicate de-duplication (per-type mode).</summary>
+    public bool DedupeSelected
+    {
+        get => _dedupeSelected;
+        set => Set(ref _dedupeSelected, value);
+    }
 
     /// <summary>
     /// Human list of what this category matches, shown in the "?" tooltip: the file extensions

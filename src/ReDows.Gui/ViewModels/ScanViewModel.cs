@@ -16,6 +16,8 @@ public sealed class ScanViewModel : ViewModelBase
 
     private bool _wholePc = true;
     private string _folderPath = "";
+    private bool _findDuplicates;
+    private bool _duplicatesGlobal = true;
     private bool _isRunning;
     private string _progressText = "";
     private ScanResultView? _result;
@@ -49,6 +51,20 @@ public sealed class ScanViewModel : ViewModelBase
         set { Set(ref _folderPath, value); RaiseCommands(); }
     }
 
+    /// <summary>Also hunt byte-identical files during the scan (a slower extra pass; read-only).</summary>
+    public bool FindDuplicates
+    {
+        get => _findDuplicates;
+        set => Set(ref _findDuplicates, value);
+    }
+
+    /// <summary>true = de-duplicate every file; false = only the categories ticked in <see cref="Modules"/> (per type).</summary>
+    public bool DuplicatesGlobal
+    {
+        get => _duplicatesGlobal;
+        set => Set(ref _duplicatesGlobal, value);
+    }
+
     public bool IsRunning
     {
         get => _isRunning;
@@ -75,6 +91,24 @@ public sealed class ScanViewModel : ViewModelBase
 
     private bool ScopeIsValid() => WholePc || !string.IsNullOrWhiteSpace(FolderPath);
 
+    private DuplicateScan? BuildDuplicateScan()
+    {
+        if (!FindDuplicates)
+        {
+            return null;
+        }
+
+        // Global = every file (null filter); per type = only the extensions of the ticked categories.
+        IReadOnlyList<string>? extensions = DuplicatesGlobal
+            ? null
+            : Modules.Where(module => module.DedupeSelected)
+                .SelectMany(module => module.Extensions)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        return new DuplicateScan(true, extensions);
+    }
+
     public async Task RunAsync()
     {
         if (IsRunning)
@@ -92,7 +126,8 @@ public sealed class ScanViewModel : ViewModelBase
         {
             var request = new ScanRequest(
                 WholePc ? null : FolderPath,
-                Modules.Select(module => module.ToCategoryModule()).ToList());
+                Modules.Select(module => module.ToCategoryModule()).ToList(),
+                BuildDuplicateScan());
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
         }
