@@ -44,7 +44,7 @@ public sealed class ShellViewModel : ViewModelBase
         ShowScanCommand = new RelayCommand(_ => CurrentViewModel = Scan);
         ShowReviewCommand = new RelayCommand(_ =>
         {
-            Review.SetRoots(ReviewRootsFromScan());
+            Review.SetRoots(ReviewRootsFromScan(), scanned: Scan.Result is not null);
             CurrentViewModel = Review;
         });
         ShowBackupCommand = new RelayCommand(_ =>
@@ -139,7 +139,7 @@ public sealed class ShellViewModel : ViewModelBase
         Review.RestoreTrash(session.Trash.ToDictionary(item => item.Path, item => item.Bytes, StringComparer.OrdinalIgnoreCase));
         Backup.ManifestPath = session.ManifestPath;
         Backup.ExcludedPaths = session.Trash.Select(item => item.Path).ToList();
-        Review.SetRoots(ReviewRootsFromScan());
+        Review.SetRoots(ReviewRootsFromScan(), scanned: true);
 
         CurrentViewModel = Review;
         HasPendingSession = false;

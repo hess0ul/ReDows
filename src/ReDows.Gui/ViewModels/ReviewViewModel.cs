@@ -29,6 +29,7 @@ public sealed class ReviewViewModel : ViewModelBase
     private CancellationTokenSource? _cancellation;
     private ReviewSort _sort = ReviewSort.Size;
 
+    private bool _scanned;
     private bool _isLoading;
     private bool _isTrashOpen;
     private string? _error;
@@ -137,9 +138,13 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public string TrashButtonText => $"🗑 Trash ({Trash.DroppedCount:N0})";
 
-    public string KeptSummary => Trash.DroppedCount == 0
-        ? $"Keeping everything under review (≈ {Format.Bytes(_totalReviewBytes)}). Drop what you don't need."
-        : $"Trash: {Trash.DroppedCount:N0} item(s) · {Format.Bytes(Trash.DroppedBytes)} — keeping ≈ {Format.Bytes(Math.Max(0, _totalReviewBytes - Trash.DroppedBytes))}";
+    public string KeptSummary => !HasRoots
+        ? (_scanned
+            ? "Nothing to review — everything is either kept or safe to ignore. You're all set."
+            : "No scan yet — run a scan first, then come back to sort what needs a look.")
+        : Trash.DroppedCount == 0
+            ? $"Keeping everything under review (≈ {Format.Bytes(_totalReviewBytes)}). Drop what you don't need."
+            : $"Trash: {Trash.DroppedCount:N0} item(s) · {Format.Bytes(Trash.DroppedBytes)} — keeping ≈ {Format.Bytes(Math.Max(0, _totalReviewBytes - Trash.DroppedBytes))}";
 
     public bool IsLoading
     {
@@ -153,10 +158,15 @@ public sealed class ReviewViewModel : ViewModelBase
         private set => Set(ref _error, value);
     }
 
-    /// <summary>Feed the biggest REVIEW folders from the latest scan and start at the first one.</summary>
-    public void SetRoots(IReadOnlyList<EntryRow> roots)
+    /// <summary>
+    /// Feed the biggest REVIEW folders from the latest scan and start at the first one. <paramref name="scanned"/>
+    /// tells apart "no scan run yet" from "a scan ran but flagged nothing to review" — both give empty roots,
+    /// but they need different messages (otherwise a clean scan wrongly reads as "no scan yet").
+    /// </summary>
+    public void SetRoots(IReadOnlyList<EntryRow> roots, bool scanned = false)
     {
         _roots = roots;
+        _scanned = scanned;
         _folderIndex = -1;
         _trail.Clear();
         _totalReviewBytes = roots.Sum(r => r.Bytes);
@@ -171,7 +181,9 @@ public sealed class ReviewViewModel : ViewModelBase
             Entries.Clear();
             StepText = "";
             FolderNote = "";
-            Location = "No scan yet — run a scan first, then come here.";
+            Location = scanned
+                ? "Nothing to review — your scan sorted everything into keep or ignore. Nothing here needs a second look."
+                : "No scan yet — run a scan first, then come here.";
             RaiseSummary();
             RaiseNav();
             return;
