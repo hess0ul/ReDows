@@ -1,0 +1,119 @@
+using ReDows.Gui.Navigation;
+using ReDows.Gui.Scanning;
+
+namespace ReDows.Gui.ViewModels;
+
+/// <summary>
+/// The Scan screen's brain. It runs the scan off the UI thread (so the window never freezes),
+/// streams progress, and lets the user Cancel (the engine then returns a partial result). All
+/// state — running / done / partial / error — is plain and testable off a fake <see cref="IScanRunner"/>.
+/// </summary>
+public sealed class ScanViewModel : ViewModelBase
+{
+    private readonly IScanRunner _runner;
+    private CancellationTokenSource? _cancellation;
+
+    private bool _wholePc = true;
+    private string _folderPath = "";
+    private bool _isRunning;
+    private string _progressText = "";
+    private ScanResultView? _result;
+    private string? _error;
+
+    public ScanViewModel(IScanRunner runner)
+    {
+        _runner = runner;
+        RunCommand = new RelayCommand(async _ => await RunAsync(), _ => !IsRunning && ScopeIsValid());
+        CancelCommand = new RelayCommand(_ => Cancel(), _ => IsRunning);
+    }
+
+    public RelayCommand RunCommand { get; }
+
+    public RelayCommand CancelCommand { get; }
+
+    public bool WholePc
+    {
+        get => _wholePc;
+        set { Set(ref _wholePc, value); RaiseCommands(); }
+    }
+
+    public string FolderPath
+    {
+        get => _folderPath;
+        set { Set(ref _folderPath, value); RaiseCommands(); }
+    }
+
+    public bool IsRunning
+    {
+        get => _isRunning;
+        private set { Set(ref _isRunning, value); RaiseCommands(); }
+    }
+
+    public string ProgressText
+    {
+        get => _progressText;
+        private set => Set(ref _progressText, value);
+    }
+
+    public ScanResultView? Result
+    {
+        get => _result;
+        private set => Set(ref _result, value);
+    }
+
+    public string? Error
+    {
+        get => _error;
+        private set => Set(ref _error, value);
+    }
+
+    private bool ScopeIsValid() => WholePc || !string.IsNullOrWhiteSpace(FolderPath);
+
+    public async Task RunAsync()
+    {
+        if (IsRunning)
+        {
+            return;
+        }
+
+        Error = null;
+        Result = null;
+        ProgressText = "Starting…";
+        IsRunning = true;
+        _cancellation = new CancellationTokenSource();
+        var progress = new Progress<ScanProgress>(p => ProgressText = $"{p.Items:N0} items — {p.CurrentPath}");
+        try
+        {
+            var request = new ScanRequest(WholePc ? null : FolderPath);
+            Result = await _runner.RunAsync(request, progress, _cancellation.Token);
+            ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
+        }
+        catch (OperationCanceledException)
+        {
+            ProgressText = "Cancelled.";
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            ProgressText = "";
+        }
+        finally
+        {
+            IsRunning = false;
+            _cancellation?.Dispose();
+            _cancellation = null;
+        }
+    }
+
+    public void Cancel()
+    {
+        ProgressText = "Cancelling…";
+        _cancellation?.Cancel();
+    }
+
+    private void RaiseCommands()
+    {
+        RunCommand.RaiseCanExecuteChanged();
+        CancelCommand.RaiseCanExecuteChanged();
+    }
+}

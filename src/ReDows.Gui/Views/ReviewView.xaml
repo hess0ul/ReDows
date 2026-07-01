@@ -1,0 +1,193 @@
+<UserControl x:Class="ReDows.Gui.Views.ReviewView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="26,22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Review — drop what you don't need" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock Text="Everything under review is kept by default. Drop the junk — it leaves the list and goes to the trash (you can restore it). One folder at a time."
+                       Foreground="{StaticResource App.Muted}" Margin="0,4,0,16"/>
+        </StackPanel>
+
+        <!-- Step header -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding StepText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="✕ Drop this folder" Style="{StaticResource GhostButton}" Command="{Binding DropFolderCommand}"/>
+        </Grid>
+
+        <!-- Toolbar: Up + location + sort -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="↑ Up" Style="{StaticResource GhostButton}" Command="{Binding UpCommand}"/>
+            <TextBlock Grid.Column="1" Text="{Binding Location}" Foreground="{StaticResource App.Muted}"
+                       VerticalAlignment="Center" Margin="14,0,14,0" TextTrimming="CharacterEllipsis"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Text="Sort:" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <Button Content="Size" Style="{StaticResource GhostButton}" Command="{Binding SortBySizeCommand}" Margin="0,0,6,0"/>
+                <Button Content="Name" Style="{StaticResource GhostButton}" Command="{Binding SortByNameCommand}" Margin="0,0,6,0"/>
+                <Button Content="Type" Style="{StaticResource GhostButton}" Command="{Binding SortByTypeCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Loading -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,10" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <ProgressBar IsIndeterminate="True" Height="4" BorderThickness="0"
+                         Foreground="{StaticResource App.Accent}" Background="{StaticResource App.Card}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <TextBlock Text="Reading folder (computing sizes)…" Foreground="{StaticResource App.Muted}"
+                           FontSize="12" VerticalAlignment="Center"/>
+                <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}"
+                        Margin="12,0,0,0" Padding="10,4"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Error -->
+        <Border Grid.Row="4" Background="#3A2A2A" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Error}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding Error}" Foreground="#FF9B9B"/>
+        </Border>
+
+        <!-- Content: the folder list, or the trash panel -->
+        <Grid Grid.Row="5">
+            <!-- Folder list -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer.Style>
+                    <Style TargetType="ScrollViewer">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsTrashOpen}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Style>
+                <StackPanel>
+                    <TextBlock Text="{Binding FolderNote}" Foreground="{StaticResource App.Muted}" Margin="0,4,0,10">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FolderNote}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding Entries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Style="{StaticResource RowButton}" Margin="0"
+                                            Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                            CommandParameter="{Binding}" IsEnabled="{Binding IsDirectory}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="110"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
+                                                       VerticalAlignment="Center" TextAlignment="Right"/>
+                                        </Grid>
+                                    </Button>
+                                    <Button Grid.Column="1" Content="✕ Drop" Style="{StaticResource GhostButton}" Margin="8,0,0,0"
+                                            Command="{Binding DataContext.DropCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Trash panel -->
+            <Border Background="{StaticResource App.Surface}" CornerRadius="8" Padding="14"
+                    BorderBrush="{StaticResource App.Border}" BorderThickness="1"
+                    Visibility="{Binding IsTrashOpen, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Trash — dropped items (won't be backed up). Restore brings one back." FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="Close" Style="{StaticResource GhostButton}" Command="{Binding ToggleTrashCommand}"/>
+                    </Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding TrashItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
+                                                   VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,10,0"/>
+                                        <Button Grid.Column="2" Content="Restore" Style="{StaticResource GhostButton}"
+                                                Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Wizard bar: Previous | summary | Trash | Next -->
+        <Grid Grid.Row="6" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="◀ Previous" Style="{StaticResource GhostButton}" Command="{Binding PreviousCommand}"/>
+            <TextBlock Grid.Column="1" Text="{Binding KeptSummary}" Foreground="{StaticResource App.Good}"
+                       VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="SemiBold"
+                       Margin="12,0,12,0" TextTrimming="CharacterEllipsis"/>
+            <Button Grid.Column="2" Content="{Binding TrashButtonText}" Style="{StaticResource GhostButton}"
+                    Command="{Binding ToggleTrashCommand}" Margin="0,0,10,0"/>
+            <Button Grid.Column="3" Content="Next ▶" Command="{Binding NextCommand}"/>
+        </Grid>
+    </Grid>
+</UserControl>

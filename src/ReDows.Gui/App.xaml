@@ -1,0 +1,28 @@
+<Application x:Class="ReDows.Gui.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ReDows.Gui.ViewModels"
+             xmlns:views="clr-namespace:ReDows.Gui.Views"
+             xmlns:nav="clr-namespace:ReDows.Gui.Navigation">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme/ModernTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <nav:InverseBooleanConverter x:Key="Not"/>
+
+            <!-- The content area picks the view for whatever view-model is current. -->
+            <DataTemplate DataType="{x:Type vm:HomeViewModel}">
+                <views:HomeView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ScanViewModel}">
+                <views:ScanView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ReviewViewModel}">
+                <views:ReviewView/>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
