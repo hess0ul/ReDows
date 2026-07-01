@@ -24,6 +24,17 @@ public sealed class ModuleRowViewModel : ViewModelBase
 
     public string Label => _definition.Label;
 
+    /// <summary>
+    /// Human list of what this category matches, shown in the "?" tooltip: the file extensions
+    /// (".jpg, .png, …") for an extension module, or the folder names for a folder module (games).
+    /// </summary>
+    public string Detects =>
+        _definition.Extensions.Count > 0
+            ? "File types: " + string.Join(", ", _definition.Extensions.Select(extension => "." + extension))
+            : _definition.FolderNames.Count > 0
+                ? "Folders named: " + string.Join(", ", _definition.FolderNames)
+                : "(nothing)";
+
     public ModuleAction Action
     {
         get => _action;

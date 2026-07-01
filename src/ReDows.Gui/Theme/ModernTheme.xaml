@@ -160,6 +160,17 @@
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
 
+    <!-- Dark tooltip so hover hints (e.g. a category's file types) match the theme. -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Foreground" Value="{StaticResource App.Text}"/>
+        <Setter Property="Background" Value="{StaticResource App.Surface}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource App.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="HasDropShadow" Value="True"/>
+    </Style>
+
     <Style x:Key="RowButton" TargetType="Button">
         <Setter Property="Background" Value="{StaticResource App.Card}"/>
         <Setter Property="Foreground" Value="{StaticResource App.Text}"/>
