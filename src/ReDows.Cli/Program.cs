@@ -26,6 +26,7 @@ return args switch
     ["export", .. var exportOptions] => ExportCommand.Run(exportOptions),
     ["profile", .. var profileOptions] => ProfileCommand.Run(profileOptions),
     ["copy", .. var copyOptions] => CopyCommand.Run(copyOptions),
+    ["duplicates", .. var duplicatesOptions] => DuplicatesCommand.Run(duplicatesOptions),
     [] or ["--help"] or ["-h"] => Usage(0),
     _ => UnknownCommand(),
 };
@@ -65,6 +66,9 @@ static int Usage(int exitCode)
     Console.WriteLine("  redows profile --out <dir> [--from <apps.json>] [--catalog <dir>]");
     Console.WriteLine("                                          Write the complete InDows profile folder (apps catalog + settings + README).");
     Console.WriteLine("                                          Read-only; closes the ReDows -> InDows loop. Exit: 0 ok, 1 invalid catalog, 2 usage, 3 input, 4 error.");
+    Console.WriteLine("  redows duplicates [--root <path>] [--min-size <bytes|10MB>]");
+    Console.WriteLine("                                          Report byte-identical files (read-only, SHA-256 confirmed) and the space one copy each would free.");
+    Console.WriteLine("                                          Proposes only — never deletes. Exit: 0 ok, 2 usage, 4 error.");
     Console.WriteLine("  redows rules validate [--rules <dir>]   Load and validate the ruleset (fail-closed).");
     Console.WriteLine("  redows rules schema [--out <file>]      Emit the generated JSON Schema for ruleset files.");
     Console.WriteLine("  redows --version                        Print the version.");
