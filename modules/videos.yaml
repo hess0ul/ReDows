@@ -1,0 +1,20 @@
+# Category module: video files scattered outside the standard Videos folder.
+#
+# The Videos Known Folder is already captured by the ruleset, so this module only
+# affects videos that live elsewhere and would otherwise land in REVIEW — useful
+# because videos are often huge. Detection is by file EXTENSION (language-neutral).
+schema_version: 1
+name: videos
+label: "Video files (outside the standard Videos folder)"
+
+# Neutral default: leave scattered videos in the review queue (nothing lost). Opt in:
+#   redows scan --module videos=ignore   (drop the big files; a save-named subtree is spared)
+#   redows scan --module videos=keep     (back them all up)
+default_action: review
+
+detect:
+  # Common container formats. Deliberately NOT 'ts': that is also the TypeScript
+  # source extension (a hard collision with code, which must never be swept up here).
+  extensions: [mp4, mov, avi, mkv, wmv, webm, m4v, mpg, mpeg, flv, 3gp, mts, m2ts, vob]
+
+save_carve_backs: true

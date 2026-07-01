@@ -1,0 +1,22 @@
+# Category module: photo / image files scattered outside the standard Pictures folder.
+#
+# The Pictures Known Folder is already captured by the ruleset, so this module only
+# affects images that live elsewhere (other drives, random folders) and would
+# otherwise land in REVIEW. Detection is by file EXTENSION, which is language-neutral
+# (a .jpg is a .jpg everywhere), so no bilingual tokens are needed here.
+schema_version: 1
+name: photos
+label: "Photo / image files (outside the standard Pictures folder)"
+
+# Neutral default: leave scattered images in the review queue (nothing lost). Opt in:
+#   redows scan --module photos=keep     (back up every scattered image)
+#   redows scan --module photos=ignore   (drop them; a save-named subtree is spared)
+default_action: review
+
+detect:
+  # Common photo formats + camera RAW + editable masters. Deliberately NOT svg / ico:
+  # svg is usually a vector/program asset (a candidate for a future 3D/vector module)
+  # and ico is an icon (a candidate for a future icons module).
+  extensions: [jpg, jpeg, png, gif, bmp, tif, tiff, webp, heic, heif, avif, raw, cr2, cr3, nef, arw, dng, orf, rw2, raf, psd, xcf]
+
+save_carve_backs: true
