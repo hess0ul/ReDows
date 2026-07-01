@@ -162,7 +162,8 @@ public sealed record ScanOptions(
     IReadOnlyList<ClaimedZone>? ClaimedZones = null,
     Action<ManifestEntry>? OnCapture = null,
     IReadOnlyList<ReinstallZone>? ReinstallZones = null,
-    IReadOnlyList<AppDataZone>? AppDataZones = null);
+    IReadOnlyList<AppDataZone>? AppDataZones = null,
+    IReadOnlyList<CategoryModule>? CategoryModules = null);
 
 public sealed record VerdictTotals(long Items, long Bytes);
 
@@ -210,5 +211,6 @@ public sealed record ScanReport(
         "A reparse-point directory with an unknown or unreadable tag is not traversed: it is one counted REVIEW item (engine.unknown_reparse) and its contents are absent from every figure.",
         "Dynamic deny-list sources (FilesNotToBackup…) are a later block.",
         "The application inventory feeds two kinds of zones (unless --no-reinstall): install dirs whose re-downloadable content is IGNORED where the ruleset would only REVIEW (never over a keep, never a data-named subtree), and each app's data folders — its %AppData% is CAPTURED and its %LocalAppData% surfaced for REVIEW, again only where the ruleset would otherwise REVIEW. App-data folder names are matched to the app name (best-effort), so an app whose data folder is named differently is not linked.",
+        "User-selectable category modules (modules/, e.g. games) apply only where the ruleset would REVIEW: KEEP captures a whole category, IGNORE drops its re-acquirable bulk — never over a keep/secret, and under IGNORE a save-named subtree stays REVIEW. A module has no effect unless its action is set (default REVIEW). Detection is by folder name/extension (best-effort), so a game folder at a volume root with no games-named ancestor is not matched.",
     ];
 }

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ReDows.Core.Apps;
+using ReDows.Core.Modules;
 using ReDows.Core.Rules;
 using ReDows.Core.Rules.Loading;
 using ReDows.Core.Scanning;
@@ -39,6 +40,9 @@ public static class ScanCommand
         string? manifestFile = null;
         var asJson = false;
         var noReinstall = false;
+        var moduleActions = new Dictionary<string, ModuleAction>(StringComparer.OrdinalIgnoreCase);
+
+        const string usage = "Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json] [--no-reinstall] [--module <name>=<review|keep|ignore>]";
 
         for (var i = 0; i < options.Length; i++)
         {
@@ -62,8 +66,26 @@ public static class ScanCommand
                 case "--no-reinstall":
                     noReinstall = true;
                     break;
+                case "--module" when i + 1 < options.Length:
+                    var spec = options[++i];
+                    var eq = spec.IndexOf('=');
+                    if (eq <= 0 || eq >= spec.Length - 1)
+                    {
+                        Console.Error.WriteLine($"--module expects <name>=<action> (got '{spec}'). {usage}");
+                        return 2;
+                    }
+
+                    var moduleName = spec[..eq].Trim();
+                    if (!ModuleActions.TryParse(spec[(eq + 1)..].Trim(), out var moduleAction))
+                    {
+                        Console.Error.WriteLine($"--module '{moduleName}': action must be review, keep or ignore (got '{spec[(eq + 1)..].Trim()}').");
+                        return 2;
+                    }
+
+                    moduleActions[moduleName] = moduleAction;
+                    break;
                 default:
-                    Console.Error.WriteLine($"Invalid option '{options[i]}'. Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json] [--no-reinstall]");
+                    Console.Error.WriteLine($"Invalid option '{options[i]}'. {usage}");
                     return 2;
             }
         }
@@ -82,6 +104,47 @@ public static class ScanCommand
             }
 
             return 1;
+        }
+
+        // Category modules (games, media…): user-selectable per-category verdicts,
+        // data-driven from modules/. Fail-safe if the directory is absent (no
+        // modules = no effect), fail-closed on a malformed file (a detector the user
+        // relies on must work or say why it can't).
+        IReadOnlyList<ModuleDefinition> moduleDefinitions;
+        try
+        {
+            moduleDefinitions = ModuleLoader.LoadDirectory(ModulesLocator.Resolve(ModulesLocator.DefaultDirectory));
+        }
+        catch (ModuleValidationException ex)
+        {
+            Console.Error.WriteLine($"Modules INVALID — {ex.Errors.Count} error(s). Refusing to scan (fail-closed).");
+            foreach (var error in ex.Errors)
+            {
+                Console.Error.WriteLine($"  - {error}");
+            }
+
+            return 1;
+        }
+
+        foreach (var name in moduleActions.Keys)
+        {
+            if (!moduleDefinitions.Any(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                var available = moduleDefinitions.Count == 0 ? "none" : string.Join(", ", moduleDefinitions.Select(m => m.Name));
+                Console.Error.WriteLine($"--module '{name}' is not a known module (available: {available}).");
+                return 2;
+            }
+        }
+
+        var categoryModules = moduleDefinitions
+            .Select(m => m.ToCategoryModule(moduleActions.TryGetValue(m.Name, out var a) ? a : m.DefaultAction))
+            .ToList();
+
+        if (moduleDefinitions.Count > 0)
+        {
+            Console.Error.WriteLine("Category modules: " + string.Join(", ", moduleDefinitions.Select(m =>
+                $"{m.Name}={(moduleActions.TryGetValue(m.Name, out var a) ? a : m.DefaultAction).Format()}"))
+                + " (keep/ignore act only where the ruleset would review; set with --module <name>=keep|ignore).");
         }
 
         if (root is not null && !Directory.Exists(root))
@@ -176,7 +239,8 @@ public static class ScanCommand
                 ClaimedZones: indexZones.Zones,
                 OnCapture: onCapture,
                 ReinstallZones: reinstallZones,
-                AppDataZones: appDataZones);
+                AppDataZones: appDataZones,
+                CategoryModules: categoryModules);
 
             Console.Error.WriteLine(root is null
                 ? $"Scanning {windowsContext.Context.Volumes.Count} volume(s)…"
@@ -190,7 +254,7 @@ public static class ScanCommand
                 scanOptions,
                 cancellation.Token);
 
-            var rendered = asJson ? RenderJson(report, indexZones, reinstallZones, appDataZones) : RenderText(report, windowsContext, indexZones);
+            var rendered = asJson ? RenderJson(report, indexZones, reinstallZones, appDataZones, categoryModules) : RenderText(report, windowsContext, indexZones);
             Console.WriteLine(rendered);
             if (fullOutputPath is not null)
             {
@@ -225,12 +289,13 @@ public static class ScanCommand
 
     private static string RenderJson(
         ScanReport report, IndexZoneDiscovery indexZones,
-        IReadOnlyList<ReinstallZone> reinstallZones, IReadOnlyList<AppDataZone> appDataZones) =>
+        IReadOnlyList<ReinstallZone> reinstallZones, IReadOnlyList<AppDataZone> appDataZones,
+        IReadOnlyList<CategoryModule> categoryModules) =>
         // Envelope: the index-derived zones, their notes (volume-absent ALERTs…)
-        // and the app-inventory reinstall / app-data zones are scan inputs, not
-        // ScanReport fields — but they must survive into machine-readable output.
+        // and the app-inventory reinstall / app-data zones and category modules are
+        // scan inputs, not ScanReport fields — but they must survive into machine-readable output.
         JsonSerializer.Serialize(
-            new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes, ReinstallZones = reinstallZones, AppDataZones = appDataZones },
+            new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes, ReinstallZones = reinstallZones, AppDataZones = appDataZones, CategoryModules = categoryModules },
             new JsonSerializerOptions
             {
                 WriteIndented = true,
@@ -389,6 +454,22 @@ public static class ScanCommand
                 $"{surfaced.Sum(h => h.Items):N0} surfaced for review ==");
             text.AppendLine("   Each recognised app's %AppData% is captured; its %LocalAppData% (mixed config/cache) stays in REVIEW.");
             foreach (var hit in appDataHits.OrderByDescending(h => h.Bytes).Take(15))
+            {
+                text.AppendLine($"  {hit.Verdict.Format(),-14} {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
+            }
+        }
+
+        var moduleHits = report.RuleHits.Where(h => h.Stage == ScanEngine.ModuleStage).ToList();
+        if (moduleHits.Count > 0)
+        {
+            var kept = moduleHits.Where(h => h.Verdict.IsCapture()).ToList();
+            var dropped = moduleHits.Where(h => h.Verdict == Verdict.Ignore).ToList();
+            text.AppendLine();
+            text.AppendLine(
+                $"== Category modules (your choices) — {kept.Sum(h => h.Items):N0} items kept ({Bytes(kept.Sum(h => h.Bytes))}), " +
+                $"{dropped.Sum(h => h.Items):N0} ignored ({Bytes(dropped.Sum(h => h.Bytes))}) ==");
+            text.AppendLine("   Applied only where the ruleset would REVIEW; under 'ignore', save-named subtrees stayed in REVIEW.");
+            foreach (var hit in moduleHits.OrderByDescending(h => h.Bytes))
             {
                 text.AppendLine($"  {hit.Verdict.Format(),-14} {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
             }

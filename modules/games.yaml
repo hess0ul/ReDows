@@ -1,0 +1,30 @@
+# Category module: games installed OUTSIDE a launcher.
+#
+# Launcher games (Steam, Epic, EA, Ubisoft…) are recognised by the app inventory
+# and handled by the app-zones reinstall logic — their install dirs are ignored as
+# re-downloadable. But a game dropped straight onto a disk (a "Games"/"Jeux" folder,
+# an emulator's ROM library) is NOT in the inventory and NOT necessarily easy to
+# re-acquire, so it must never be ignored by default. This module lets the user
+# decide, per category, with one setting.
+#
+# Detection is by folder NAME (there is no Known Folder for games): any path segment
+# equal to one of these marks a games tree. Saves that live inside these trees are
+# always spared (save_carve_backs) so an "ignore" never drops a save.
+schema_version: 1
+name: games
+label: "Games installed outside a launcher (Steam/Epic/… stay handled by the app inventory)"
+
+# Neutral default: leave games in the review queue (nothing lost). The user opts in:
+#   redows scan --module games=ignore   (drop the game bulk, keep the saves)
+#   redows scan --module games=keep     (back the whole thing up)
+default_action: review
+
+detect:
+  # Detection tokens are bilingual EN + FR by design: Games / Game (EN) and Jeux /
+  # Jeu (FR) — sorted in both languages; more locales may be added later. Emulation /
+  # ROMs are cross-locale. Both halves ship everywhere (not personal, machine-specific).
+  folder_names: [Games, Game, Jeux, Jeu, Emulation, ROMs]
+
+# Under "ignore", a subtree named save*/savegame*/profile*/userdata*/… stays REVIEW
+# (reuses the app-zones data-name net): you drop the game payload, never your saves.
+save_carve_backs: true

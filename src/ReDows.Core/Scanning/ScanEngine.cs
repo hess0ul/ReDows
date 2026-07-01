@@ -1,5 +1,6 @@
 using ReDows.Core.Classification;
 using ReDows.Core.Rules;
+using ReDows.Core.Rules.Globbing;
 
 namespace ReDows.Core.Scanning;
 
@@ -22,6 +23,9 @@ public static class ScanEngine
 
     /// <summary>Stage name of app-inventory data-zone keeps in rule hits (app-zones increment 4).</summary>
     public const string AppDataStage = "appdata";
+
+    /// <summary>Stage name of user-selected category-module verdicts in rule hits (games, media…).</summary>
+    public const string ModuleStage = "module";
 
     /// <summary>Aggregation depth of the REVIEW rollup, in segments below each root.</summary>
     private const int ReviewBucketDepth = 2;
@@ -82,6 +86,10 @@ public static class ScanEngine
         var appDataZones = (options.AppDataZones ?? [])
             .Select(z => (Zone: z, Prefix: ScanPaths.Normalize(z.PathPrefix)))
             .ToList();
+        // Category modules act only over a REVIEW verdict and honour the save-name
+        // net under ignore, so (unlike a bogus reinstall zone) they need no
+        // profile-root guard: an explicit "ignore games" is the user's own choice.
+        var categoryModules = options.CategoryModules ?? [];
 
         long files = 0, directories = 0, unknownSubtrees = 0, bytes = 0, items = 0;
         var byVerdict = new Dictionary<Verdict, (long Items, long Bytes)>();
@@ -123,7 +131,7 @@ public static class ScanEngine
                     files++;
                 }
 
-                var classification = Classify(classifier, entry, path, segments, excludedOutputs, orphanRoots, claimedZones, reinstallZones, appDataZones);
+                var classification = Classify(classifier, entry, path, segments, excludedOutputs, orphanRoots, claimedZones, reinstallZones, appDataZones, categoryModules);
                 if (classification.HasFlag(RuleFlag.DpapiMachineBound))
                 {
                     alerts[classification.RuleId] = alerts.GetValueOrDefault(classification.RuleId) + 1;
@@ -208,7 +216,8 @@ public static class ScanEngine
         IReadOnlyList<string> orphanRoots,
         IReadOnlyList<(ClaimedZone Zone, string Prefix)> claimedZones,
         IReadOnlyList<(ReinstallZone Zone, string Prefix)> reinstallZones,
-        IReadOnlyList<(AppDataZone Zone, string Prefix)> appDataZones)
+        IReadOnlyList<(AppDataZone Zone, string Prefix)> appDataZones,
+        IReadOnlyList<CategoryModule> categoryModules)
     {
         if (entry.Error is not null)
         {
@@ -281,13 +290,31 @@ public static class ScanEngine
             return classification;
         }
 
+        // Category modules — explicit, user-configured decisions about a whole
+        // category (games, media…). Like the app-inventory zones they act ONLY over a
+        // REVIEW verdict, so a keep/secret is never touched. Every KEEP is applied
+        // before every IGNORE (keeping data always beats dropping a re-acquirable
+        // bulk), and a module decision beats the inventory heuristics below it (it is
+        // an explicit user choice, they are guesses).
+        if (TryModuleKeep(segments, categoryModules, out var moduleKeepId))
+        {
+            return new Classification(Verdict.CaptureUser, moduleKeepId, ModuleStage);
+        }
+
         // Increment 4 — app data zones (%AppData% kept, %LocalAppData% surfaced):
-        // checked FIRST so keeping data beats ignoring a re-acquirable install when
-        // the two ever overlap. Additive-only (review/capture), so it can only make
-        // a REVIEW item more conservative.
+        // checked before the ignores so keeping data beats ignoring a re-acquirable
+        // install when the two ever overlap. Additive-only (review/capture), so it
+        // can only make a REVIEW item more conservative.
         if (TryAppDataKeep(path, appDataZones, out var appDataId, out var appDataVerdict))
         {
             return new Classification(appDataVerdict, appDataId, AppDataStage);
+        }
+
+        // Category module IGNORE: drop the re-acquirable bulk of a user-chosen
+        // category, but never a save-named subtree (forget-nothing, save_carve_backs).
+        if (TryModuleIgnore(segments, categoryModules, out var moduleIgnoreId))
+        {
+            return new Classification(Verdict.Ignore, moduleIgnoreId, ModuleStage);
         }
 
         // Increment 3 — reinstall zones: a folder the inventory identified as a
@@ -299,6 +326,102 @@ public static class ScanEngine
         }
 
         return classification;
+    }
+
+    /// <summary>
+    /// A REVIEW item belongs to a KEEP category when any active KEEP module matches
+    /// it (by folder name or file extension). First match wins for attribution.
+    /// </summary>
+    private static bool TryModuleKeep(
+        string[] segments, IReadOnlyList<CategoryModule> modules, out string moduleId)
+    {
+        moduleId = string.Empty;
+        foreach (var module in modules)
+        {
+            if (module.Action == ModuleAction.Keep && ModuleMatches(segments, module, out _))
+            {
+                moduleId = module.Id;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A REVIEW item is droppable when an active IGNORE module matches it AND — when
+    /// the module carves back saves — no user-data-named segment appears in its path
+    /// (the app-zones net, reused via <see cref="AppDataFolders"/>): the user drops
+    /// the game bulk, never the saves inside it. For a folder match the net starts
+    /// BELOW the matched folder; for an extension match there is no category folder
+    /// (folderMatchDepth == -1, so the net starts at 0 and scans the whole path) — a
+    /// media file sitting under a save*/config*/… folder must be spared just the same.
+    /// First match wins.
+    /// </summary>
+    private static bool TryModuleIgnore(
+        string[] segments, IReadOnlyList<CategoryModule> modules, out string moduleId)
+    {
+        moduleId = string.Empty;
+        foreach (var module in modules)
+        {
+            if (module.Action != ModuleAction.Ignore || !ModuleMatches(segments, module, out var folderMatchDepth))
+            {
+                continue;
+            }
+
+            // folderMatchDepth is -1 for an extension match, so +1 == 0 scans the
+            // whole path — the save-name net must never be silently skipped.
+            if (module.SaveCarveBacks && HasDataNamedSegmentBelow(segments, folderMatchDepth + 1))
+            {
+                continue;
+            }
+
+            moduleId = module.Id;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Does a category module match this path? By folder name (a path segment equal
+    /// to one of the module's tokens — <paramref name="folderMatchDepth"/> is the
+    /// shallowest such segment, defining the category root for the save-name net) or,
+    /// failing that, by the leaf's file extension (no folder context: depth stays -1).
+    /// </summary>
+    private static bool ModuleMatches(string[] segments, CategoryModule module, out int folderMatchDepth)
+    {
+        folderMatchDepth = -1;
+        for (var i = 0; i < segments.Length; i++)
+        {
+            foreach (var name in module.FolderNames)
+            {
+                if (GlobPattern.MatchesName(name, segments[i]))
+                {
+                    folderMatchDepth = i;
+                    return true;
+                }
+            }
+        }
+
+        if (module.Extensions.Count > 0 && segments.Length > 0)
+        {
+            var leaf = segments[^1];
+            var dot = leaf.LastIndexOf('.');
+            if (dot >= 0 && dot < leaf.Length - 1)
+            {
+                var extension = leaf[(dot + 1)..];
+                foreach (var candidate in module.Extensions)
+                {
+                    if (string.Equals(candidate, extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -367,9 +490,12 @@ public static class ScanEngine
         return bestLength >= 0;
     }
 
-    private static bool HasDataNamedSegmentBelow(string[] segments, string prefix)
+    private static bool HasDataNamedSegmentBelow(string[] segments, string prefix) =>
+        HasDataNamedSegmentBelow(segments, ScanPaths.Split(prefix).Length);
+
+    private static bool HasDataNamedSegmentBelow(string[] segments, int startDepth)
     {
-        for (var depth = ScanPaths.Split(prefix).Length; depth < segments.Length; depth++)
+        for (var depth = startDepth; depth < segments.Length; depth++)
         {
             if (AppDataFolders.IsDataName(segments[depth]))
             {
