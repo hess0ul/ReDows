@@ -89,6 +89,9 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public bool HasNext => _folderIndex >= 0 && _folderIndex < _roots.Count - 1;
 
+    /// <summary>On a folder with no next one — the wizard's end, where "Next" becomes "Back up →".</summary>
+    public bool OnLastFolder => HasFolder && !HasNext;
+
     public bool HasPrevious => _folderIndex > 0;
 
     public bool AtFolderRoot => _trail.Count <= 1;
@@ -331,6 +334,7 @@ public sealed class ReviewViewModel : ViewModelBase
     {
         Raise(nameof(HasFolder));
         Raise(nameof(HasNext));
+        Raise(nameof(OnLastFolder));
         Raise(nameof(HasPrevious));
         Raise(nameof(AtFolderRoot));
         UpCommand.RaiseCanExecuteChanged();

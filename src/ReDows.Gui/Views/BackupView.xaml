@@ -95,8 +95,26 @@
             <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="16" Margin="0,12,0,0"
                     BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                 <StackPanel>
-                    <CheckBox Content="Rescue files that are open in another app (locked)" FontWeight="SemiBold"
-                              IsChecked="{Binding UseVss, Mode=TwoWay}" IsEnabled="{Binding IsElevated}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="Rescue files that are open in another app" FontWeight="SemiBold"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding UseVss, Mode=TwoWay}" IsEnabled="{Binding IsElevated}"/>
+                        <!-- Non-clickable badge: the feature is locked until ReDows runs as administrator. -->
+                        <Border Margin="10,0,0,0" Padding="8,2" CornerRadius="10" VerticalAlignment="Center"
+                                Background="{StaticResource App.Surface}" BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsElevated}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="🔒 Locked" FontSize="11" Foreground="{StaticResource App.Muted}"/>
+                        </Border>
+                    </StackPanel>
                     <TextBlock Margin="24,6,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
                                Text="A locked file is read from a frozen snapshot of the disk (VSS) so it is not lost. Needs administrator rights.">
                         <TextBlock.Style>
