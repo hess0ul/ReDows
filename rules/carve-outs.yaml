@@ -36,3 +36,74 @@ rules:
     prio: critical
     source: 'vault deny-list v2 §A.5 / §C'
     note: 'Unique infrastructure state: carve-out for the same reason as mail.pst. The nested dev.terraform.tfstate exception in deny.yaml is now redundant defense-in-depth.'
+
+  # --- Only-copy data that lives in the install dir / anywhere (app-zones
+  # --- increment 1). Promoted from the capture stage so the Program Files ignore
+  # --- (app-zones.yaml, deny stage) can never swallow them. Same "wherever it
+  # --- sits, only copy" reasoning as mail.pst / *.kdbx / *.tfstate above.
+  - id: app.steam.userdata
+    scope: drive
+    match: '**/Steam/userdata/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault apps-ctt §1 (static) / app-zones increment 1'
+    note: 'Per-account local game data: cloud-save staging, screenshots, per-game configs. Drive-scoped: Steam may be installed on any volume, including Program Files (x86).'
+  - id: app.cemu.nand
+    scope: drive
+    match: '**/Cemu/mlc01/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault apps-ctt §5 / §11 (portable faux-ami) / app-zones increment 1'
+    note: 'Wii U NAND: saves live here, wherever the (often portable) Cemu folder sits.'
+  - id: app.rdcman.rdg
+    scope: drive
+    match: '**/*.rdg'
+    verdict: capture:secret
+    prio: high
+    flags: [dpapi_machine_bound]
+    source: 'vault apps-ctt §6 / deny-list §D-14 / app-zones increment 1'
+    note: 'RDCMan files embed DPAPI machine-bound credentials: re-enter passwords after the reset.'
+  - id: app.putty.ppk_keys
+    scope: drive
+    match: '**/*.ppk'
+    verdict: capture:secret
+    prio: critical
+    source: 'vault apps-ctt §8 / §11 / app-zones increment 1'
+    note: 'PuTTY private keys, wherever they sit. Registry-only session data (PuTTY/WinSCP/TightVNC) is the HKCU capture facet, declared for a later block.'
+  - id: app.winrar.license
+    scope: drive
+    match: '**/rarreg.key'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §10 / §11 (licences) / app-zones increment 1'
+    note: 'The licence file often sits in the install dir.'
+  - id: app.nilesoft.config
+    scope: drive
+    match: '**/shell.nss'
+    verdict: capture:config
+    source: 'vault apps-ctt §10 / deny-list §A.4(b) / app-zones increment 1'
+    note: 'Nilesoft Shell config lives in its install dir.'
+
+  # --- Machine faux-amis: apps that keep real data under Program Files. Promoted
+  # --- from the capture stage for the same reason (survive the app-zones ignore).
+  - id: app.ubisoft.savegames
+    scope: machine
+    match: '%ProgramFiles(x86)%/Ubisoft/Ubisoft Game Launcher/savegames/**'
+    verdict: capture:user
+    prio: critical
+    source: 'vault apps-ctt §5 / deny-list §A.4(c) / app-zones increment 1'
+    note: 'Saves under Program Files — the classic faux-ami.'
+  - id: app.sunshine.config
+    scope: machine
+    match: '%ProgramFiles%/Sunshine/config/**'
+    verdict: capture:secret
+    prio: high
+    source: 'vault apps-ctt §9 / deny-list §A.4(b) / app-zones increment 1'
+    note: 'Pairing credentials + TLS certs under Program Files.'
+  - id: app.afterburner.profiles
+    scope: machine
+    match: '%ProgramFiles(x86)%/MSI Afterburner/Profiles/**'
+    verdict: capture:config
+    prio: high
+    source: 'vault apps-ctt §10 / deny-list §A.4(b) / app-zones increment 1'
+    note: 'OC profiles and fan curves under Program Files.'

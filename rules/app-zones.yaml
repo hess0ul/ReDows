@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=./ruleset.schema.json
+# Deny stage — "app zones": the standard install roots. By Windows convention
+# Program Files holds re-downloadable PROGRAM files; mutable user data belongs in
+# AppData / Documents / ProgramData, not here. So the content is IGNORE (the app
+# itself is separately inventoried by `redows apps` — that is the "reinstall"
+# list, not something to copy). Same shape as os.systemroot: a broad machine-zone
+# ignore whose carve-backs are exceptions.
+#
+# TWO safety layers keep forget-nothing intact:
+#   1. Apps that break the convention and keep real data under Program Files
+#      (saves, configs, licences, keys) are promoted to the carve_out stage
+#      (carve-outs.yaml), which runs BEFORE deny — so they win, wherever they sit.
+#   2. For the UNCATALOGUED long tail, a generic name heuristic pulls any subtree
+#      whose folder name signals user data (config*, save*, profile*, settings,
+#      userdata, mods, backup*, preset*) back to REVIEW (not capture: the name is
+#      a hint, not a certainty — default-to-review decides, the human confirms).
+#      Collision-prone program names (data, assets, bin, content, cache, logs,
+#      plugins) are deliberately NOT listed: they almost always mean program
+#      payload, and would re-inflate REVIEW with re-downloadable bytes.
+#
+# %ProgramW6432% is intentionally omitted: on the 64-bit target %ProgramFiles%
+# already resolves to the 64-bit dir and %ProgramFiles(x86)% to the 32-bit one,
+# so the two rules below cover both real directories. Worst case on an unusual
+# host is less reduction, never data loss.
+schema_version: 1
+layer: deny
+rules:
+  - id: appzone.program_files
+    scope: machine
+    match: '%ProgramFiles%/**'
+    verdict: ignore
+    source: 'vault classification §Program Files / app-zones increment 1'
+    note: 'Re-downloadable program binaries. Data-in-install-dir apps are protected in carve-outs.yaml; data-named subtrees fall to REVIEW via the exceptions below.'
+    exceptions:
+      - id: appzone.program_files.keep_config
+        match: '%ProgramFiles%/**/config*/**'
+        verdict: review
+        prio: high
+        note: 'config / configs / configuration: likely user or app configuration kept in the install dir.'
+      - id: appzone.program_files.keep_save
+        match: '%ProgramFiles%/**/save*/**'
+        verdict: review
+        prio: high
+        note: 'save / saves / saved / savegame(s) / savedata: in-install-dir saves (the classic faux-ami).'
+      - id: appzone.program_files.keep_profile
+        match: '%ProgramFiles%/**/profile*/**'
+        verdict: review
+        prio: high
+        note: 'profile / profiles: per-user profiles kept beside the program.'
+      - id: appzone.program_files.keep_preset
+        match: '%ProgramFiles%/**/preset*/**'
+        verdict: review
+        note: 'preset / presets: user-authored presets.'
+      - id: appzone.program_files.keep_settings
+        match: '%ProgramFiles%/**/settings/**'
+        verdict: review
+        note: 'A settings folder in the install dir often holds user settings.'
+      - id: appzone.program_files.keep_userdata
+        match: '%ProgramFiles%/**/userdata/**'
+        verdict: review
+        prio: high
+        note: 'userdata: user data kept in the install tree.'
+      - id: appzone.program_files.keep_mods
+        match: '%ProgramFiles%/**/mods/**'
+        verdict: review
+        prio: high
+        note: 'mods: hand-installed mods are user content, not re-downloadable payload.'
+      - id: appzone.program_files.keep_backup
+        match: '%ProgramFiles%/**/backup*/**'
+        verdict: review
+        note: 'backup / backups: may be the only copy of something.'
+
+  - id: appzone.program_files_x86
+    scope: machine
+    match: '%ProgramFiles(x86)%/**'
+    verdict: ignore
+    source: 'vault classification §Program Files / app-zones increment 1'
+    note: 'Re-downloadable program binaries (32-bit install root). Same two safety layers as appzone.program_files.'
+    exceptions:
+      - id: appzone.program_files_x86.keep_config
+        match: '%ProgramFiles(x86)%/**/config*/**'
+        verdict: review
+        prio: high
+        note: 'config / configs / configuration: likely user or app configuration kept in the install dir.'
+      - id: appzone.program_files_x86.keep_save
+        match: '%ProgramFiles(x86)%/**/save*/**'
+        verdict: review
+        prio: high
+        note: 'save / saves / saved / savegame(s) / savedata: in-install-dir saves (the classic faux-ami).'
+      - id: appzone.program_files_x86.keep_profile
+        match: '%ProgramFiles(x86)%/**/profile*/**'
+        verdict: review
+        prio: high
+        note: 'profile / profiles: per-user profiles kept beside the program.'
+      - id: appzone.program_files_x86.keep_preset
+        match: '%ProgramFiles(x86)%/**/preset*/**'
+        verdict: review
+        note: 'preset / presets: user-authored presets.'
+      - id: appzone.program_files_x86.keep_settings
+        match: '%ProgramFiles(x86)%/**/settings/**'
+        verdict: review
+        note: 'A settings folder in the install dir often holds user settings.'
+      - id: appzone.program_files_x86.keep_userdata
+        match: '%ProgramFiles(x86)%/**/userdata/**'
+        verdict: review
+        prio: high
+        note: 'userdata: user data kept in the install tree.'
+      - id: appzone.program_files_x86.keep_mods
+        match: '%ProgramFiles(x86)%/**/mods/**'
+        verdict: review
+        prio: high
+        note: 'mods: hand-installed mods are user content, not re-downloadable payload.'
+      - id: appzone.program_files_x86.keep_backup
+        match: '%ProgramFiles(x86)%/**/backup*/**'
+        verdict: review
+        note: 'backup / backups: may be the only copy of something.'

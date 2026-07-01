@@ -253,14 +253,6 @@ rules:
     source: 'vault apps-ctt §5 / capture §B'
     note: 'Xbox Live connected-storage saves (local copy) for every packaged game.'
 
-  - id: app.ubisoft.savegames
-    scope: machine
-    match: '%ProgramFiles(x86)%/Ubisoft/Ubisoft Game Launcher/savegames/**'
-    verdict: capture:user
-    prio: critical
-    source: 'vault apps-ctt §5 / deny-list §A.4(c)'
-    note: 'Saves under Program Files — the classic faux-ami.'
-
   - id: app.prismlauncher.data
     scope: user
     match: '%APPDATA%/PrismLauncher/**'
@@ -290,14 +282,6 @@ rules:
     source: 'vault apps-ctt §5 / deny-list §A.6'
     note: 'saves/, screenshots/, options.txt, servers.dat; assets/libraries/versions are denied separately.'
 
-  - id: app.cemu.nand
-    scope: drive
-    match: '**/Cemu/mlc01/**'
-    verdict: capture:user
-    prio: critical
-    source: 'vault apps-ctt §5 / §11 (portable faux-ami)'
-    note: 'Wii U NAND: saves live here, wherever the (often portable) Cemu folder sits.'
-
   - id: app.itch.config
     scope: user
     match: '%APPDATA%/itch/**'
@@ -318,14 +302,6 @@ rules:
     note: 'Manifests = inventory; EA saves live under Documents (already captured).'
 
   # --- Microsoft tools (apps-ctt §6) ---
-  - id: app.rdcman.rdg
-    scope: drive
-    match: '**/*.rdg'
-    verdict: capture:secret
-    prio: high
-    flags: [dpapi_machine_bound]
-    source: 'vault apps-ctt §6 / deny-list §D-14'
-    note: 'RDCMan files embed DPAPI machine-bound credentials: re-enter passwords after the reset.'
   - id: app.rdcman.settings
     scope: user
     match: '%LOCALAPPDATA%/Microsoft/Remote Desktop Connection Manager/**'
@@ -504,14 +480,6 @@ rules:
     verdict: capture:config
     source: 'vault apps-ctt §8'
 
-  - id: app.putty.ppk_keys
-    scope: drive
-    match: '**/*.ppk'
-    verdict: capture:secret
-    prio: critical
-    source: 'vault apps-ctt §8 / §11'
-    note: 'PuTTY private keys, wherever they sit. Registry-only session data (PuTTY/WinSCP/TightVNC) is the HKCU capture facet, declared for a later block.'
-
   - id: app.rustdesk.identity
     scope: user
     match: '%APPDATA%/RustDesk/config/**'
@@ -560,14 +528,6 @@ rules:
     verdict: capture:config
     prio: high
     source: 'vault apps-ctt §9'
-
-  - id: app.sunshine.config
-    scope: machine
-    match: '%ProgramFiles%/Sunshine/config/**'
-    verdict: capture:secret
-    prio: high
-    source: 'vault apps-ctt §9 / deny-list §A.4(b)'
-    note: 'Pairing credentials + TLS certs under Program Files.'
 
   - id: app.moonlight.client
     scope: user
@@ -652,13 +612,6 @@ rules:
     verdict: capture:config
     prio: low
     source: 'vault apps-ctt §10'
-  - id: app.winrar.license
-    scope: drive
-    match: '**/rarreg.key'
-    verdict: capture:secret
-    prio: high
-    source: 'vault apps-ctt §10 / §11 (licences)'
-    note: 'The licence file often sits in the install dir.'
 
   - id: app.anydesk.identity
     scope: user
@@ -690,21 +643,6 @@ rules:
     match: '%ProgramData%/Deskflow/**'
     verdict: capture:config
     source: 'vault apps-ctt §10'
-
-  - id: app.nilesoft.config
-    scope: drive
-    match: '**/shell.nss'
-    verdict: capture:config
-    source: 'vault apps-ctt §10 / deny-list §A.4(b)'
-    note: 'Nilesoft Shell config lives in its install dir.'
-
-  - id: app.afterburner.profiles
-    scope: machine
-    match: '%ProgramFiles(x86)%/MSI Afterburner/Profiles/**'
-    verdict: capture:config
-    prio: high
-    source: 'vault apps-ctt §10 / deny-list §A.4(b)'
-    note: 'OC profiles and fan curves under Program Files.'
 
   - id: app.openrgb.profiles
     scope: user

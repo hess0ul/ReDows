@@ -29,14 +29,6 @@ rules:
     source: 'vault apps-ctt §1 (static)'
     note: 'All PowerToys module settings (FancyZones layouts, Keyboard Manager remaps…).'
 
-  - id: app.steam.userdata
-    scope: drive
-    match: '**/Steam/userdata/**'
-    verdict: capture:user
-    prio: high
-    source: 'vault apps-ctt §1 (static)'
-    note: 'Per-account local game data: cloud-save staging, screenshots, per-game configs. Drive-scoped: Steam may be installed on any volume.'
-
   - id: app.epic.config
     scope: user
     match: '%LOCALAPPDATA%/EpicGamesLauncher/Saved/Config/**'
