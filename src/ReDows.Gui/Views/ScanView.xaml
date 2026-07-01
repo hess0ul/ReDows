@@ -233,7 +233,7 @@
                             <Run Text="Install folders ignored as re-downloadable: "/><Run Text="{Binding Result.InstalledApps.IgnoredText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/>
                         </TextBlock>
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap">
-                            <Run Text="App settings kept: "/><Run Text="{Binding Result.InstalledApps.KeptText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/><Run Text="   ·   local app data surfaced for review: "/><Run Text="{Binding Result.InstalledApps.SurfacedText, Mode=OneWay}"/>
+                            <Run Text="App settings kept: "/><Run Text="{Binding Result.InstalledApps.KeptText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/><Run Text="   ·   local app data surfaced for review: "/><Run Text="{Binding Result.InstalledApps.SurfacedText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/>
                         </TextBlock>
                     </StackPanel>
                 </Border>
