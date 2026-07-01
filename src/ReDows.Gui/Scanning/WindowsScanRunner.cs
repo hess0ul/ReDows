@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using ReDows.Core.Apps;
 using ReDows.Core.Classification;
 using ReDows.Core.Duplicates;
@@ -77,23 +78,41 @@ public sealed class WindowsScanRunner : IScanRunner
             }
         }
 
+        // Write the CAPTURE items to an app-managed manifest as they are classified — the seed of
+        // the future "scan + decisions" session file, and the input the Backup screen copies. Written
+        // via the SAME OnCapture the CLI's --manifest uses. If it cannot be written, the scan still
+        // runs; there is simply no manifest to back up (best-effort).
+        var manifestPath = ResolveManifestPath();
+        StreamWriter? manifestWriter = TryOpenManifest(manifestPath);
+        var wroteManifest = manifestWriter is not null;
+
         var options = new ScanOptions(
             Roots: request.FolderRoot is null ? null : [Path.GetFullPath(request.FolderRoot)],
             OnProgress: (items, path) => progress.Report(new ScanProgress(items, path)),
             ClaimedZones: indexZones.Zones,
+            OnCapture: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
             ReinstallZones: reinstallZones,
             AppDataZones: appDataZones,
             CategoryModules: request.CategoryModules);
 
-        var report = ScanEngine.Run(
-            ruleset,
-            windowsContext.Context,
-            new WindowsFileSystemWalker(),
-            new WindowsFileSystemView(),
-            options,
-            cancellationToken);
+        ScanReport report;
+        try
+        {
+            report = ScanEngine.Run(
+                ruleset,
+                windowsContext.Context,
+                new WindowsFileSystemWalker(),
+                new WindowsFileSystemView(),
+                options,
+                cancellationToken);
+        }
+        finally
+        {
+            manifestWriter?.Flush();
+            manifestWriter?.Dispose();
+        }
 
-        var result = Shape(report);
+        var result = Shape(report) with { ManifestPath = wroteManifest ? manifestPath : null };
         if (recognized)
         {
             result = result with { InstalledApps = InstalledAppsImpactOf(report, appCount) };
@@ -193,6 +212,27 @@ public sealed class WindowsScanRunner : IScanRunner
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return DateTime.MinValue;
+        }
+    }
+
+    /// <summary>The app-managed capture manifest of the last scan (the Backup screen's default input).</summary>
+    private static string ResolveManifestPath() =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ReDows",
+            "last-scan.jsonl");
+
+    /// <summary>Open the manifest for writing (best-effort): a write failure just means no backup seed.</summary>
+    private static StreamWriter? TryOpenManifest(string path)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            return new StreamWriter(path, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return null;
         }
     }
 

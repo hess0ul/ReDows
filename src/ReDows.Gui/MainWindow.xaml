@@ -32,10 +32,10 @@
                     <Button Content="Home" Style="{StaticResource NavButton}" Command="{Binding ShowHomeCommand}"/>
                     <Button Content="Scan" Style="{StaticResource NavButton}" Command="{Binding ShowScanCommand}"/>
                     <Button Content="Review" Style="{StaticResource NavButton}" Command="{Binding ShowReviewCommand}"/>
+                    <Button Content="Backup" Style="{StaticResource NavButton}" Command="{Binding ShowBackupCommand}"/>
                     <Button Content="Apps" Style="{StaticResource NavButton}" IsEnabled="False"/>
                     <Button Content="Settings" Style="{StaticResource NavButton}" IsEnabled="False"/>
                     <Button Content="Secrets" Style="{StaticResource NavButton}" IsEnabled="False"/>
-                    <Button Content="Backup" Style="{StaticResource NavButton}" IsEnabled="False"/>
                     <TextBlock Text="More screens coming next." Foreground="{StaticResource App.Muted}"
                                FontSize="11" Margin="18,12,10,0"/>
                 </StackPanel>

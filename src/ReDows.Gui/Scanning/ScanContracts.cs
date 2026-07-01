@@ -58,6 +58,8 @@ public sealed record InstalledAppsImpact(int Apps, string IgnoredText, string Ke
 /// A scan result shaped for friendly display (formatted strings, not raw records) — what the
 /// Scan screen shows. <see cref="Partial"/> = the run was interrupted (Cancel), so figures cover
 /// only what was walked; <see cref="Balanced"/> = the total-accounting equation held (0 unaccounted).
+/// <see cref="ManifestPath"/> = the file this scan wrote its CAPTURE items to (the Backup screen's
+/// input), or null if it could not be written.
 /// </summary>
 public sealed record ScanResultView(
     bool Partial,
@@ -70,7 +72,8 @@ public sealed record ScanResultView(
     IReadOnlyList<AlertRow> Alerts,
     IReadOnlyList<ReviewFolderRow> TopReview,
     DuplicateSummary? Duplicates = null,
-    InstalledAppsImpact? InstalledApps = null);
+    InstalledAppsImpact? InstalledApps = null,
+    string? ManifestPath = null);
 
 /// <summary>
 /// Runs a scan off the UI thread. A seam: the real implementation drives the engine on this PC;

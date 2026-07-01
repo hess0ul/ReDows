@@ -1,3 +1,4 @@
+using ReDows.Gui.Backup;
 using ReDows.Gui.Context;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Reviewing;
@@ -14,11 +15,12 @@ public sealed class ShellViewModel : ViewModelBase
 {
     private object _currentViewModel;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner)
     {
         Home = new HomeViewModel(contextSource);
         Scan = new ScanViewModel(scanRunner, moduleCatalog);
         Review = new ReviewViewModel(folderBrowser);
+        Backup = new BackupViewModel(backupRunner);
         _currentViewModel = Home;
 
         ShowHomeCommand = new RelayCommand(_ => CurrentViewModel = Home);
@@ -28,6 +30,12 @@ public sealed class ShellViewModel : ViewModelBase
             Review.SetRoots(ReviewRootsFromScan());
             CurrentViewModel = Review;
         });
+        ShowBackupCommand = new RelayCommand(_ =>
+        {
+            // Feed the Backup screen the manifest the last scan wrote (null if nothing scanned yet).
+            Backup.ManifestPath = Scan.Result?.ManifestPath;
+            CurrentViewModel = Backup;
+        });
     }
 
     public HomeViewModel Home { get; }
@@ -36,11 +44,15 @@ public sealed class ShellViewModel : ViewModelBase
 
     public ReviewViewModel Review { get; }
 
+    public BackupViewModel Backup { get; }
+
     public RelayCommand ShowHomeCommand { get; }
 
     public RelayCommand ShowScanCommand { get; }
 
     public RelayCommand ShowReviewCommand { get; }
+
+    public RelayCommand ShowBackupCommand { get; }
 
     public object CurrentViewModel
     {
