@@ -39,19 +39,22 @@
                         <ItemsControl ItemsSource="{Binding Modules}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="0,3">
+                                    <Grid Margin="0,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding Label}" VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" Margin="0,0,12,0"/>
+                                                   FontSize="14" TextTrimming="CharacterEllipsis" Margin="0,0,14,0"/>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                            <RadioButton Content="Keep" GroupName="{Binding Name}" Margin="0,0,10,0"
+                                            <RadioButton Content="Keep" GroupName="{Binding Name}" FontSize="14"
+                                                         Padding="8,6" MinWidth="80" Margin="0,0,14,0" VerticalContentAlignment="Center"
                                                          IsChecked="{Binding IsKeep, Mode=TwoWay}"/>
-                                            <RadioButton Content="Review" GroupName="{Binding Name}" Margin="0,0,10,0"
+                                            <RadioButton Content="Review" GroupName="{Binding Name}" FontSize="14"
+                                                         Padding="8,6" MinWidth="86" Margin="0,0,14,0" VerticalContentAlignment="Center"
                                                          IsChecked="{Binding IsReview, Mode=TwoWay}"/>
-                                            <RadioButton Content="Ignore" GroupName="{Binding Name}"
+                                            <RadioButton Content="Ignore" GroupName="{Binding Name}" FontSize="14"
+                                                         Padding="8,6" MinWidth="80" VerticalContentAlignment="Center"
                                                          IsChecked="{Binding IsIgnore, Mode=TwoWay}"/>
                                         </StackPanel>
                                     </Grid>
