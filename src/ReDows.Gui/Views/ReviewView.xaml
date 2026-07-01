@@ -115,12 +115,13 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="96"/>
                                                 <ColumnDefinition Width="110"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding Icon}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                             <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"
+                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Kind}"/>
                                             <TextBlock Grid.Column="3" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
                                                        VerticalAlignment="Center" TextAlignment="Right"/>
                                         </Grid>

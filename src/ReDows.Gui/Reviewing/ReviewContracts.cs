@@ -7,9 +7,24 @@ public sealed record EntryRow(string Name, string FullPath, bool IsDirectory, lo
 {
     public string SizeText => Format.Bytes(Bytes);
 
-    public string Kind => IsDirectory
-        ? "Folder"
-        : Path.GetExtension(Name) is { Length: > 1 } extension ? extension.TrimStart('.').ToUpperInvariant() : "File";
+    public string Kind
+    {
+        get
+        {
+            if (IsDirectory)
+            {
+                return "Folder";
+            }
+
+            // Path.GetExtension treats a leading-dot name (".gitignore", ".lmstudio-home-pointer") as
+            // one giant "extension". A dotfile has no real type, and a genuine extension is a short
+            // suffix — so a dotfile, or an absurdly long pseudo-extension, is just a file.
+            var extension = Path.GetExtension(Name).TrimStart('.');
+            return !Name.StartsWith('.') && extension.Length is > 0 and <= 8
+                ? extension.ToUpperInvariant()
+                : "File";
+        }
+    }
 
     public string Icon => IsDirectory ? "📁" : "📄";
 }
