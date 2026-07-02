@@ -27,7 +27,11 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
         var backup = Path.GetFullPath(request.BackupFolder);
         if (!Directory.Exists(backup))
         {
-            throw new InvalidOperationException($"That backup folder does not exist: '{backup}'.");
+            // A network share (\\server\share) that isn't there usually means the share is unreachable
+            // (server off, not signed in) rather than a wrong path — say so, so a NAS restore fails clearly.
+            throw new InvalidOperationException(IsNetworkPath(backup)
+                ? $"Could not reach the network backup folder '{backup}'. Is the share available — server on, and are you signed in to it?"
+                : $"That backup folder does not exist: '{backup}'.");
         }
 
         var targetFolder = request.ToOriginalLocations ? null : NormalizeTargetFolder(request.TargetFolder);
@@ -207,6 +211,9 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
             return new Dictionary<string, string>(); // a broken manifest just means no verification
         }
     }
+
+    /// <summary>Whether a full path is a UNC network share (\\server\share) — restore reads/writes it natively.</summary>
+    private static bool IsNetworkPath(string fullPath) => fullPath.StartsWith(@"\\", StringComparison.Ordinal);
 
     private static string NormalizeTargetFolder(string? folder)
     {
