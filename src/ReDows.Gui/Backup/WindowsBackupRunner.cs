@@ -83,6 +83,13 @@ public sealed class WindowsBackupRunner : IBackupRunner
             WriteRestoreMap(destination, plan.Map);
         }
 
+        // Record each copied file's checksum, so a later restore can verify end-to-end that what it puts
+        // back is byte-identical to the original — catching a backup medium that degraded in between.
+        if (report.Hashes.Count > 0)
+        {
+            WriteHashManifest(destination, report.Hashes);
+        }
+
         var vaultStatus = VerifyVault(vaultPath, request.VaultPassword, report.SecretsVaulted);
         var excludedText = excludedItems > 0 ? $"{excludedItems:N0} items · {Format.Bytes(excludedBytes)}" : null;
         var dedupeText = plan is null
@@ -149,6 +156,15 @@ public sealed class WindowsBackupRunner : IBackupRunner
             new { version = 1, duplicates = map },
             new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         File.WriteAllText(Path.Combine(destination, "redows-restore-map.json"), json);
+    }
+
+    /// <summary>Write the per-file checksum manifest at the destination root (SHA-256, for restore verification).</summary>
+    private static void WriteHashManifest(string destination, IReadOnlyList<FileHash> hashes)
+    {
+        var json = JsonSerializer.Serialize(
+            new { version = 1, algorithm = "SHA-256", files = hashes.Select(h => new { path = h.RelativePath, sha256 = h.Sha256 }) },
+            new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        File.WriteAllText(Path.Combine(destination, "redows-hashes.json"), json);
     }
 
     /// <summary>

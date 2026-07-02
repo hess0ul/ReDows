@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using ReDows.Core.Backup;
 using ReDows.Core.Scanning;
 using ReDows.Providers.Windows;
@@ -114,6 +115,13 @@ public static class CopyCommand
             shadow?.Dispose(); // delete any volume shadow copies we created
         }
 
+        // Record each copied file's checksum, so a later restore can verify end-to-end that what it puts
+        // back is byte-identical to the original — even if the backup medium degraded in between.
+        if (report.Hashes.Count > 0)
+        {
+            WriteHashManifest(fullDestination, report.Hashes);
+        }
+
         var vaultStatus = VerifyVault(vaultPath, vaultPassword, report.SecretsVaulted);
 
         Console.WriteLine(Render(report, fullDestination, vaultStatus, rescued));
@@ -156,6 +164,15 @@ public static class CopyCommand
         {
             return $"vault verify FAILED: {ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    /// <summary>Write the per-file checksum manifest (SHA-256) at the destination root, for restore verification.</summary>
+    private static void WriteHashManifest(string destination, IReadOnlyList<FileHash> hashes)
+    {
+        var json = JsonSerializer.Serialize(
+            new { version = 1, algorithm = "SHA-256", files = hashes.Select(h => new { path = h.RelativePath, sha256 = h.Sha256 }) },
+            new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        File.WriteAllText(Path.Combine(destination, "redows-hashes.json"), json);
     }
 
     /// <summary>Stream the JSONL manifest line by line (it can be large): blank/bad lines are skipped.</summary>

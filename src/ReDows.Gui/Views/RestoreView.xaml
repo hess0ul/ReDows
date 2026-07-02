@@ -127,6 +127,21 @@
                     </Border>
                 </UniformGrid>
 
+                <!-- Checksum verification (only when the backup carried a hash manifest) -->
+                <TextBlock Margin="0,10,0,0" Foreground="{StaticResource App.Good}" FontSize="12" TextWrapping="Wrap"
+                           Text="{Binding Result.VerifiedText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.VerifiedText}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
                 <TextBlock Margin="0,10,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap">
                     <Run Text="Secrets: "/><Run Text="{Binding Result.SecretsText, Mode=OneWay}"/>
                 </TextBlock>

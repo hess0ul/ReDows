@@ -36,9 +36,17 @@ public interface IVaultSink : IDisposable
 public sealed record CopyFailure(string Path, string Reason);
 
 /// <summary>
+/// The SHA-256 of one copied file, keyed by its backup-relative path. Recorded at backup time (the hash
+/// is already computed to verify the copy) so a later restore can prove each restored file is byte-identical
+/// to the original that was backed up — even if the backup medium degraded in between.
+/// </summary>
+public sealed record FileHash(string RelativePath, string Sha256);
+
+/// <summary>
 /// The outcome of a copy pass. Total-accounting invariant: every manifest entry lands in
 /// exactly one bucket — copied, directory, secret-vaulted, secret-deferred (when no vault
-/// password was given) or failed — so <see cref="Unaccounted"/> must be 0.
+/// password was given) or failed — so <see cref="Unaccounted"/> must be 0. <see cref="Hashes"/>
+/// carries each plain-copied file's checksum so a restore can verify it end-to-end.
 /// </summary>
 public sealed record CopyReport(
     long TotalEntries,
@@ -50,7 +58,8 @@ public sealed record CopyReport(
     long SecretBytesVaulted,
     long SecretsDeferred,
     long SecretBytesDeferred,
-    IReadOnlyList<CopyFailure> Failures)
+    IReadOnlyList<CopyFailure> Failures,
+    IReadOnlyList<FileHash> Hashes)
 {
     public long Accounted => FilesCopied + Directories + SecretsVaulted + SecretsDeferred + Failures.Count;
 

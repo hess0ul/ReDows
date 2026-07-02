@@ -24,6 +24,7 @@ public static class CopyEngine
         long total = 0, copied = 0, copiedBytes = 0, verified = 0, directories = 0;
         long vaulted = 0, vaultedBytes = 0, deferred = 0, deferredBytes = 0;
         var failures = new List<CopyFailure>();
+        var hashes = new List<FileHash>();
 
         foreach (var entry in entries)
         {
@@ -52,15 +53,20 @@ public static class CopyEngine
                     vaultedBytes += entry.Bytes;
                 }
             }
-            else if (CopyOne(entry, source, sink) is { } failure)
-            {
-                failures.Add(failure);
-            }
             else
             {
-                copied++;
-                copiedBytes += entry.Bytes;
-                verified++;
+                var result = CopyOne(entry, source, sink);
+                if (result.Failure is { } failure)
+                {
+                    failures.Add(failure);
+                }
+                else
+                {
+                    copied++;
+                    copiedBytes += entry.Bytes;
+                    verified++;
+                    hashes.Add(new FileHash(result.RelativePath, result.Hash!));
+                }
             }
 
             if (onProgress is not null && progressInterval > 0 && total % progressInterval == 0)
@@ -70,7 +76,7 @@ public static class CopyEngine
         }
 
         return new CopyReport(
-            total, copied, copiedBytes, verified, directories, vaulted, vaultedBytes, deferred, deferredBytes, failures);
+            total, copied, copiedBytes, verified, directories, vaulted, vaultedBytes, deferred, deferredBytes, failures, hashes);
     }
 
     /// <summary>Stream one secret file into the encrypted vault; returns a failure or null.</summary>
@@ -90,8 +96,11 @@ public static class CopyEngine
 
     private static readonly string SecretVerdict = Verdict.CaptureSecret.Format();
 
-    /// <summary>Copy one file and verify it; returns a failure or null on success.</summary>
-    private static CopyFailure? CopyOne(ManifestEntry entry, ICopySource source, IBackupSink sink)
+    /// <summary>Outcome of copying one file: a failure, or the backup-relative path and its verified hash.</summary>
+    private readonly record struct CopyResult(CopyFailure? Failure, string RelativePath, string? Hash);
+
+    /// <summary>Copy one file and verify it; returns its hash on success, or a failure.</summary>
+    private static CopyResult CopyOne(ManifestEntry entry, ICopySource source, IBackupSink sink)
     {
         var relativePath = RelativePath(entry.Path);
         try
@@ -110,12 +119,12 @@ public static class CopyEngine
             }
 
             return string.Equals(sourceHash, destinationHash, StringComparison.OrdinalIgnoreCase)
-                ? null
-                : new CopyFailure(entry.Path, "verification mismatch (destination differs from source)");
+                ? new CopyResult(null, relativePath, sourceHash)
+                : new CopyResult(new CopyFailure(entry.Path, "verification mismatch (destination differs from source)"), relativePath, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            return new CopyFailure(entry.Path, ex.GetType().Name);
+            return new CopyResult(new CopyFailure(entry.Path, ex.GetType().Name), relativePath, null);
         }
     }
 

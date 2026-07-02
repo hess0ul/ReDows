@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.Json;
 using ReDows.Gui.Backup;
 using ReDows.Providers.Windows.Backup;
@@ -15,6 +16,7 @@ namespace ReDows.Gui.Restore;
 public sealed class WindowsRestoreRunner : IRestoreRunner
 {
     private const string RestoreMapName = "redows-restore-map.json";
+    private const string HashManifestName = "redows-hashes.json";
     private const string VaultName = "secrets-vault.zip";
 
     public Task<RestoreResultView> RunAsync(RestoreRequest request, IProgress<RestoreProgress> progress, CancellationToken cancellationToken) =>
@@ -30,8 +32,9 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
 
         var targetFolder = request.ToOriginalLocations ? null : NormalizeTargetFolder(request.TargetFolder);
         var plan = new RestorePlan(LoadRestoreMap(Path.Combine(backup, RestoreMapName)), request.ToOriginalLocations, targetFolder);
+        var expectedHashes = LoadHashManifest(Path.Combine(backup, HashManifestName));
 
-        long restored = 0, restoredBytes = 0, skipped = 0, seen = 0;
+        long restored = 0, restoredBytes = 0, skipped = 0, verified = 0, seen = 0;
         var failures = new List<RestoreFailureRow>();
 
         foreach (var file in Directory.EnumerateFiles(backup, "*", SearchOption.AllDirectories))
@@ -40,9 +43,10 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
             var rel = Path.GetRelativePath(backup, file).Replace('\\', '/');
             if (IsSpecialFile(rel))
             {
-                continue; // the restore map / vault are ReDows' own outputs, not user files to place
+                continue; // the restore map / hashes / vault are ReDows' own outputs, not user files to place
             }
 
+            expectedHashes.TryGetValue(rel, out var expected);
             foreach (var target in plan.TargetsFor(rel))
             {
                 var outcome = WriteFile(() => File.OpenRead(file), target);
@@ -54,10 +58,20 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
                 {
                     failures.Add(new RestoreFailureRow(target, reason));
                 }
+                else if (expected is not null && !FileMatches(target, expected))
+                {
+                    // Written, but it does not match the checksum recorded at backup time — surface it,
+                    // never a silent success. The (bad) file is left in place (non-destructive).
+                    failures.Add(new RestoreFailureRow(target, "checksum mismatch — restored file does not match the backup"));
+                }
                 else
                 {
                     restored++;
                     restoredBytes += outcome.Bytes;
+                    if (expected is not null)
+                    {
+                        verified++;
+                    }
                 }
             }
 
@@ -74,7 +88,8 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
             SkippedText: $"{skipped:N0} already existed (kept as-is)",
             FailedText: $"{failures.Count:N0}",
             SecretsText: secretsText,
-            TopFailures: failures.Take(25).ToList());
+            TopFailures: failures.Take(25).ToList(),
+            VerifiedText: expectedHashes.Count > 0 ? $"{verified:N0} checksum-verified against the backup" : null);
     }
 
     /// <summary>Extract the secrets vault to its targets when a password is given; describe the outcome.</summary>
@@ -146,7 +161,52 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
 
     private static bool IsSpecialFile(string relativePath) =>
         string.Equals(relativePath, RestoreMapName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(relativePath, HashManifestName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(relativePath, VaultName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether the file on disk hashes to the SHA-256 recorded at backup time (end-to-end proof).</summary>
+    private static bool FileMatches(string path, string expectedSha256)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            return string.Equals(Convert.ToHexString(SHA256.HashData(stream)), expectedSha256, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Load the backup's per-file checksums (backup-relative path → SHA-256); empty if absent/broken.</summary>
+    private static IReadOnlyDictionary<string, string> LoadHashManifest(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return new Dictionary<string, string>();
+        }
+
+        try
+        {
+            var file = JsonSerializer.Deserialize<HashManifestFile>(
+                File.ReadAllText(path),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in file?.Files ?? [])
+            {
+                if (!string.IsNullOrEmpty(entry.Path) && !string.IsNullOrEmpty(entry.Sha256))
+                {
+                    map[entry.Path.Replace('\\', '/')] = entry.Sha256;
+                }
+            }
+
+            return map;
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(); // a broken manifest just means no verification
+        }
+    }
 
     private static string NormalizeTargetFolder(string? folder)
     {
@@ -184,4 +244,8 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
     private sealed record RestoreMapFile(int Version, IReadOnlyList<RestoreMapDto>? Duplicates);
 
     private sealed record RestoreMapDto(string? StoredAt, IReadOnlyList<string>? BelongsAt);
+
+    private sealed record HashManifestFile(int Version, string? Algorithm, IReadOnlyList<HashDto>? Files);
+
+    private sealed record HashDto(string? Path, string? Sha256);
 }

@@ -19,14 +19,16 @@ public sealed record RestoreFailureRow(string Path, string Reason);
 /// <summary>
 /// A restore result shaped for friendly display. <see cref="SecretsText"/> always describes what happened
 /// to the secrets vault (absent / restored / left for the user / failed). Skipped = a file already existed
-/// and was kept as-is.
+/// and was kept as-is. <see cref="VerifiedText"/> is null when the backup carried no checksum manifest
+/// (older backups); otherwise it says how many restored files were proven byte-identical to the original.
 /// </summary>
 public sealed record RestoreResultView(
     string RestoredText,
     string SkippedText,
     string FailedText,
     string SecretsText,
-    IReadOnlyList<RestoreFailureRow> TopFailures);
+    IReadOnlyList<RestoreFailureRow> TopFailures,
+    string? VerifiedText = null);
 
 /// <summary>
 /// Runs a restore off the UI thread. A seam: the real implementation writes to this PC; a test swaps a
