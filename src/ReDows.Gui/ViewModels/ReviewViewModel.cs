@@ -13,7 +13,7 @@ public enum ReviewSort
 
 /// <summary>
 /// The review wizard, trash model: everything under review is KEPT by default (safe — nothing lost
-/// by forgetting). You walk the REVIEW folders one at a time (Folder X of N, Previous/Next), drill in
+/// by forgetting). You walk the REVIEW folders one at a time (Folder X of N, Next), drill in
 /// (Open / Up), and DROP the junk — a dropped item leaves the list and goes to the trash, which you can
 /// open to restore. Folders are read on demand (read-only). The kept set (everything minus the trash)
 /// will feed the backup next.
@@ -46,7 +46,6 @@ public sealed class ReviewViewModel : ViewModelBase
         UpCommand = new RelayCommand(_ => _ = UpAsync(), _ => !AtFolderRoot && !IsLoading);
         CancelCommand = new RelayCommand(_ => _cancellation?.Cancel(), _ => IsLoading);
         NextCommand = new RelayCommand(_ => _ = NextAsync(), _ => HasNext && !IsLoading);
-        PreviousCommand = new RelayCommand(_ => _ = PreviousAsync(), _ => HasPrevious && !IsLoading);
         DropFolderCommand = new RelayCommand(_ => _ = DropCurrentFolderAsync(), _ => HasFolder && !IsLoading);
         ToggleTrashCommand = new RelayCommand(_ => IsTrashOpen = !IsTrashOpen);
         SortBySizeCommand = new RelayCommand(_ => SetSort(ReviewSort.Size));
@@ -87,8 +86,6 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public RelayCommand NextCommand { get; }
 
-    public RelayCommand PreviousCommand { get; }
-
     public RelayCommand DropFolderCommand { get; }
 
     public RelayCommand ToggleTrashCommand { get; }
@@ -113,8 +110,6 @@ public sealed class ReviewViewModel : ViewModelBase
     /// that flagged nothing to review (no folders to walk) — so the user is never stuck on a dead "Next".
     /// </summary>
     public bool ShowBackUp => OnLastFolder || (_scanned && !HasRoots);
-
-    public bool HasPrevious => _folderIndex > 0;
 
     public bool AtFolderRoot => _trail.Count <= 1;
 
@@ -213,8 +208,6 @@ public sealed class ReviewViewModel : ViewModelBase
     }
 
     public Task NextAsync() => HasNext ? GoToFolderAsync(_folderIndex + 1) : Task.CompletedTask;
-
-    public Task PreviousAsync() => HasPrevious ? GoToFolderAsync(_folderIndex - 1) : Task.CompletedTask;
 
     public async Task OpenAsync(EntryRow entry)
     {
@@ -372,12 +365,10 @@ public sealed class ReviewViewModel : ViewModelBase
         Raise(nameof(HasNext));
         Raise(nameof(OnLastFolder));
         Raise(nameof(ShowBackUp));
-        Raise(nameof(HasPrevious));
         Raise(nameof(AtFolderRoot));
         UpCommand.RaiseCanExecuteChanged();
         CancelCommand.RaiseCanExecuteChanged();
         NextCommand.RaiseCanExecuteChanged();
-        PreviousCommand.RaiseCanExecuteChanged();
         DropFolderCommand.RaiseCanExecuteChanged();
         OpenCommand.RaiseCanExecuteChanged();
         DropCommand.RaiseCanExecuteChanged();

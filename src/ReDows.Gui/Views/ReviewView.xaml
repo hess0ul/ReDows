@@ -174,22 +174,20 @@
             </Border>
         </Grid>
 
-        <!-- Wizard bar: Previous | summary | Trash | Next -->
+        <!-- Wizard bar: summary | Trash | Next -->
         <Grid Grid.Row="6" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Content="◀ Previous" Style="{StaticResource GhostButton}" Command="{Binding PreviousCommand}"/>
-            <TextBlock Grid.Column="1" Text="{Binding KeptSummary}" Foreground="{StaticResource App.Good}"
+            <TextBlock Grid.Column="0" Text="{Binding KeptSummary}" Foreground="{StaticResource App.Good}"
                        VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="SemiBold"
                        Margin="12,0,12,0" TextTrimming="CharacterEllipsis"/>
-            <Button Grid.Column="2" Content="{Binding TrashButtonText}" Style="{StaticResource GhostButton}"
+            <Button Grid.Column="1" Content="{Binding TrashButtonText}" Style="{StaticResource GhostButton}"
                     Command="{Binding ToggleTrashCommand}" Margin="0,0,10,0"/>
             <!-- End of the wizard (or nothing to review) → the "Next" button becomes "Back up →" (jumps to Backup). -->
-            <Button Grid.Column="3" Content="Next ▶" Command="{Binding NextCommand}">
+            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextCommand}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                         <Setter Property="Visibility" Value="Visible"/>
@@ -201,7 +199,7 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <Button Grid.Column="3" Content="Back up →"
+            <Button Grid.Column="2" Content="Back up →"
                     Command="{Binding DataContext.ShowBackupCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
