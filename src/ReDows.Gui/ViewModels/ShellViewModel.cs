@@ -36,9 +36,10 @@ public sealed class ShellViewModel : ViewModelBase
         Apps = new AppsViewModel(appsRunner);
         _currentViewModel = Home;
 
-        // Persist the session on the two signals that change it: a finished scan, and a trash decision.
+        // Persist the session whenever a decision changes: a finished scan, a trash change, or an app un-tick.
         Scan.Scanned += OnScanned;
         Review.TrashChanged += SaveSession;
+        Apps.SelectionChanged += SaveSession;
 
         ShowHomeCommand = new RelayCommand(_ => CurrentViewModel = Home);
         ShowScanCommand = new RelayCommand(_ => CurrentViewModel = Scan);
@@ -139,6 +140,7 @@ public sealed class ShellViewModel : ViewModelBase
         Review.RestoreTrash(session.Trash.ToDictionary(item => item.Path, item => item.Bytes, StringComparer.OrdinalIgnoreCase));
         Backup.ManifestPath = session.ManifestPath;
         Backup.ExcludedPaths = session.Trash.Select(item => item.Path).ToList();
+        Apps.RestoreSelection(session.DeselectedApps ?? []);
         Review.SetRoots(ReviewRootsFromScan(), scanned: true);
 
         CurrentViewModel = Review;
@@ -166,7 +168,7 @@ public sealed class ShellViewModel : ViewModelBase
             return; // nothing to persist until a scan has written a manifest
         }
 
-        var session = SessionSnapshot.Build(result, Review.Trash.Items, Scan.WholePc ? null : Scan.FolderPath, _scannedUtc ?? DateTime.UtcNow.ToString("o"));
+        var session = SessionSnapshot.Build(result, Review.Trash.Items, Scan.WholePc ? null : Scan.FolderPath, _scannedUtc ?? DateTime.UtcNow.ToString("o"), Apps.DeselectedKeys);
         _sessionStore.Save(session);
     }
 

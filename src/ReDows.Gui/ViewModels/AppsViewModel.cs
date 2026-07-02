@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using ReDows.Gui.Apps;
 using ReDows.Gui.Navigation;
 
@@ -18,6 +19,8 @@ public sealed class AppsViewModel : ViewModelBase
 
     private bool _isBusy;
     private bool _loaded;
+    private bool _suppressSelectionEvents; // while applying a bulk toggle or a restored selection
+    private IReadOnlyList<string>? _pendingDeselect; // a resumed selection to apply once the inventory loads
     private string _progressText = "";
     private string _summary = "";
     private string? _error;
@@ -33,6 +36,27 @@ public sealed class AppsViewModel : ViewModelBase
 
     /// <summary>The installed apps, each with a tick for "reinstall after the reset".</summary>
     public ObservableCollection<AppRowViewModel> Apps { get; } = [];
+
+    /// <summary>Raised when the user changes which apps are ticked — the shell persists the choice on this signal.</summary>
+    public event Action? SelectionChanged;
+
+    /// <summary>The keys of the apps the user unticked (a deny-list — everything else reinstalls by default).</summary>
+    public IReadOnlyList<string> DeselectedKeys =>
+        Apps.Where(app => !app.IsSelected).Select(app => app.Entry.Key).ToList();
+
+    /// <summary>
+    /// Re-apply a saved session's app choices: untick exactly the given keys, everything else stays ticked
+    /// (so an app installed since the last session is kept by default). Applied now if loaded, otherwise the
+    /// moment the inventory finishes loading. Does not raise <see cref="SelectionChanged"/> — resuming, not deciding.
+    /// </summary>
+    public void RestoreSelection(IReadOnlyList<string> deselectedKeys)
+    {
+        _pendingDeselect = deselectedKeys;
+        if (_loaded)
+        {
+            ApplyPendingDeselect();
+        }
+    }
 
     public RelayCommand SelectAllCommand { get; }
 
@@ -92,15 +116,23 @@ public sealed class AppsViewModel : ViewModelBase
         try
         {
             var result = await _runner.LoadAsync(enrichWithWinget: true, progress, _cancellation.Token);
+            foreach (var old in Apps)
+            {
+                old.PropertyChanged -= OnRowChanged;
+            }
+
             Apps.Clear();
             foreach (var entry in result.Apps)
             {
-                Apps.Add(new AppRowViewModel(entry));
+                var row = new AppRowViewModel(entry);
+                row.PropertyChanged += OnRowChanged;
+                Apps.Add(row);
             }
 
             Summary = result.Summary;
             ProgressText = "";
             _loaded = true;
+            ApplyPendingDeselect(); // re-apply a selection restored from a session before the inventory loaded
             Raise(nameof(CanExport));
         }
         catch (OperationCanceledException)
@@ -171,9 +203,39 @@ public sealed class AppsViewModel : ViewModelBase
 
     private void SetAll(bool selected)
     {
+        _suppressSelectionEvents = true;
         foreach (var app in Apps)
         {
             app.IsSelected = selected;
+        }
+
+        _suppressSelectionEvents = false;
+        SelectionChanged?.Invoke(); // one save for the whole bulk toggle
+    }
+
+    private void ApplyPendingDeselect()
+    {
+        if (_pendingDeselect is not { } keys)
+        {
+            return;
+        }
+
+        var deselected = keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _suppressSelectionEvents = true;
+        foreach (var app in Apps)
+        {
+            app.IsSelected = !deselected.Contains(app.Entry.Key);
+        }
+
+        _suppressSelectionEvents = false;
+        _pendingDeselect = null;
+    }
+
+    private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AppRowViewModel.IsSelected) && !_suppressSelectionEvents)
+        {
+            SelectionChanged?.Invoke();
         }
     }
 }
