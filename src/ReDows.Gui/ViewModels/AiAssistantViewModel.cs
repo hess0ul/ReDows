@@ -22,6 +22,8 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     private bool _isEnabled;
     private string _baseUrl = DefaultBaseUrl;
+    private string _model = "";
+    private string? _apiKey; // IN MEMORY ONLY — never persisted (invariant #5); re-entered after a restart
     private bool _isBusy;
     private string? _connectionStatus;
     private AiSuggestion? _result;
@@ -36,6 +38,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         {
             _isEnabled = saved.Enabled;
             _baseUrl = string.IsNullOrWhiteSpace(saved.BaseUrl) ? DefaultBaseUrl : saved.BaseUrl;
+            _model = saved.Model ?? "";
         }
 
         TestCommand = new RelayCommand(async _ => await TestAsync(), _ => !IsBusy);
@@ -70,6 +73,25 @@ public sealed class AiAssistantViewModel : ViewModelBase
         get => _baseUrl;
         set { Set(ref _baseUrl, value); Persist(); }
     }
+
+    /// <summary>
+    /// Optional explicit model id — required for a cloud service (they list hundreds); a local server
+    /// just uses its loaded model when left empty. Persisted (it is not a secret).
+    /// </summary>
+    public string Model
+    {
+        get => _model;
+        set { Set(ref _model, value); Persist(); }
+    }
+
+    /// <summary>
+    /// Take the API key from the view's PasswordBox, for THIS session only: it lives in memory, goes
+    /// into the request's auth header, and is never written to disk (invariant #5 — like the vault
+    /// password, it is re-entered after a restart).
+    /// </summary>
+    public void SetApiKey(string? key) => _apiKey = string.IsNullOrWhiteSpace(key) ? null : key;
+
+    private AiEndpoint Endpoint => new(BaseUrl, _apiKey, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim());
 
     public bool IsBusy
     {
@@ -146,7 +168,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         try
         {
             var metadata = AiPayload.Build(folderPath, children);
-            var suggestion = await _analyzer.AnalyzeAsync(BaseUrl, metadata, run.Token);
+            var suggestion = await _analyzer.AnalyzeAsync(Endpoint, metadata, run.Token);
             if (!run.IsCancellationRequested) // navigation cleared this run while in flight → stale, discard
             {
                 _resultFolderPath = folderPath;
@@ -200,7 +222,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         _cancellation = run;
         try
         {
-            var model = await _analyzer.TestAsync(BaseUrl, run.Token);
+            var model = await _analyzer.TestAsync(Endpoint, run.Token);
             ConnectionStatus = $"OK — model: {model}";
         }
         catch (OperationCanceledException) when (run.IsCancellationRequested)
@@ -234,5 +256,5 @@ public sealed class AiAssistantViewModel : ViewModelBase
         ClearResult();
     }
 
-    private void Persist() => _store.Save(new AiSettings(_isEnabled, _baseUrl));
+    private void Persist() => _store.Save(new AiSettings(_isEnabled, _baseUrl, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim())); // never the key
 }

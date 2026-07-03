@@ -4,28 +4,29 @@ using ReDows.Providers.Windows.Ai;
 namespace ReDows.Gui.Ai;
 
 /// <summary>
-/// The real analyzer: one OpenAI-compatible client per endpoint URL, kept while the URL doesn't change
-/// (so the discovered model id is reused between analyses). UI-thread use only.
+/// The real analyzer: one OpenAI-compatible client per endpoint (URL + key + model), kept while the
+/// endpoint doesn't change (so a discovered model id is reused between analyses). The key only ever
+/// lives inside the client's auth header — never on disk. UI-thread use only.
 /// </summary>
 public sealed class WindowsAiAnalyzer : IAiAnalyzer
 {
     private OpenAiCompatibleClient? _client;
-    private string? _clientUrl;
+    private AiEndpoint? _clientEndpoint;
 
-    public Task<string> TestAsync(string baseUrl, CancellationToken cancellationToken) =>
-        ClientFor(baseUrl).TestConnectionAsync(cancellationToken);
+    public Task<string> TestAsync(AiEndpoint endpoint, CancellationToken cancellationToken) =>
+        ClientFor(endpoint).TestConnectionAsync(cancellationToken);
 
-    public Task<AiSuggestion> AnalyzeAsync(string baseUrl, FolderMetadata folder, CancellationToken cancellationToken) =>
-        ClientFor(baseUrl).AnalyzeAsync(folder, cancellationToken);
+    public Task<AiSuggestion> AnalyzeAsync(AiEndpoint endpoint, FolderMetadata folder, CancellationToken cancellationToken) =>
+        ClientFor(endpoint).AnalyzeAsync(folder, cancellationToken);
 
-    private OpenAiCompatibleClient ClientFor(string baseUrl)
+    private OpenAiCompatibleClient ClientFor(AiEndpoint endpoint)
     {
-        var normalized = OpenAiCompatibleClient.NormalizeBaseUrl(baseUrl);
-        if (_client is null || !string.Equals(_clientUrl, normalized, StringComparison.OrdinalIgnoreCase))
+        var normalized = endpoint with { BaseUrl = OpenAiCompatibleClient.NormalizeBaseUrl(endpoint.BaseUrl) };
+        if (_client is null || _clientEndpoint != normalized)
         {
             _client?.Dispose();
-            _client = new OpenAiCompatibleClient(baseUrl);
-            _clientUrl = normalized;
+            _client = new OpenAiCompatibleClient(endpoint.BaseUrl, endpoint.ApiKey, model: endpoint.Model);
+            _clientEndpoint = normalized;
         }
 
         return _client;

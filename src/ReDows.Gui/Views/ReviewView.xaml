@@ -25,10 +25,10 @@
                     <StackPanel>
                         <CheckBox Content="Enable AI analysis" IsChecked="{Binding Ai.IsEnabled}"/>
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,6,0,10" TextWrapping="Wrap"
-                                   Text="Only folder and file NAMES and sizes are sent — never file contents. The default endpoint is a local AI on this PC (LM Studio; Ollama uses port 11434), so by default nothing leaves your machine."/>
+                                   Text="Only folder and file NAMES and sizes are sent — never file contents. The default endpoint is a local AI on this PC (LM Studio; Ollama uses port 11434), so by default nothing leaves your machine. If you point this at a REMOTE service, those names and sizes leave your PC."/>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
@@ -37,10 +37,27 @@
                             <Button Grid.Column="2" Content="Test connection" Style="{StaticResource GhostButton}"
                                     Command="{Binding Ai.TestCommand}" Margin="8,0,0,0"/>
                         </Grid>
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel2"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="API key:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <PasswordBox Grid.Column="1" x:Name="AiApiKey" VerticalAlignment="Center" Padding="6,4"
+                                         Background="{StaticResource App.Surface}" Foreground="White"
+                                         BorderBrush="{StaticResource App.Border}" CaretBrush="White"
+                                         PasswordChanged="AiApiKey_PasswordChanged"/>
+                            <TextBlock Grid.Column="2" Text="Model:" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                            <TextBox Grid.Column="3" Text="{Binding Ai.Model}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Text="Both optional — a local server needs neither. The key is kept in memory only and NEVER saved to disk: you re-enter it after a restart. A cloud service needs a model id (it hosts many)."/>
                         <TextBlock Text="{Binding Ai.ConnectionStatus}" Foreground="{StaticResource App.Muted}"
                                    FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"/>
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Text="Advanced: any OpenAI-compatible endpoint you run works here — a local model, or a bridge you host toward an AI subscription you already pay for (for example via LiteLLM or a subscription proxy). Note: using a consumer subscription through a bridge may be against the provider's terms — your call."/>
+                                   Text="Advanced: any OpenAI-compatible endpoint works here — a local model; a cloud API with your key (for example https://api.openai.com, https://api.anthropic.com, or Gemini's OpenAI-compatible base URL); or a bridge you host toward an AI subscription you already pay for (for example via LiteLLM or a subscription proxy). Note: using a consumer subscription through a bridge may be against the provider's terms — your call."/>
                     </StackPanel>
                 </Border>
             </Expander>

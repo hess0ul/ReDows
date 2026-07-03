@@ -17,11 +17,14 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
 {
     private readonly HttpClient _http;
     private readonly string _baseUrl;
+    private readonly bool _modelIsExplicit;
     private string? _model;
 
-    public OpenAiCompatibleClient(string baseUrl, string? apiKey = null, HttpMessageHandler? handler = null)
+    public OpenAiCompatibleClient(string baseUrl, string? apiKey = null, HttpMessageHandler? handler = null, string? model = null)
     {
         _baseUrl = NormalizeBaseUrl(baseUrl);
+        _model = string.IsNullOrWhiteSpace(model) ? null : model.Trim(); // explicit model → no discovery needed
+        _modelIsExplicit = _model is not null;
         // No auto-redirect: the payload (whitelisted metadata) only ever goes to the URL the user set.
         _http = handler is null ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) : new HttpClient(handler);
         _http.Timeout = TimeSpan.FromSeconds(120); // a small local model on CPU can be slow
@@ -32,22 +35,35 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
     }
 
     /// <summary>
-    /// "http://localhost:1234" and "http://localhost:1234/v1" both become ".../v1" — the OpenAI-style root.
+    /// A bare host ("http://localhost:1234") gets the OpenAI-style "/v1" appended; a URL that already
+    /// carries a path is kept as the user wrote it (some cloud services use their own base path, e.g.
+    /// a "/v1beta/openai" compatibility root — appending "/v1" there would break it).
     /// </summary>
     public static string NormalizeBaseUrl(string baseUrl)
     {
         var trimmed = baseUrl.Trim().TrimEnd('/');
-        return trimmed.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) ? trimmed : trimmed + "/v1";
+        var schemeEnd = trimmed.IndexOf("://", StringComparison.Ordinal);
+        var afterScheme = schemeEnd < 0 ? trimmed : trimmed[(schemeEnd + 3)..];
+        return afterScheme.Contains('/') ? trimmed : trimmed + "/v1";
     }
 
-    /// <summary>Prove the endpoint answers: list its models and return the first id (the one analyses will use).</summary>
+    /// <summary>
+    /// Prove the endpoint answers (and, with a key, that it accepts it): list its models. With an
+    /// explicit model configured, that model is what analyses use and what is reported; otherwise the
+    /// first listed one is adopted — refreshed here, so swapping the loaded model mid-session recovers.
+    /// </summary>
     public async Task<string> TestConnectionAsync(CancellationToken cancellationToken)
     {
         using var quick = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         quick.CancelAfter(TimeSpan.FromSeconds(10));
-        var model = await FirstModelAsync(quick.Token);
-        _model = model; // keep analyses in step when the user swapped the loaded model mid-session
-        return model ?? throw new InvalidOperationException("The endpoint answered but reports no loaded model.");
+        var discovered = await FirstModelAsync(quick.Token);
+        if (_modelIsExplicit)
+        {
+            return _model!;
+        }
+
+        _model = discovered;
+        return discovered ?? throw new InvalidOperationException("The endpoint answered but reports no loaded model.");
     }
 
     public async Task<AiSuggestion> AnalyzeAsync(FolderMetadata folder, CancellationToken cancellationToken)
