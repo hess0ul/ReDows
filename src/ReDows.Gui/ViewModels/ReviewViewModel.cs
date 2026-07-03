@@ -56,6 +56,7 @@ public sealed class ReviewViewModel : ViewModelBase
         }
 
         AnalyzeFolderCommand = new RelayCommand(_ => _ = AnalyzeCurrentFolderAsync(), _ => Ai is not null && HasFolder && !IsLoading);
+        AnalyzeAllCommand = new RelayCommand(_ => _ = AnalyzeAllFoldersAsync(), _ => Ai is not null && HasRoots && !IsLoading);
         OpenCommand = new RelayCommand(item => { if (item is EntryRow entry) _ = OpenAsync(entry); }, _ => !IsLoading);
         DropCommand = new RelayCommand(item => { if (item is EntryRow entry) DropEntry(entry); }, _ => !IsLoading);
         RestoreCommand = new RelayCommand(item => { if (item is TrashRow trashed) _ = RestoreAsync(trashed); });
@@ -75,6 +76,8 @@ public sealed class ReviewViewModel : ViewModelBase
     public AiAssistantViewModel? Ai { get; }
 
     public RelayCommand AnalyzeFolderCommand { get; }
+
+    public RelayCommand AnalyzeAllCommand { get; }
 
     /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
     public event Action? TrashChanged;
@@ -194,7 +197,7 @@ public sealed class ReviewViewModel : ViewModelBase
         _totalReviewBytes = roots.Sum(r => r.Bytes);
         Error = null;
         IsTrashOpen = false;
-        Ai?.ClearResult();
+        Ai?.Reset();
         RefreshTrash();
         Raise(nameof(HasRoots));
 
@@ -268,6 +271,32 @@ public sealed class ReviewViewModel : ViewModelBase
         await Ai.AnalyzeAsync(_trail[^1].Path, children);
     }
 
+    /// <summary>
+    /// "Analyze all": run the assistant over EVERY review folder in sequence (fresh read-only listings
+    /// via the browser), storing one suggestion per folder — the wizard shows each one as you land on
+    /// its folder, and a summary line counts them. Nothing is dropped without a per-folder Accept.
+    /// </summary>
+    public async Task AnalyzeAllFoldersAsync()
+    {
+        if (Ai is null || !HasRoots)
+        {
+            return;
+        }
+
+        await Ai.AnalyzeAllAsync(
+            _roots.Select(r => (r.FullPath, r.Name)).ToList(),
+            async (path, ct) =>
+            {
+                var rows = await _browser.ListAsync(path, ct);
+                return (IReadOnlyList<(string, bool, long)>)rows.Select(e => (e.Name, e.IsDirectory, e.Bytes)).ToList();
+            });
+
+        if (HasFolder)
+        {
+            Ai.ShowStoredFor(_trail[^1].Path); // the folder on screen gets its fresh badge right away
+        }
+    }
+
     public void DropEntry(EntryRow entry)
     {
         Trash.Drop(entry.FullPath, entry.Bytes);
@@ -286,6 +315,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
         Ai?.ClearResult(); // the folder the suggestion was about is going to the trash — the card goes too
         var (path, bytes) = _trail[^1];
+        Ai?.Forget(path);
         Trash.Drop(path, bytes);
         RefreshTrash();
         TrashChanged?.Invoke();
@@ -324,6 +354,7 @@ public sealed class ReviewViewModel : ViewModelBase
         Error = null;
         FolderNote = "";
         Ai?.ClearResult(); // a suggestion is about ONE folder — never survive navigation
+        Ai?.ShowStoredFor(path); // …but a REMEMBERED one (analyze-all) greets you on its folder
         IsLoading = true;
         _cancellation = new CancellationTokenSource();
         try
@@ -410,6 +441,7 @@ public sealed class ReviewViewModel : ViewModelBase
         NextCommand.RaiseCanExecuteChanged();
         DropFolderCommand.RaiseCanExecuteChanged();
         AnalyzeFolderCommand.RaiseCanExecuteChanged();
+        AnalyzeAllCommand.RaiseCanExecuteChanged();
         OpenCommand.RaiseCanExecuteChanged();
         DropCommand.RaiseCanExecuteChanged();
     }

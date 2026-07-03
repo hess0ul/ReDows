@@ -56,6 +56,13 @@
                                    Text="Both optional — a local server needs neither. The key is kept in memory only and NEVER saved to disk: you re-enter it after a restart. A cloud service needs a model id (it hosts many)."/>
                         <TextBlock Text="{Binding Ai.ConnectionStatus}" Foreground="{StaticResource App.Muted}"
                                    FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                        <!-- Analyze all: one suggestion per review folder, shown as you walk the wizard. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="✨ Analyze all folders" Style="{StaticResource GhostButton}"
+                                    Command="{Binding AnalyzeAllCommand}"/>
+                            <TextBlock Text="{Binding Ai.BatchStatus}" Foreground="{StaticResource App.Good}"
+                                       FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
                                    Text="Advanced: any OpenAI-compatible endpoint works here — a local model; a cloud API with your key (for example https://api.openai.com, https://api.anthropic.com, or Gemini's OpenAI-compatible base URL); or a bridge you host toward an AI subscription you already pay for (for example via LiteLLM or a subscription proxy). Note: using a consumer subscription through a bridge may be against the provider's terms — your call."/>
                     </StackPanel>
@@ -142,9 +149,9 @@
                 </Style>
             </Border.Style>
             <StackPanel>
-                <!-- Analyzing… -->
+                <!-- Analyzing… (one folder, or the analyze-all batch) -->
                 <StackPanel Orientation="Horizontal" Visibility="{Binding Ai.IsBusy, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="Asking the AI about this folder…" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Ai.BusyText}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
                     <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding Ai.CancelCommand}"
                             Margin="12,0,0,0" Padding="10,4"/>
                 </StackPanel>

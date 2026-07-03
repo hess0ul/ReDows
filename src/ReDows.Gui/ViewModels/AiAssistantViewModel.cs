@@ -18,14 +18,18 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     private readonly IAiAnalyzer _analyzer;
     private readonly IAiSettingsStore _store;
-    private CancellationTokenSource? _cancellation;
+    private readonly Dictionary<string, AiSuggestion> _byFolder = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _cancellation;      // one folder's analysis — cancelled by navigation
+    private CancellationTokenSource? _batchCancellation; // "analyze all" — survives navigation, Cancel stops it
 
     private bool _isEnabled;
     private string _baseUrl = DefaultBaseUrl;
     private string _model = "";
     private string? _apiKey; // IN MEMORY ONLY — never persisted (invariant #5); re-entered after a restart
     private bool _isBusy;
+    private string _busyText = "";
     private string? _connectionStatus;
+    private string? _batchStatus;
     private AiSuggestion? _result;
     private string? _resultFolderPath;
     private string? _error;
@@ -42,9 +46,9 @@ public sealed class AiAssistantViewModel : ViewModelBase
         }
 
         TestCommand = new RelayCommand(async _ => await TestAsync(), _ => !IsBusy);
-        CancelCommand = new RelayCommand(_ => _cancellation?.Cancel(), _ => IsBusy);
+        CancelCommand = new RelayCommand(_ => { _cancellation?.Cancel(); _batchCancellation?.Cancel(); }, _ => IsBusy);
         AcceptCommand = new RelayCommand(_ => Accept());
-        DismissCommand = new RelayCommand(_ => ClearResult());
+        DismissCommand = new RelayCommand(_ => Dismiss());
     }
 
     /// <summary>
@@ -104,11 +108,25 @@ public sealed class AiAssistantViewModel : ViewModelBase
         }
     }
 
+    /// <summary>What the assistant is doing right now, shown while busy (single or batch analysis).</summary>
+    public string BusyText
+    {
+        get => _busyText;
+        private set => Set(ref _busyText, value);
+    }
+
     /// <summary>The last "test connection" outcome (model found / failure), shown next to the button.</summary>
     public string? ConnectionStatus
     {
         get => _connectionStatus;
         private set => Set(ref _connectionStatus, value);
+    }
+
+    /// <summary>After "analyze all": how many folders got a suggestion, split by kind (and failures).</summary>
+    public string? BatchStatus
+    {
+        get => _batchStatus;
+        private set => Set(ref _batchStatus, value);
     }
 
     public AiSuggestion? Result
@@ -162,6 +180,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         Error = null;
         Result = null;
         _resultFolderPath = null;
+        BusyText = "Asking the AI about this folder…";
         IsBusy = true;
         var run = new CancellationTokenSource();
         _cancellation = run;
@@ -171,6 +190,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
             var suggestion = await _analyzer.AnalyzeAsync(Endpoint, metadata, run.Token);
             if (!run.IsCancellationRequested) // navigation cleared this run while in flight → stale, discard
             {
+                _byFolder[folderPath] = suggestion; // remembered — navigating back re-shows it
                 _resultFolderPath = folderPath;
                 Result = suggestion;
             }
@@ -197,8 +217,9 @@ public sealed class AiAssistantViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Forget the current suggestion AND cancel any analysis still in flight — called on navigation,
-    /// so a slow reply can never show up (or act) over a folder it wasn't computed for.
+    /// Forget the DISPLAYED suggestion and cancel a single analysis still in flight — called on
+    /// navigation, so a slow reply can never show up (or act) over a folder it wasn't computed for.
+    /// Stored batch suggestions and a running batch are NOT touched (the batch survives navigation).
     /// </summary>
     public void ClearResult()
     {
@@ -206,6 +227,113 @@ public sealed class AiAssistantViewModel : ViewModelBase
         Result = null;
         _resultFolderPath = null;
         Error = null;
+    }
+
+    /// <summary>
+    /// Analyze EVERY review folder in sequence — the "analyze all" batch. Each suggestion is stored by
+    /// folder path (the wizard shows it when you land on that folder); nothing is ever acted on without
+    /// the user's per-folder Accept. One bad folder is counted and skipped; two consecutive failures
+    /// stop the batch (the endpoint is probably down). Cancel keeps what was already analyzed.
+    /// </summary>
+    public async Task AnalyzeAllAsync(
+        IReadOnlyList<(string Path, string Name)> folders,
+        Func<string, CancellationToken, Task<IReadOnlyList<(string Name, bool IsDirectory, long Bytes)>>> listChildren)
+    {
+        if (!IsEnabled || IsBusy || folders.Count == 0)
+        {
+            return;
+        }
+
+        Error = null;
+        BatchStatus = null;
+        IsBusy = true;
+        var run = new CancellationTokenSource();
+        _batchCancellation = run;
+        var failed = 0;
+        var consecutiveFailures = 0;
+        try
+        {
+            for (var i = 0; i < folders.Count; i++)
+            {
+                run.Token.ThrowIfCancellationRequested();
+                var (path, name) = folders[i];
+                BusyText = $"Analyzing folder {i + 1} of {folders.Count} — {name}…";
+                try
+                {
+                    var children = await listChildren(path, run.Token);
+                    var suggestion = await _analyzer.AnalyzeAsync(Endpoint, AiPayload.Build(path, children), run.Token);
+                    _byFolder[path] = suggestion;
+                    consecutiveFailures = 0;
+                }
+                catch (OperationCanceledException) when (run.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                    failed++;
+                    if (++consecutiveFailures >= 2)
+                    {
+                        Error = "The endpoint keeps failing — the batch stopped. Test the connection, then try again.";
+                        break;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // cancelled — everything analyzed so far is kept
+        }
+        finally
+        {
+            IsBusy = false;
+            if (ReferenceEquals(_batchCancellation, run))
+            {
+                _batchCancellation = null;
+            }
+
+            run.Dispose();
+            BatchStatus = SummarizeStored(failed);
+        }
+    }
+
+    /// <summary>Show the remembered suggestion for a folder the wizard just landed on (no new analysis).</summary>
+    public void ShowStoredFor(string? folderPath)
+    {
+        if (folderPath is not null && _byFolder.TryGetValue(folderPath, out var suggestion))
+        {
+            _resultFolderPath = folderPath;
+            Result = suggestion;
+        }
+    }
+
+    /// <summary>Forget a folder's remembered suggestion (it was consumed, dismissed, or trashed).</summary>
+    public void Forget(string folderPath) => _byFolder.Remove(folderPath);
+
+    /// <summary>New review session (new scan): drop every remembered suggestion and the batch summary.</summary>
+    public void Reset()
+    {
+        _byFolder.Clear();
+        BatchStatus = null;
+        ClearResult();
+    }
+
+    private string SummarizeStored(int failed)
+    {
+        int drop = 0, keep = 0, mixed = 0, unknown = 0;
+        foreach (var suggestion in _byFolder.Values)
+        {
+            switch (suggestion.Classification)
+            {
+                case AiSuggestion.Drop: drop++; break;
+                case AiSuggestion.Keep: keep++; break;
+                case AiSuggestion.Mixed: mixed++; break;
+                default: unknown++; break;
+            }
+        }
+
+        return $"Analyzed {_byFolder.Count} folder(s) — {drop} safe to drop · {keep} keep · {mixed} mixed · {unknown} unknown"
+            + (failed > 0 ? $" · {failed} failed" : "");
     }
 
     /// <summary>Prove the endpoint answers (public like the other view-models' async entry points, for tests).</summary>
@@ -250,7 +378,18 @@ public sealed class AiAssistantViewModel : ViewModelBase
     {
         if (CanAcceptDrop && _resultFolderPath is { } analyzedFolder)
         {
+            Forget(analyzedFolder); // consumed — must not re-appear when landing on it again
             DropRequested?.Invoke(analyzedFolder);
+        }
+
+        ClearResult();
+    }
+
+    private void Dismiss()
+    {
+        if (_resultFolderPath is { } shownFolder)
+        {
+            Forget(shownFolder); // dismissed — must not re-appear when landing on it again
         }
 
         ClearResult();
