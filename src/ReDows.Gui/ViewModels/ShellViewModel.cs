@@ -1,3 +1,4 @@
+using ReDows.Gui.Ai;
 using ReDows.Gui.Apps;
 using ReDows.Gui.Backup;
 using ReDows.Gui.Context;
@@ -25,12 +26,12 @@ public sealed class ShellViewModel : ViewModelBase
     private string _sessionSummary = "";
     private string? _scannedUtc;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore, IAiAnalyzer aiAnalyzer, IAiSettingsStore aiSettingsStore)
     {
         _sessionStore = sessionStore;
         Home = new HomeViewModel(contextSource);
         Scan = new ScanViewModel(scanRunner, moduleCatalog);
-        Review = new ReviewViewModel(folderBrowser);
+        Review = new ReviewViewModel(folderBrowser, new AiAssistantViewModel(aiAnalyzer, aiSettingsStore));
         Backup = new BackupViewModel(backupRunner);
         Restore = new RestoreViewModel(restoreRunner);
         Apps = new AppsViewModel(appsRunner);

@@ -37,9 +37,25 @@ public sealed class ReviewViewModel : ViewModelBase
     private string _stepText = "";
     private string _folderNote = "";
 
-    public ReviewViewModel(IFolderBrowser browser)
+    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null)
     {
         _browser = browser;
+        Ai = ai;
+        if (ai is not null)
+        {
+            // The user accepted a "safe to drop" suggestion → same gesture as "Drop this folder",
+            // but ONLY if the folder the model analyzed is still the one on screen (a slow reply must
+            // never trash a folder the AI didn't look at), and never while a folder load is in flight.
+            ai.DropRequested += analyzedFolder =>
+            {
+                if (!IsLoading && HasFolder && string.Equals(analyzedFolder, _trail[^1].Path, StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = DropCurrentFolderAsync();
+                }
+            };
+        }
+
+        AnalyzeFolderCommand = new RelayCommand(_ => _ = AnalyzeCurrentFolderAsync(), _ => Ai is not null && HasFolder && !IsLoading);
         OpenCommand = new RelayCommand(item => { if (item is EntryRow entry) _ = OpenAsync(entry); }, _ => !IsLoading);
         DropCommand = new RelayCommand(item => { if (item is EntryRow entry) DropEntry(entry); }, _ => !IsLoading);
         RestoreCommand = new RelayCommand(item => { if (item is TrashRow trashed) _ = RestoreAsync(trashed); });
@@ -54,6 +70,11 @@ public sealed class ReviewViewModel : ViewModelBase
     }
 
     public DropSelection Trash { get; } = new();
+
+    /// <summary>The optional AI assistant (null in tests that don't exercise it — its card stays hidden).</summary>
+    public AiAssistantViewModel? Ai { get; }
+
+    public RelayCommand AnalyzeFolderCommand { get; }
 
     /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
     public event Action? TrashChanged;
@@ -173,6 +194,7 @@ public sealed class ReviewViewModel : ViewModelBase
         _totalReviewBytes = roots.Sum(r => r.Bytes);
         Error = null;
         IsTrashOpen = false;
+        Ai?.ClearResult();
         RefreshTrash();
         Raise(nameof(HasRoots));
 
@@ -231,6 +253,21 @@ public sealed class ReviewViewModel : ViewModelBase
         await LoadCurrentAsync();
     }
 
+    /// <summary>
+    /// Ask the AI assistant about the CURRENT folder, from its already-listed rows — names and sizes
+    /// only, exactly what is on screen (no extra disk read, no file content).
+    /// </summary>
+    public async Task AnalyzeCurrentFolderAsync()
+    {
+        if (Ai is null || !HasFolder)
+        {
+            return;
+        }
+
+        var children = Entries.Select(e => (e.Name, e.IsDirectory, e.Bytes)).ToList();
+        await Ai.AnalyzeAsync(_trail[^1].Path, children);
+    }
+
     public void DropEntry(EntryRow entry)
     {
         Trash.Drop(entry.FullPath, entry.Bytes);
@@ -247,6 +284,7 @@ public sealed class ReviewViewModel : ViewModelBase
             return;
         }
 
+        Ai?.ClearResult(); // the folder the suggestion was about is going to the trash — the card goes too
         var (path, bytes) = _trail[^1];
         Trash.Drop(path, bytes);
         RefreshTrash();
@@ -285,6 +323,7 @@ public sealed class ReviewViewModel : ViewModelBase
         Location = path;
         Error = null;
         FolderNote = "";
+        Ai?.ClearResult(); // a suggestion is about ONE folder — never survive navigation
         IsLoading = true;
         _cancellation = new CancellationTokenSource();
         try
@@ -370,6 +409,7 @@ public sealed class ReviewViewModel : ViewModelBase
         CancelCommand.RaiseCanExecuteChanged();
         NextCommand.RaiseCanExecuteChanged();
         DropFolderCommand.RaiseCanExecuteChanged();
+        AnalyzeFolderCommand.RaiseCanExecuteChanged();
         OpenCommand.RaiseCanExecuteChanged();
         DropCommand.RaiseCanExecuteChanged();
     }

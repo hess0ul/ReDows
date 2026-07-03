@@ -8,6 +8,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -15,7 +16,34 @@
         <StackPanel Grid.Row="0">
             <TextBlock Text="Review — drop what you don't need" FontSize="18" FontWeight="SemiBold"/>
             <TextBlock Text="Everything under review is kept by default. Drop the junk — it leaves the list and goes to the trash (you can restore it). One folder at a time."
-                       Foreground="{StaticResource App.Muted}" Margin="0,4,0,16"/>
+                       Foreground="{StaticResource App.Muted}" Margin="0,4,0,10"/>
+
+            <!-- Optional AI assistant: OFF by default, local endpoint by default (nothing leaves this PC). -->
+            <Expander Header="AI assistant (optional) — explain unknown folders" Margin="0,0,0,12">
+                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="14,12" Margin="0,8,0,0"
+                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                    <StackPanel>
+                        <CheckBox Content="Enable AI analysis" IsChecked="{Binding Ai.IsEnabled}"/>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,6,0,10" TextWrapping="Wrap"
+                                   Text="Only folder and file NAMES and sizes are sent — never file contents. The default endpoint is a local AI on this PC (LM Studio; Ollama uses port 11434), so by default nothing leaves your machine."/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Endpoint:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding Ai.BaseUrl}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="2" Content="Test connection" Style="{StaticResource GhostButton}"
+                                    Command="{Binding Ai.TestCommand}" Margin="8,0,0,0"/>
+                        </Grid>
+                        <TextBlock Text="{Binding Ai.ConnectionStatus}" Foreground="{StaticResource App.Muted}"
+                                   FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Text="Advanced: any OpenAI-compatible endpoint you run works here — a local model, or a bridge you host toward an AI subscription you already pay for (for example via LiteLLM or a subscription proxy). Note: using a consumer subscription through a bridge may be against the provider's terms — your call."/>
+                    </StackPanel>
+                </Border>
+            </Expander>
         </StackPanel>
 
         <!-- Step header -->
@@ -23,9 +51,13 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="{Binding StepText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" Content="✕ Drop this folder" Style="{StaticResource GhostButton}" Command="{Binding DropFolderCommand}"/>
+            <Button Grid.Column="1" Content="✨ AI analysis" Style="{StaticResource GhostButton}"
+                    Command="{Binding AnalyzeFolderCommand}" Margin="0,0,8,0"
+                    Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"/>
+            <Button Grid.Column="2" Content="✕ Drop this folder" Style="{StaticResource GhostButton}" Command="{Binding DropFolderCommand}"/>
         </Grid>
 
         <!-- Toolbar: Up + location + sort -->
@@ -73,8 +105,55 @@
             <TextBlock Text="{Binding Error}" Foreground="#FF9B9B"/>
         </Border>
 
+        <!-- AI suggestion for the current folder: analyzing / failed / a suggestion to accept or dismiss -->
+        <Border Grid.Row="5" Background="{StaticResource App.Card}" CornerRadius="6" Padding="14,12" Margin="0,0,0,10"
+                BorderBrush="{StaticResource App.Accent}" BorderThickness="1">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Ai.IsBusy}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Ai.HasResult}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Ai.HasError}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel>
+                <!-- Analyzing… -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding Ai.IsBusy, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Asking the AI about this folder…" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
+                    <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding Ai.CancelCommand}"
+                            Margin="12,0,0,0" Padding="10,4"/>
+                </StackPanel>
+
+                <!-- Failure -->
+                <TextBlock Text="{Binding Ai.Error}" Foreground="#FF9B9B" TextWrapping="Wrap"
+                           Visibility="{Binding Ai.HasError, Converter={StaticResource BoolToVis}}"/>
+
+                <!-- Suggestion -->
+                <StackPanel Visibility="{Binding Ai.HasResult, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding Ai.ResultTitle}" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Ai.Result.Explanation}" Foreground="{StaticResource App.Muted}"
+                               TextWrapping="Wrap" Margin="0,4,0,10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Accept — drop this folder" Padding="12,6" Command="{Binding Ai.AcceptCommand}"
+                                Visibility="{Binding Ai.CanAcceptDrop, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0"/>
+                        <Button Content="Dismiss" Style="{StaticResource GhostButton}" Command="{Binding Ai.DismissCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="This is a suggestion from an AI model — it can be wrong. You decide."
+                               Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
         <!-- Content: the folder list, or the trash panel -->
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="6">
             <!-- Folder list -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ScrollViewer.Style>
@@ -175,7 +254,7 @@
         </Grid>
 
         <!-- Wizard bar: summary | Trash | Next -->
-        <Grid Grid.Row="6" Margin="0,12,0,0">
+        <Grid Grid.Row="7" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
