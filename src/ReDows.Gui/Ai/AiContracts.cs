@@ -30,6 +30,23 @@ public interface IAiAnalyzer
 public sealed record AiSettings(bool Enabled, string BaseUrl, string? Model = null);
 
 /// <summary>
+/// One AI "safe to drop" suggestion the user ACCEPTED — remembered so the next scan pre-trashes the
+/// same folder (visible and restorable, never silently ignored). Path and size only, nothing secret.
+/// </summary>
+public sealed record LearnedDrop(string Path, long Bytes);
+
+/// <summary>
+/// Persists the accepted-drop lessons between scans. Best-effort like the other stores: missing or
+/// unreadable = nothing learned yet, and a failed save never breaks the app.
+/// </summary>
+public interface IAiLearnedStore
+{
+    IReadOnlyList<LearnedDrop> Load();
+
+    void Save(IReadOnlyList<LearnedDrop> drops);
+}
+
+/// <summary>
 /// Persists the AI settings between launches. Best-effort like the session store — a missing or
 /// unreadable file just means defaults (disabled), and a failed save never breaks the app.
 /// Holds NO secret: just an on/off flag and a URL.

@@ -18,6 +18,8 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     private readonly IAiAnalyzer _analyzer;
     private readonly IAiSettingsStore _store;
+    private readonly IAiLearnedStore? _learnedStore;
+    private List<LearnedDrop>? _learned; // lazy-loaded lessons (accepted drops remembered across scans)
     private readonly Dictionary<string, AiSuggestion> _byFolder = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _cancellation;      // one folder's analysis — cancelled by navigation
     private CancellationTokenSource? _batchCancellation; // "analyze all" — survives navigation, Cancel stops it
@@ -34,10 +36,11 @@ public sealed class AiAssistantViewModel : ViewModelBase
     private string? _resultFolderPath;
     private string? _error;
 
-    public AiAssistantViewModel(IAiAnalyzer analyzer, IAiSettingsStore store)
+    public AiAssistantViewModel(IAiAnalyzer analyzer, IAiSettingsStore store, IAiLearnedStore? learnedStore = null)
     {
         _analyzer = analyzer;
         _store = store;
+        _learnedStore = learnedStore;
         if (_store.Load() is { } saved)
         {
             _isEnabled = saved.Enabled;
@@ -317,6 +320,33 @@ public sealed class AiAssistantViewModel : ViewModelBase
         BatchStatus = null;
         ClearResult();
     }
+
+    /// <summary>The remembered lessons: folders whose "safe to drop" suggestion the user once accepted.</summary>
+    public IReadOnlyList<LearnedDrop> LearnedDrops => Lessons;
+
+    /// <summary>
+    /// Remember an ACCEPTED "safe to drop" — the next scan pre-trashes this folder (restorable).
+    /// Only ever called on the user's Accept gesture; the model itself can't learn anything.
+    /// </summary>
+    public void Learn(string folderPath, long bytes)
+    {
+        var lessons = Lessons;
+        lessons.RemoveAll(d => string.Equals(d.Path, folderPath, StringComparison.OrdinalIgnoreCase));
+        lessons.Add(new LearnedDrop(folderPath, bytes));
+        _learnedStore?.Save(lessons);
+    }
+
+    /// <summary>Forget a lesson — the user restored the folder from the trash ("I changed my mind").</summary>
+    public void Unlearn(string folderPath)
+    {
+        var lessons = Lessons;
+        if (lessons.RemoveAll(d => string.Equals(d.Path, folderPath, StringComparison.OrdinalIgnoreCase)) > 0)
+        {
+            _learnedStore?.Save(lessons);
+        }
+    }
+
+    private List<LearnedDrop> Lessons => _learned ??= _learnedStore?.Load().ToList() ?? [];
 
     private string SummarizeStored(int failed)
     {

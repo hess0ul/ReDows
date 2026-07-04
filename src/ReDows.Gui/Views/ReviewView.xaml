@@ -68,6 +68,21 @@
                     </StackPanel>
                 </Border>
             </Expander>
+
+            <!-- Lessons applied: accepted AI drops from past scans landed straight in the trash. -->
+            <TextBlock Text="{Binding LearnedNote}" Foreground="{StaticResource App.Muted}" FontSize="12"
+                       Margin="0,0,0,10" TextWrapping="Wrap">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding LearnedNote}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </StackPanel>
 
         <!-- Step header -->

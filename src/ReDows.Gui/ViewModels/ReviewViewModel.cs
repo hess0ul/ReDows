@@ -36,6 +36,7 @@ public sealed class ReviewViewModel : ViewModelBase
     private string _location = "No scan yet — run a scan first, then come here.";
     private string _stepText = "";
     private string _folderNote = "";
+    private string _learnedNote = "";
 
     public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null)
     {
@@ -50,6 +51,7 @@ public sealed class ReviewViewModel : ViewModelBase
             {
                 if (!IsLoading && HasFolder && string.Equals(analyzedFolder, _trail[^1].Path, StringComparison.OrdinalIgnoreCase))
                 {
+                    ai.Learn(analyzedFolder, _trail[^1].Bytes); // an ACCEPTED drop is remembered for future scans
                     _ = DropCurrentFolderAsync();
                 }
             };
@@ -155,6 +157,13 @@ public sealed class ReviewViewModel : ViewModelBase
         private set => Set(ref _folderNote, value);
     }
 
+    /// <summary>How many folders this review pre-trashed from remembered (accepted) AI decisions.</summary>
+    public string LearnedNote
+    {
+        get => _learnedNote;
+        private set => Set(ref _learnedNote, value);
+    }
+
     public bool IsTrashOpen
     {
         get => _isTrashOpen;
@@ -200,6 +209,12 @@ public sealed class ReviewViewModel : ViewModelBase
         Ai?.Reset();
         RefreshTrash();
         Raise(nameof(HasRoots));
+
+        LearnedNote = "";
+        if (scanned)
+        {
+            ApplyLearnedDrops(roots);
+        }
 
         if (roots.Count == 0)
         {
@@ -338,6 +353,7 @@ public sealed class ReviewViewModel : ViewModelBase
     public async Task RestoreAsync(TrashRow trashed)
     {
         Trash.Restore(trashed.FullPath);
+        Ai?.Unlearn(trashed.FullPath); // "I changed my mind" — the lesson is forgotten too
         RefreshTrash();
         RaiseSummary();
         TrashChanged?.Invoke();
@@ -409,6 +425,40 @@ public sealed class ReviewViewModel : ViewModelBase
         foreach (var entry in ordered)
         {
             Entries.Add(entry);
+        }
+    }
+
+    /// <summary>
+    /// Pre-trash the folders whose "safe to drop" the user accepted in a PAST scan (the remembered
+    /// lessons) — visible and restorable in the trash, never silently ignored. Restoring unlearns.
+    /// Only lessons that fall under this review's folders apply.
+    /// </summary>
+    private void ApplyLearnedDrops(IReadOnlyList<EntryRow> roots)
+    {
+        if (Ai is null)
+        {
+            return;
+        }
+
+        var applied = 0;
+        foreach (var lesson in Ai.LearnedDrops)
+        {
+            var underARoot = roots.Any(root =>
+                string.Equals(lesson.Path, root.FullPath, StringComparison.OrdinalIgnoreCase)
+                || lesson.Path.StartsWith(root.FullPath.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase));
+            if (underARoot && !Trash.IsDropped(lesson.Path))
+            {
+                Trash.Drop(lesson.Path, lesson.Bytes);
+                applied++;
+            }
+        }
+
+        if (applied > 0)
+        {
+            RefreshTrash(); // the pre-trashed lessons must show in the trash list right away
+            RaiseSummary();
+            LearnedNote = $"{applied} folder(s) went straight to the trash from AI suggestions you accepted before — restore any to unlearn.";
+            TrashChanged?.Invoke(); // these decisions are in effect now — the session persists them
         }
     }
 
