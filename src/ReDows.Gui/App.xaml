@@ -12,6 +12,7 @@
 
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <nav:InverseBooleanConverter x:Key="Not"/>
+            <nav:StringEqualsConverter x:Key="IsScreen"/>
 
             <!-- The content area picks the view for whatever view-model is current. -->
             <DataTemplate DataType="{x:Type vm:HomeViewModel}">

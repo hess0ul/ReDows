@@ -21,6 +21,7 @@ public sealed class ShellViewModel : ViewModelBase
     private readonly ISessionStore _sessionStore;
 
     private object _currentViewModel;
+    private string _currentScreen = "home";
     private SessionFile? _pendingSession;
     private bool _hasPendingSession;
     private string _sessionSummary = "";
@@ -42,12 +43,13 @@ public sealed class ShellViewModel : ViewModelBase
         Review.TrashChanged += SaveSession;
         Apps.SelectionChanged += SaveSession;
 
-        ShowHomeCommand = new RelayCommand(_ => CurrentViewModel = Home);
-        ShowScanCommand = new RelayCommand(_ => CurrentViewModel = Scan);
+        ShowHomeCommand = new RelayCommand(_ => { CurrentViewModel = Home; CurrentScreen = "home"; });
+        ShowScanCommand = new RelayCommand(_ => { CurrentViewModel = Scan; CurrentScreen = "scan"; });
         ShowReviewCommand = new RelayCommand(_ =>
         {
             Review.SetRoots(ReviewRootsFromScan(), scanned: Scan.Result is not null);
             CurrentViewModel = Review;
+            CurrentScreen = "review";
         });
         ShowBackupCommand = new RelayCommand(_ =>
         {
@@ -56,11 +58,13 @@ public sealed class ShellViewModel : ViewModelBase
             Backup.ManifestPath = Scan.Result?.ManifestPath;
             Backup.ExcludedPaths = Review.Trash.Items.Keys.ToList();
             CurrentViewModel = Backup;
+            CurrentScreen = "backup";
         });
-        ShowRestoreCommand = new RelayCommand(_ => CurrentViewModel = Restore);
+        ShowRestoreCommand = new RelayCommand(_ => { CurrentViewModel = Restore; CurrentScreen = "restore"; });
         ShowAppsCommand = new RelayCommand(_ =>
         {
             CurrentViewModel = Apps;
+            CurrentScreen = "apps";
             _ = Apps.LoadAsync(); // loads once on first visit (winget enrichment runs in the background)
         });
         ResumeCommand = new RelayCommand(_ => Resume());
@@ -99,6 +103,17 @@ public sealed class ShellViewModel : ViewModelBase
     {
         get => _currentViewModel;
         private set => Set(ref _currentViewModel, value);
+    }
+
+    /// <summary>
+    /// Which screen is showing ("home", "scan", …) — drives the nav's selected highlight. The setter is
+    /// public only because the nav's TwoWay bindings require a writable target; their ConvertBack does
+    /// nothing, so navigation state is still only ever changed by the Show* commands.
+    /// </summary>
+    public string CurrentScreen
+    {
+        get => _currentScreen;
+        set => Set(ref _currentScreen, value);
     }
 
     /// <summary>True when a previous session was found on start-up — Home shows the "welcome back" card.</summary>
@@ -145,6 +160,7 @@ public sealed class ShellViewModel : ViewModelBase
         Review.SetRoots(ReviewRootsFromScan(), scanned: true);
 
         CurrentViewModel = Review;
+        CurrentScreen = "review";
         HasPendingSession = false;
     }
 
