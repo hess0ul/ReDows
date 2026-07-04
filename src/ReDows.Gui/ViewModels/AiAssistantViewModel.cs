@@ -28,6 +28,8 @@ public sealed class AiAssistantViewModel : ViewModelBase
     private string _baseUrl = DefaultBaseUrl;
     private string _model = "";
     private string? _apiKey; // IN MEMORY ONLY — never persisted (invariant #5); re-entered after a restart
+    private bool _isExternal;              // false = self-hosted (local); true = an external service
+    private string _externalKind = "api";  // when external: "api" (own key) or "proxy" (a subscription bridge)
     private bool _isBusy;
     private string _busyText = "";
     private string? _connectionStatus;
@@ -46,6 +48,9 @@ public sealed class AiAssistantViewModel : ViewModelBase
             _isEnabled = saved.Enabled;
             _baseUrl = string.IsNullOrWhiteSpace(saved.BaseUrl) ? DefaultBaseUrl : saved.BaseUrl;
             _model = saved.Model ?? "";
+            var connection = saved.Connection ?? "local"; // old files had no field → self-hosted
+            _isExternal = connection is "api" or "proxy";
+            _externalKind = connection == "proxy" ? "proxy" : "api";
         }
 
         TestCommand = new RelayCommand(async _ => await TestAsync(), _ => !IsBusy);
@@ -98,7 +103,109 @@ public sealed class AiAssistantViewModel : ViewModelBase
     /// </summary>
     public void SetApiKey(string? key) => _apiKey = string.IsNullOrWhiteSpace(key) ? null : key;
 
-    private AiEndpoint Endpoint => new(BaseUrl, _apiKey, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim());
+    // --- Connection mode: one guided choice at a time, so each mode only shows the fields it needs. ---
+    // Radio 1: self-hosted (local AI on this PC) vs an external service.
+    // Radio 2 (external only): "api" = your own paid key · "proxy" = a bridge to a subscription you have.
+
+    /// <summary>The endpoint is a local AI on THIS PC (LM Studio / Ollama) — needs no key, no model id.</summary>
+    public bool IsSelfHosted
+    {
+        get => !_isExternal;
+        set { if (value) SetExternal(false); }
+    }
+
+    /// <summary>The endpoint is a remote service (a cloud API or a subscription bridge).</summary>
+    public bool IsExternal
+    {
+        get => _isExternal;
+        set { if (value) SetExternal(true); }
+    }
+
+    /// <summary>External service billed per token with your OWN API key (OpenAI, Anthropic, Gemini…).</summary>
+    public bool IsExternalApi
+    {
+        get => _isExternal && _externalKind == "api";
+        set { if (value) SetExternalKind("api"); }
+    }
+
+    /// <summary>External service reached through a bridge YOU host toward a subscription you already pay for.</summary>
+    public bool IsExternalProxy
+    {
+        get => _isExternal && _externalKind == "proxy";
+        set { if (value) SetExternalKind("proxy"); }
+    }
+
+    /// <summary>The api-vs-proxy choice only matters for an external service.</summary>
+    public bool ShowExternalChoice => _isExternal;
+
+    /// <summary>Only a per-token API needs a key; a local server and a subscription bridge do not.</summary>
+    public bool ShowApiKey => _isExternal && _externalKind == "api";
+
+    /// <summary>A remote service hosts many models, so it needs an explicit id; a local server does not.</summary>
+    public bool ShowModel => _isExternal;
+
+    /// <summary>Shown only for the subscription bridge: the honest terms-of-service caveat.</summary>
+    public bool ShowProxyNote => _isExternal && _externalKind == "proxy";
+
+    /// <summary>Privacy line that changes with the mode: local = nothing leaves; external = names/sizes do.</summary>
+    public string PrivacyNote => _isExternal
+        ? "This is a REMOTE service: the folder and file names and their sizes are sent to it — never file contents."
+        : "The endpoint runs on THIS PC, so nothing leaves your machine — not even the names.";
+
+    /// <summary>A hint under the endpoint box, matching the chosen mode (what URL to put there).</summary>
+    public string EndpointHint => (_isExternal, _externalKind) switch
+    {
+        (false, _) => "A local AI server on this PC — LM Studio (http://localhost:1234) or Ollama (http://localhost:11434).",
+        (true, "proxy") => "The local address of the bridge you host toward your subscription — for example http://localhost:8080.",
+        _ => "The service's OpenAI-compatible base URL — for example https://api.openai.com/v1.",
+    };
+
+    private void SetExternal(bool external)
+    {
+        if (_isExternal == external)
+        {
+            return;
+        }
+
+        _isExternal = external;
+        RaiseConnectionChanged();
+        Persist();
+    }
+
+    private void SetExternalKind(string kind)
+    {
+        if (_externalKind == kind && _isExternal)
+        {
+            return;
+        }
+
+        _externalKind = kind;
+        RaiseConnectionChanged();
+        Persist();
+    }
+
+    private void RaiseConnectionChanged()
+    {
+        Raise(nameof(IsSelfHosted));
+        Raise(nameof(IsExternal));
+        Raise(nameof(IsExternalApi));
+        Raise(nameof(IsExternalProxy));
+        Raise(nameof(ShowExternalChoice));
+        Raise(nameof(ShowApiKey));
+        Raise(nameof(ShowModel));
+        Raise(nameof(ShowProxyNote));
+        Raise(nameof(PrivacyNote));
+        Raise(nameof(EndpointHint));
+    }
+
+    /// <summary>Which connection kind to persist: "local" self-hosted, or the external sub-kind.</summary>
+    private string ConnectionValue => _isExternal ? _externalKind : "local";
+
+    // The key and the model are sent ONLY where they apply — never a stale key from a mode you left.
+    private AiEndpoint Endpoint => new(
+        BaseUrl,
+        ShowApiKey ? _apiKey : null,
+        ShowModel && !string.IsNullOrWhiteSpace(_model) ? _model.Trim() : null);
 
     public bool IsBusy
     {
@@ -425,5 +532,6 @@ public sealed class AiAssistantViewModel : ViewModelBase
         ClearResult();
     }
 
-    private void Persist() => _store.Save(new AiSettings(_isEnabled, _baseUrl, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim())); // never the key
+    private void Persist() => _store.Save(new AiSettings(
+        _isEnabled, _baseUrl, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim(), ConnectionValue)); // never the key
 }

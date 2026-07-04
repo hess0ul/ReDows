@@ -23,11 +23,13 @@ public interface IAiAnalyzer
 }
 
 /// <summary>
-/// The AI assistant's settings: off by default, the endpoint URL (a LOCAL one by default), and the
-/// optional model id. The API key is deliberately NOT here — it is never persisted (invariant #5):
-/// the user re-enters it after a restart, like the vault password.
+/// The AI assistant's settings: off by default, the endpoint URL (a LOCAL one by default), the optional
+/// model id, and which KIND of connection the user picked ("local" self-hosted / "api" external key /
+/// "proxy" external subscription) so the card reopens in the right mode. The API key is deliberately NOT
+/// here — it is never persisted (invariant #5): the user re-enters it after a restart, like the vault
+/// password. A null <paramref name="Connection"/> (old settings files) is read as "local".
 /// </summary>
-public sealed record AiSettings(bool Enabled, string BaseUrl, string? Model = null);
+public sealed record AiSettings(bool Enabled, string BaseUrl, string? Model = null, string? Connection = null);
 
 /// <summary>
 /// One AI "safe to drop" suggestion the user ACCEPTED — remembered so the next scan pre-trashes the
