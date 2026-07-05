@@ -265,6 +265,59 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Recognized places: known folders/apps ReDows spotted, each with a colour + a plain note -->
+                <StackPanel Margin="0,16,0,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.RecognizedZones.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="✨ Recognized places on your PC" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Known folders and apps ReDows spotted while scanning — a quick read on what each is and whether it's worth keeping."
+                               Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <ItemsControl ItemsSource="{Binding Result.RecognizedZones}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,6"
+                                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="10" Height="10" CornerRadius="5" VerticalAlignment="Top" Margin="0,4,10,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{StaticResource App.Muted}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Importance}" Value="keep">
+                                                            <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Importance}" Value="maybe">
+                                                            <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Importance}" Value="drop">
+                                                            <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                        <StackPanel>
+                                            <TextBlock>
+                                                <Run Text="{Binding Label, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  "/><Run Text="{Binding CountText, Mode=OneWay}" Foreground="{StaticResource App.Muted}"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Note}" Foreground="{StaticResource App.Muted}" FontSize="12"
+                                                       TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
                 <TextBlock Text="Biggest things to review" FontWeight="SemiBold" Margin="0,16,0,8"/>
                 <ItemsControl ItemsSource="{Binding Result.TopReview}">
                     <ItemsControl.ItemTemplate>

@@ -74,6 +74,26 @@ public sealed class FolderMemory
         return null;
     }
 
+    /// <summary>
+    /// The known entry matching a folder's OWN name (its leaf only, ignoring ancestors and scope), or
+    /// null. Unlike <see cref="Describe"/>, this never reaches up the path: it answers "is THIS folder a
+    /// recognised place?" — used by the scan's recognized-places briefing, where every folder is judged by
+    /// its own name (an ancestor is visited as its own entry), so a place is recorded once, never per child.
+    /// </summary>
+    public KnownEntry? DescribeName(string name)
+    {
+        var segment = name.Trim().ToLowerInvariant();
+        foreach (var (entry, matchLower) in _entries)
+        {
+            if (Wildcard(segment, matchLower))
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Case-insensitive glob ('*' = any run, '?' = one char); inputs are already lowercased.</summary>
     private static bool Wildcard(string text, string pattern)
     {

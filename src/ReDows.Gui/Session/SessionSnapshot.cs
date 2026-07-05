@@ -35,5 +35,6 @@ public static class SessionSnapshot
             TopReview: session.ReviewRoots.Select(root => new ReviewFolderRow(root.Size, root.Items, root.Folder, root.Bytes)).ToList(),
             Duplicates: null,
             InstalledApps: null,
-            ManifestPath: session.ManifestPath);
+            ManifestPath: session.ManifestPath,
+            RecognizedZones: []); // a resumed session doesn't re-run the scan, so there's no live briefing
 }

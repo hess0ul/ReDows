@@ -32,6 +32,9 @@ public static class ScanEngine
 
     private const int ReviewRollupSize = 25;
 
+    /// <summary>How many distinct recognized places the end-of-scan briefing keeps (a bounded recap).</summary>
+    private const int RecognizedZonesSize = 100;
+
     public static ScanReport Run(
         Ruleset ruleset,
         ScanContext context,
@@ -96,6 +99,7 @@ public static class ScanEngine
         var ruleHits = new Dictionary<string, (string Stage, Verdict Verdict, long Items, long Bytes)>(StringComparer.Ordinal);
         var reviewBuckets = new Dictionary<string, (long Items, long Bytes)>(StringComparer.OrdinalIgnoreCase);
         var alerts = new Dictionary<string, long>(StringComparer.Ordinal);
+        var recognizedZones = new Dictionary<string, (RecognizedZoneInfo Info, int Count, string Sample, int Depth)>(StringComparer.OrdinalIgnoreCase);
         var partial = false;
 
         foreach (var root in roots)
@@ -161,6 +165,19 @@ public static class ScanEngine
                     reviewBuckets[bucket] = (bucketTotals.Items + 1, bucketTotals.Bytes + entryBytes);
                 }
 
+                // Recognized-places briefing (increment C): if a recogniser is supplied, note each
+                // DIRECTORY whose own name is a well-known place. Matched on the leaf name only — an
+                // ancestor was already visited as its own entry, so a descendant of steamapps/node_modules
+                // never inflates the count and each place is recorded once, at its shallowest occurrence.
+                if (options.RecognizeZone is not null && entry.IsDirectory && entry.Error is null && segments.Length > 0
+                    && options.RecognizeZone(segments[^1], path, classification.Verdict) is { } zone)
+                {
+                    var depth = segments.Length;
+                    recognizedZones[zone.Key] = recognizedZones.TryGetValue(zone.Key, out var seen)
+                        ? (seen.Info, seen.Count + 1, depth < seen.Depth ? path : seen.Sample, Math.Min(depth, seen.Depth))
+                        : (zone, 1, path, depth);
+                }
+
                 if (options.OnProgress is not null && items % options.ProgressInterval == 0)
                 {
                     options.OnProgress(items, path);
@@ -198,8 +215,24 @@ public static class ScanEngine
                 .Select(p => new PreResetAlert(p.Key, p.Value))
                 .OrderByDescending(a => a.Items)
                 .ToList(),
+            RecognizedZones: recognizedZones.Values
+                .Select(z => new RecognizedZone(z.Info.Key, z.Info.Label, z.Info.Note, z.Info.Importance, z.Count, z.Sample))
+                .OrderBy(z => ImportanceRank(z.Importance)) // keep first (save these), then maybe, then drop
+                .ThenByDescending(z => z.Count)
+                .ThenBy(z => z.Label, StringComparer.OrdinalIgnoreCase)
+                .Take(RecognizedZonesSize)
+                .ToList(),
             DeclaredLimits: ScanReport.V1Limits);
     }
+
+    /// <summary>Ordering of the recognized-places recap: the ones most worth keeping float to the top.</summary>
+    private static int ImportanceRank(string importance) => importance switch
+    {
+        "keep" => 0,
+        "maybe" => 1,
+        "drop" => 2,
+        _ => 3,
+    };
 
     /// <summary>
     /// Engine overrides come before the ruleset, most defensive first: an

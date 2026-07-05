@@ -3,6 +3,7 @@ using System.Text;
 using ReDows.Core.Apps;
 using ReDows.Core.Classification;
 using ReDows.Core.Duplicates;
+using ReDows.Core.Memory;
 using ReDows.Core.Rules;
 using ReDows.Core.Rules.Loading;
 using ReDows.Core.Scanning;
@@ -51,6 +52,7 @@ public sealed class WindowsScanRunner : IScanRunner
         IReadOnlyList<AppDataZone> appDataZones = [];
         var appCount = 0;
         var recognized = false;
+        InstalledAppFolders? appFolders = null; // app-made-folder recogniser for the recognized-places briefing
         if (request.RecognizeInstalledApps)
         {
             try
@@ -66,6 +68,10 @@ public sealed class WindowsScanRunner : IScanRunner
                     .Where(z => Directory.Exists(z.PathPrefix))
                     .ToList();
 
+                appFolders = new InstalledAppFolders(inventory.Entries
+                    .Where(e => e.Kind == AppEntryKind.App)
+                    .Select(e => (e.Name, e.Publisher)));
+
                 appCount = inventory.Entries.Count;
                 recognized = true;
             }
@@ -74,9 +80,15 @@ public sealed class WindowsScanRunner : IScanRunner
                 // Recognition is a best-effort enhancement: never let it fail the whole scan.
                 reinstallZones = [];
                 appDataZones = [];
+                appFolders = null;
                 recognized = false;
             }
         }
+
+        // The shipped folder memory (memory/ next to the app): the source of the recognized-places notes.
+        // Best-effort — a missing/broken memory just means fewer recognised places (never a scan failure).
+        var memory = new WindowsMemoryCatalog().Load();
+        var recognizeZone = BuildZoneRecognizer(memory, appFolders);
 
         // Write the backup-candidate items to an app-managed manifest as they are classified — the seed
         // of the "scan + decisions" session file, and the input the Backup screen copies. Both CAPTURE
@@ -96,7 +108,8 @@ public sealed class WindowsScanRunner : IScanRunner
             OnReview: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
             ReinstallZones: reinstallZones,
             AppDataZones: appDataZones,
-            CategoryModules: request.CategoryModules);
+            CategoryModules: request.CategoryModules,
+            RecognizeZone: recognizeZone);
 
         ScanReport report;
         try
@@ -247,6 +260,51 @@ public sealed class WindowsScanRunner : IScanRunner
     }
 
     /// <summary>
+    /// Compose the end-of-scan recogniser from the two knowledge sources: the shipped folder memory
+    /// (AppData, .ssh, Steam, node_modules…) first, then this PC's installed apps (a folder named like an
+    /// app or its publisher — ShareX, Adobe…). Returns null when neither loaded, so the scan simply skips
+    /// the briefing. Metadata-only: the recogniser is handed a directory NAME and PATH, never a file.
+    /// </summary>
+    private static Func<string, string, Verdict, RecognizedZoneInfo?>? BuildZoneRecognizer(
+        FolderMemory? memory, InstalledAppFolders? appFolders)
+    {
+        if (memory is null && (appFolders is null || appFolders.Count == 0))
+        {
+            return null;
+        }
+
+        return (name, _, verdict) =>
+        {
+            if (memory?.DescribeName(name) is { } known)
+            {
+                return new RecognizedZoneInfo(
+                    "mem:" + known.Match.ToLowerInvariant(),
+                    CleanLabel(known.Match),
+                    known.Note.Trim(),
+                    known.Importance ?? ScanMemory.ImportanceOf(verdict)); // memory's colour, else the scan verdict's
+            }
+
+            if (appFolders?.Match(name) is { } app)
+            {
+                return new RecognizedZoneInfo(
+                    "app:" + app.ToLowerInvariant(),
+                    app,
+                    $"Looks like {app}'s data folder — made by the app, not by you. Keep what you exported or created inside; the app recreates the rest.",
+                    "maybe");
+            }
+
+            return null;
+        };
+    }
+
+    /// <summary>A memory match pattern as a friendly label: "OneDrive*" → "OneDrive", "Visual Studio*" → "Visual Studio".</summary>
+    private static string CleanLabel(string match)
+    {
+        var trimmed = match.Trim().TrimEnd('*').Trim();
+        return trimmed.Length == 0 ? match.Trim() : trimmed;
+    }
+
+    /// <summary>
     /// What recognizing installed apps did, read straight off the engine's own counted rule hits:
     /// the reinstall stage = install folders ignored as re-downloadable; the app-data stage splits
     /// into config kept (a capture verdict) and local data surfaced for review.
@@ -297,6 +355,9 @@ public sealed class WindowsScanRunner : IScanRunner
             Balanced: report.UnaccountedItems == 0,
             EquationText: equationText,
             Alerts: alerts,
-            TopReview: topReview);
+            TopReview: topReview,
+            RecognizedZones: report.RecognizedZones
+                .Select(z => new RecognizedZoneRow(z.Importance, z.Label, z.Count > 1 ? $"×{z.Count:N0}" : "", z.Note))
+                .ToList());
     }
 }

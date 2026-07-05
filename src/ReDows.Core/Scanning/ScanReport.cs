@@ -161,6 +161,12 @@ public sealed record PreResetAlert(string RuleId, long Items);
 /// user's kept-minus-trash selection can be copied. Verdicts are preserved, so a secret stays
 /// a secret (it is a CAPTURE verdict, never REVIEW) and is routed to the vault, never copied in clear.
 /// </param>
+/// <param name="RecognizeZone">
+/// Optional recogniser for the end-of-scan "recognized places" briefing: given a DIRECTORY's own name,
+/// its full path and the verdict it received, it returns what that place is (a <see cref="RecognizedZoneInfo"/>)
+/// or null when it recognises nothing. Called once per directory (never a file); the engine de-duplicates
+/// by key and keeps a bounded, sorted summary. Read-only and metadata-only — it never opens anything.
+/// </param>
 public sealed record ScanOptions(
     IReadOnlyList<string>? Roots = null,
     IReadOnlyList<string>? ExcludedOutputPaths = null,
@@ -171,7 +177,8 @@ public sealed record ScanOptions(
     IReadOnlyList<ReinstallZone>? ReinstallZones = null,
     IReadOnlyList<AppDataZone>? AppDataZones = null,
     IReadOnlyList<CategoryModule>? CategoryModules = null,
-    Action<ManifestEntry>? OnReview = null);
+    Action<ManifestEntry>? OnReview = null,
+    Func<string, string, Verdict, RecognizedZoneInfo?>? RecognizeZone = null);
 
 public sealed record VerdictTotals(long Items, long Bytes);
 
@@ -179,6 +186,22 @@ public sealed record RuleHit(string RuleId, string Stage, Verdict Verdict, long 
 
 /// <summary>REVIEW items aggregated under a head directory (top of the human work queue).</summary>
 public sealed record ReviewBucket(string Directory, long Items, long Bytes);
+
+/// <summary>
+/// What a zone RECOGNISER makes of one directory: a stable <see cref="Key"/> to group identical places
+/// by (so twelve node_modules collapse to one line), a friendly <see cref="Label"/>, the human
+/// <see cref="Note"/> (2-3 sentences), and an importance (keep/maybe/drop) for its colour. Metadata-only
+/// by construction — the recogniser is handed a name and a path, never a file's content.
+/// </summary>
+public sealed record RecognizedZoneInfo(string Key, string Label, string Note, string Importance);
+
+/// <summary>
+/// One well-known place the scan recognised (AppData, .ssh, Steam, node_modules, a game/app folder…),
+/// aggregated across the whole walk: <see cref="Count"/> is how many folders matched this same zone and
+/// <see cref="SamplePath"/> the shallowest example. Bounded and de-duplicated, so the end-of-scan
+/// "recognized places" briefing stays short even on a 1.4M-item PC.
+/// </summary>
+public sealed record RecognizedZone(string Key, string Label, string Note, string Importance, int Count, string SamplePath);
 
 /// <summary>
 /// The complete result of a scan. Total-accounting invariant, verifiable from the
@@ -199,6 +222,7 @@ public sealed record ScanReport(
     IReadOnlyList<ReviewBucket> ReviewRollup,
     IReadOnlyList<UninstantiatedRule> UninstantiatedRules,
     IReadOnlyList<PreResetAlert> PreResetAlerts,
+    IReadOnlyList<RecognizedZone> RecognizedZones,
     IReadOnlyList<string> DeclaredLimits)
 {
     public long AccountedItems => ByVerdict.Values.Sum(v => v.Items);

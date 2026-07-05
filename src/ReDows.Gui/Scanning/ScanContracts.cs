@@ -55,6 +55,13 @@ public sealed record DuplicateSummary(int Groups, int ExtraCopies, string Reclai
 public sealed record InstalledAppsImpact(int Apps, string IgnoredText, string KeptText, string SurfacedText);
 
 /// <summary>
+/// One recognized place for the Scan screen's end-of-scan briefing: its <see cref="Importance"/>
+/// (keep/maybe/drop → colour dot), a friendly <see cref="Label"/>, how many were found
+/// (<see cref="CountText"/>, e.g. "×12" or empty for a single one), and the human <see cref="Note"/>.
+/// </summary>
+public sealed record RecognizedZoneRow(string Importance, string Label, string CountText, string Note);
+
+/// <summary>
 /// A scan result shaped for friendly display (formatted strings, not raw records) — what the
 /// Scan screen shows. <see cref="Partial"/> = the run was interrupted (Cancel), so figures cover
 /// only what was walked; <see cref="Balanced"/> = the total-accounting equation held (0 unaccounted).
@@ -73,7 +80,8 @@ public sealed record ScanResultView(
     IReadOnlyList<ReviewFolderRow> TopReview,
     DuplicateSummary? Duplicates = null,
     InstalledAppsImpact? InstalledApps = null,
-    string? ManifestPath = null);
+    string? ManifestPath = null,
+    IReadOnlyList<RecognizedZoneRow>? RecognizedZones = null);
 
 /// <summary>
 /// Runs a scan off the UI thread. A seam: the real implementation drives the engine on this PC;
