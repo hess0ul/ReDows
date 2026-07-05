@@ -6,11 +6,14 @@ namespace ReDows.Gui.Reviewing;
 public sealed record EntryRow(string Name, string FullPath, bool IsDirectory, long Bytes)
 {
     /// <summary>
-    /// Per-entry AI importance for the colour triage — "keep"/"maybe"/"drop", or "" when not analysed.
+    /// Per-entry importance for the colour triage — "keep"/"maybe"/"drop", or "" when not classified.
     /// Set with a record copy (<c>row with { ImportanceKey = … }</c>), so a fresh colour just replaces
     /// the row in the list; the view maps it to the blue→pink→purple dot.
     /// </summary>
     public string ImportanceKey { get; init; } = "";
+
+    /// <summary>Why this row got its colour (a rule reason or "AI") — shown as the dot's tooltip.</summary>
+    public string ImportanceReason { get; init; } = "";
 
     public string SizeText => Format.Bytes(Bytes);
 

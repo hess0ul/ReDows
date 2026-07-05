@@ -328,7 +328,34 @@
                             <TextBlock Text="{Binding FilesBusyText}" Foreground="{StaticResource App.Muted}" FontSize="12" VerticalAlignment="Center"/>
                             <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelFilesCommand}" Margin="10,0,0,0" Padding="10,4"/>
                         </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding FilesSummary}" Foreground="{StaticResource App.Good}" FontSize="12"
+                                   Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding FilesSummary}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </Grid>
+                    <!-- Cloud-sync reminder: rule-dropped cloud files are safe only if actually synced. -->
+                    <TextBlock Text="{Binding CloudReminder}" Foreground="{StaticResource App.Level.Maybe}" FontSize="12"
+                               Margin="0,0,0,8" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CloudReminder}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
 
                     <ItemsControl ItemsSource="{Binding Entries}">
                         <ItemsControl.ItemTemplate>
@@ -351,7 +378,7 @@
                                             </Grid.ColumnDefinitions>
                                             <!-- Importance dot (once the file is coloured): blue keep · pink maybe · purple drop. -->
                                             <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5" VerticalAlignment="Center"
-                                                    ToolTip="{Binding ImportanceKey}">
+                                                    ToolTip="{Binding ImportanceReason}">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Visibility" Value="Collapsed"/>

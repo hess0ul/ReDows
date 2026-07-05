@@ -1,0 +1,293 @@
+# File triage — fast-path rules (classify an entry from metadata alone, before asking the AI).
+# Règles de tri rapide — classer une entrée d'après ses seules métadonnées, avant d'appeler l'IA.
+#
+# Priority / priorité (forget-nothing): secret > keep > review > drop; anything unmatched -> the AI decides.
+# Importance keys / clés de couleur: keep = blue/bleu, maybe = pink/rose, drop = purple/violet.
+# Metadata only / métadonnées seules: names, extensions, path segments, size — never file contents.
+
+schema_version: 1
+
+# An image below this many bytes is almost certainly an icon/thumbnail, not a memory -> "maybe" (never dropped on size alone).
+# Une image sous cette taille est quasi sûrement une icône/vignette, pas un souvenir -> « maybe » (jamais jetée sur la seule taille).
+thumbnail_max_bytes: 40000
+
+extensions:
+  # KEEP — memories, personal documents, creator projects, config backups.
+  # GARDER — souvenirs, documents personnels, projets créatifs, sauvegardes de config.
+  keep:
+    # images
+    - jpg
+    - jpeg
+    - png
+    - gif
+    - bmp
+    - tif
+    - tiff
+    - webp
+    - heic
+    - heif
+    - avif
+    - raw
+    - cr2
+    - cr3
+    - nef
+    - arw
+    - dng
+    - orf
+    - rw2
+    - raf
+    - psd
+    - xcf
+    - kra
+    # video / vidéo
+    - mp4
+    - mov
+    - avi
+    - mkv
+    - wmv
+    - flv
+    - webm
+    - m4v
+    - mpg
+    - mpeg
+    - 3gp
+    - mts
+    - m2ts
+    - vob
+    - insv
+    # audio
+    - mp3
+    - flac
+    - wav
+    - aac
+    - ogg
+    - m4a
+    - wma
+    - aiff
+    - opus
+    - m4b
+    # documents
+    - pdf
+    - docx
+    - doc
+    - odt
+    - rtf
+    - xlsx
+    - xls
+    - ods
+    - csv
+    - pptx
+    - ppt
+    - odp
+    - md
+    - txt
+    - one
+    - pages
+    - numbers
+    # creator projects / projets créatifs
+    - blend
+    - stl
+    - aep
+    - prproj
+    - mogrt
+    - veg
+    - flp
+    # config backups the user made / sauvegardes de config faites par l'utilisateur
+    - bak
+    - old
+  # Images subject to the tiny-thumbnail guardrail. / Images soumises au garde-fou anti-vignette.
+  image:
+    - jpg
+    - jpeg
+    - png
+    - gif
+    - bmp
+    - webp
+    - tif
+    - tiff
+    - ico
+  # REVIEW — could hold anything: VM/disk images, archives, ebooks (re-obtainable, low value).
+  # REVOIR — peut contenir n'importe quoi : images VM/disque, archives, ebooks (ré-obtenables, peu de valeur).
+  review:
+    # VM / disk images / images de VM & disque
+    - iso
+    - img
+    - vhd
+    - vhdx
+    - vmdk
+    - vdi
+    - qcow2
+    - qcow
+    - ova
+    - ovf
+    - vmx
+    - hdd
+    - wim
+    - esd
+    - dmg
+    # archives
+    - zip
+    - rar
+    - 7z
+    - tar
+    - gz
+    - tgz
+    - bz2
+    - xz
+    - zst
+    - cab
+    # ebooks
+    - epub
+    - mobi
+    - azw3
+    - azw
+    - fb2
+  # DROP — cache, temp, logs, regenerated files. / JETER — cache, temp, logs, fichiers régénérés.
+  drop:
+    - tmp
+    - temp
+    - log
+    - dmp
+    - mdmp
+    - etl
+    - crdownload
+    - part
+    - partial
+    - aria2
+    - pyc
+    - pyo
+    - pyd
+    - class
+    - nvph
+    - dxcache
+  # SECRET — key/credential extensions (kept + flagged, never exposed).
+  # SECRET — extensions de clé/identifiant (gardées + marquées, jamais exposées).
+  secret:
+    - kdbx
+    - kdb
+    - psafe3
+    - ppk
+    - pem
+    - p12
+    - pfx
+    - keystore
+    - jks
+    - asc
+    - gpg
+    - ovpn
+    - rdp
+    - rdg
+
+names:
+  # SECRET by name (wildcard, case-insensitive, bilingual). / SECRET par nom (joker, insensible à la casse, bilingue).
+  secret:
+    - id_rsa
+    - id_ed25519
+    - id_ecdsa
+    - id_dsa
+    - known_hosts
+    - authorized_keys
+    - "*.env"
+    - "*.env.*"
+    - .npmrc
+    - .git-credentials
+    - wallet.dat
+    - "login data"
+    - "web data"
+    - "*password*"
+    - "*passwd*"
+    - "*motdepasse*"
+    - "*mot de passe*"
+    - "compte*"
+    - "comptes*"
+    - "*credential*"
+    - "*creds*"
+    - "*secret*"
+    - "*seed*"
+    - "*passphrase*"
+    - "*recovery*code*"
+    - "*backup*code*"
+    - "*récupération*"
+    - "*identifiants*"
+    - "metamask*"
+    - "rarreg.key"
+  # KEEP by name — personal / identity documents (bilingual). / GARDER par nom — documents personnels/d'identité (bilingue).
+  keep:
+    - "cni*"
+    - "carte grise*"
+    - "carte-grise*"
+    - "rib*"
+    - "passeport*"
+    - "passport*"
+    - "permis*"
+    - "*vaccination*"
+    - "*resume*"
+    - "*curriculum*"
+    - "cv"
+    - "cv-*"
+    - "cv_*"
+    - "*facture*"
+    - "*invoice*"
+    - "*attestation*"
+    - "*contrat*"
+
+folders:
+  # KEEP — a whole folder worth keeping (its files inherit keep). / GARDER — dossier entier à garder (ses fichiers héritent keep).
+  keep:
+    - Saved Games
+    - SaveGames
+    - Saves
+    - savegame
+    - savegames
+    - Sauvegardes
+    - Sauvegarde
+    - PlayerData
+    - Battery
+    - StateSlots
+    - SramImportExport
+    - Worlds
+  # DROP — regenerable folders (dependencies, caches). / JETER — dossiers régénérables (dépendances, caches).
+  drop:
+    - node_modules
+    - __pycache__
+    - .venv
+    - venv
+    - site-packages
+    - .pytest_cache
+    - .mypy_cache
+    - .gradle
+    - .next
+    - .nuxt
+    - .parcel-cache
+    - bower_components
+    - Pods
+    - .terraform
+    - Cache
+    - Code Cache
+    - GPUCache
+    - ShaderCache
+    - GrShaderCache
+    - DawnCache
+    - DawnGraphiteCache
+    - GraphiteDawnCache
+    - Service Worker
+    - blob_storage
+    - component_crx_cache
+    - CachedData
+    - Crashpad
+    - CrashDumps
+    - Temp
+    - tmp
+    - Logs
+    - Thumbnails
+    - .thumbnails
+    - Windows.old
+    - $Recycle.Bin
+  # CLOUD-SYNC — safe to drop locally, but remind the user to sync first. / SYNCHRO CLOUD — jetable en local, mais rappeler de synchroniser d'abord.
+  cloud_sync:
+    - OneDrive
+    - Dropbox
+    - Google Drive
+    - GoogleDrive
+    - iCloudDrive
+    - iCloud Drive

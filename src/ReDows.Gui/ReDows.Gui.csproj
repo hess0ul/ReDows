@@ -26,6 +26,11 @@
       <Link>modules\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Fast-path file-triage rules: the Review screen colours obvious entries without an AI call. -->
+    <Content Include="..\..\triage\**\*">
+      <Link>triage\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- The settings catalog: the Apps screen reads it to build the full InDows profile (apps + settings). -->
     <Content Include="..\..\settings\**\*">
       <Link>settings\%(RecursiveDir)%(Filename)%(Extension)</Link>

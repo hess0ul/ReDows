@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using ReDows.Core.Ai;
+using ReDows.Core.Triage;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Reviewing;
 
@@ -29,9 +30,12 @@ public sealed class ReviewViewModel : ViewModelBase
     private long _totalReviewBytes;
     private CancellationTokenSource? _cancellation;
     private CancellationTokenSource? _filesCancellation; // per-file colour pass — its own Cancel
-    private readonly Dictionary<string, string> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour, this folder
+    private readonly FileTriage? _triage; // fast-path rules: colour obvious entries without an AI call
+    private readonly Dictionary<string, (string Key, string Reason)> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour+why, this folder
     private bool _isAnalyzingFiles;
     private string _filesBusyText = "";
+    private string _filesSummary = "";
+    private string _cloudReminder = "";
     private ReviewSort _sort = ReviewSort.Size;
 
     private bool _scanned;
@@ -43,10 +47,11 @@ public sealed class ReviewViewModel : ViewModelBase
     private string _folderNote = "";
     private string _learnedNote = "";
 
-    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null)
+    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null, FileTriage? triage = null)
     {
         _browser = browser;
         Ai = ai;
+        _triage = triage;
         if (ai is not null)
         {
             // The user accepted a "safe to drop" suggestion → same gesture as "Drop this folder",
@@ -64,7 +69,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
         AnalyzeFolderCommand = new RelayCommand(_ => _ = AnalyzeCurrentFolderAsync(), _ => Ai is not null && HasFolder && !IsLoading);
         AnalyzeAllCommand = new RelayCommand(_ => _ = AnalyzeAllFoldersAsync(), _ => Ai is not null && HasRoots && !IsLoading);
-        AnalyzeFilesCommand = new RelayCommand(_ => _ = AnalyzeFilesHereAsync(), _ => Ai is not null && HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
+        AnalyzeFilesCommand = new RelayCommand(_ => _ = AnalyzeFilesHereAsync(), _ => (_triage is not null || Ai is not null) && HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
         CancelFilesCommand = new RelayCommand(_ => _filesCancellation?.Cancel(), _ => IsAnalyzingFiles);
         OpenCommand = new RelayCommand(item => { if (item is EntryRow entry) _ = OpenAsync(entry); }, _ => !IsLoading);
         DropCommand = new RelayCommand(item => { if (item is EntryRow entry) DropEntry(entry); }, _ => !IsLoading);
@@ -110,6 +115,20 @@ public sealed class ReviewViewModel : ViewModelBase
     {
         get => _filesBusyText;
         private set => Set(ref _filesBusyText, value);
+    }
+
+    /// <summary>After the pass: how many entries a rule coloured vs the AI vs left unknown.</summary>
+    public string FilesSummary
+    {
+        get => _filesSummary;
+        private set => Set(ref _filesSummary, value);
+    }
+
+    /// <summary>Set when a cloud-synced folder was met — reminds the user to sync before trusting the drop.</summary>
+    public string CloudReminder
+    {
+        get => _cloudReminder;
+        private set => Set(ref _cloudReminder, value);
     }
 
     /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
@@ -351,27 +370,52 @@ public sealed class ReviewViewModel : ViewModelBase
     /// </summary>
     public async Task AnalyzeFilesHereAsync()
     {
-        if (Ai is null || !HasFolder || Entries.Count == 0 || IsAnalyzingFiles)
+        if ((_triage is null && Ai is null) || !HasFolder || Entries.Count == 0 || IsAnalyzingFiles)
         {
             return;
         }
 
         var folderPath = _trail[^1].Path;
         var parent = AiPayload.Build(folderPath, _current.Select(e => (e.Name, e.IsDirectory, e.Bytes)));
-        var parentContext = Ai.StoredExplanationFor(folderPath); // the folder's own verdict, as context
+        var parentContext = Ai?.StoredExplanationFor(folderPath); // the folder's own verdict, as context
 
         var targets = Entries.ToList(); // snapshot of the rows visible now
         IsAnalyzingFiles = true;
+        FilesSummary = "";
+        CloudReminder = "";
         _filesCancellation = new CancellationTokenSource();
         var token = _filesCancellation.Token;
         var consecutiveFailures = 0;
+        int byRule = 0, byAi = 0, cloud = 0;
         try
         {
             for (var i = 0; i < targets.Count; i++)
             {
                 token.ThrowIfCancellationRequested();
                 var row = targets[i];
-                FilesBusyText = $"Analyzing {i + 1} of {targets.Count} — {row.Name}…";
+
+                // FAST PATH FIRST: a rule that recognises the entry colours it and SKIPS the AI entirely.
+                var verdict = _triage?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) ?? TriageVerdict.Unknown;
+                if (verdict.IsKnown)
+                {
+                    _fileImportance[row.FullPath] = (verdict.Importance, verdict.Reason);
+                    ColourRow(row.FullPath, verdict.Importance, verdict.Reason);
+                    byRule++;
+                    if (verdict.IsCloudSync)
+                    {
+                        cloud++;
+                    }
+
+                    continue;
+                }
+
+                // Unknown to the rules → the AI decides, if it's on. No AI → leave it uncoloured.
+                if (Ai is null || !Ai.IsEnabled)
+                {
+                    continue;
+                }
+
+                FilesBusyText = $"Asking the AI: {i + 1} of {targets.Count} — {row.Name}…";
                 try
                 {
                     var file = AiPayload.BuildFileInContext(row.FullPath, row.Name, row.IsDirectory, row.Bytes, parent, parentContext);
@@ -382,8 +426,9 @@ public sealed class ReviewViewModel : ViewModelBase
                     }
 
                     var key = AiAssistantViewModel.ImportanceKeyOf(suggestion);
-                    _fileImportance[row.FullPath] = key;
-                    ColourRow(row.FullPath, key);
+                    _fileImportance[row.FullPath] = (key, "AI");
+                    ColourRow(row.FullPath, key, "AI");
+                    byAi++;
                     consecutiveFailures = 0;
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -408,19 +453,25 @@ public sealed class ReviewViewModel : ViewModelBase
         {
             IsAnalyzingFiles = false;
             FilesBusyText = "";
+            FilesSummary = byRule + byAi == 0 ? "" : $"Coloured {byRule + byAi}: {byRule} by rule · {byAi} by AI.";
+            if (cloud > 0)
+            {
+                CloudReminder = $"{cloud} item(s) are in a cloud-synced folder — make sure they're synced to your cloud before you drop them, so nothing is lost.";
+            }
+
             _filesCancellation?.Dispose();
             _filesCancellation = null;
         }
     }
 
     /// <summary>Replace a visible row with a colour-tinted copy (record copy — no in-place mutation).</summary>
-    private void ColourRow(string fullPath, string key)
+    private void ColourRow(string fullPath, string key, string reason)
     {
         for (var i = 0; i < Entries.Count; i++)
         {
             if (string.Equals(Entries[i].FullPath, fullPath, StringComparison.OrdinalIgnoreCase))
             {
-                Entries[i] = Entries[i] with { ImportanceKey = key };
+                Entries[i] = Entries[i] with { ImportanceKey = key, ImportanceReason = reason };
                 return;
             }
         }
@@ -540,8 +591,9 @@ public sealed class ReviewViewModel : ViewModelBase
         Entries.Clear();
         foreach (var entry in ordered)
         {
-            var key = _fileImportance.GetValueOrDefault(entry.FullPath, "");
-            Entries.Add(key.Length == 0 ? entry : entry with { ImportanceKey = key });
+            Entries.Add(_fileImportance.TryGetValue(entry.FullPath, out var v)
+                ? entry with { ImportanceKey = v.Key, ImportanceReason = v.Reason }
+                : entry);
         }
     }
 
