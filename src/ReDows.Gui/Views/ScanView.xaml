@@ -31,6 +31,11 @@
                               IsChecked="{Binding RecognizeInstalledApps, Mode=TwoWay}"/>
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
                                Text="Install folders of apps this PC has are treated as re-downloadable and moved out of review; each app's settings are kept and its local data surfaced for review. Only affects files the scan would otherwise review — a keep or a secret is never touched."/>
+
+                    <CheckBox Content="Use the game-save catalog (ludusavi)" FontWeight="SemiBold" Margin="0,16,0,0"
+                              IsChecked="{Binding UseGameSaveCatalog, Mode=TwoWay}"/>
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
+                               Text="Recognizes thousands of games' save locations and keeps the ones on this PC automatically. The catalog is downloaded onto your PC the first time (then cached). Save locations from PCGamingWiki (CC BY-NC-SA), via the ludusavi project."/>
                 </StackPanel>
             </Border>
 
@@ -235,6 +240,28 @@
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap">
                             <Run Text="App settings kept: "/><Run Text="{Binding Result.InstalledApps.KeptText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/><Run Text="   ·   local app data surfaced for review: "/><Run Text="{Binding Result.InstalledApps.SurfacedText, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/>
                         </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Game-save catalog (ludusavi): shown only when the option ran -->
+                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,10" Margin="0,10,0,0"
+                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Result.GameSaves}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" FontSize="12">
+                            <Run Text="🎮 Game saves kept from the catalog: "/><Run Text="{Binding Result.GameSaves.Folders, Mode=OneWay}" Foreground="{StaticResource App.Good}" FontWeight="SemiBold"/><Run Text=" folder(s) found on this PC"/>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Result.GameSaves.SourceText}" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Result.GameSaves.Attribution}" Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 

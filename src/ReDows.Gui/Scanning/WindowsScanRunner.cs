@@ -6,9 +6,11 @@ using ReDows.Core.Duplicates;
 using ReDows.Core.Memory;
 using ReDows.Core.Rules;
 using ReDows.Core.Rules.Loading;
+using ReDows.Core.Saves;
 using ReDows.Core.Scanning;
 using ReDows.Providers.Windows;
 using ReDows.Providers.Windows.Apps;
+using ReDows.Providers.Windows.Saves;
 
 namespace ReDows.Gui.Scanning;
 
@@ -90,6 +92,34 @@ public sealed class WindowsScanRunner : IScanRunner
         var memory = new WindowsMemoryCatalog().Load();
         var recognizeZone = BuildZoneRecognizer(memory, appFolders);
 
+        // Optional ludusavi game-save catalog: download (first use) or read from cache the per-game save
+        // locations, build capture zones and keep only the folders that actually exist on THIS PC. Additive
+        // like the app-data zones (review -> capture, never a loss). Its data is PCGamingWiki's (CC BY-NC-SA),
+        // never bundled — it is fetched onto this machine. Best-effort: a failure just adds no zones.
+        IReadOnlyList<AppDataZone> saveZones = [];
+        GameSavesImpact? gameSaves = null;
+        if (request.UseGameSaveCatalog)
+        {
+            try
+            {
+                progress.Report(new ScanProgress(0, "Downloading the game-save catalog (ludusavi)…"));
+                var load = new WindowsLudusaviSource().LoadAsync(forceRefresh: false, cancellationToken).GetAwaiter().GetResult();
+                saveZones = LudusaviSaveZoneBuilder.Build(load.Manifest, windowsContext.Context)
+                    .Where(z => Directory.Exists(z.PathPrefix))
+                    .ToList();
+                gameSaves = new GameSavesImpact(saveZones.Count, GameSaveSourceText(load.Status), SaveCatalogAttribution);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw; // the user cancelled during the download — let the scan report "Cancelled"
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                saveZones = [];
+                gameSaves = new GameSavesImpact(0, "The game-save catalog could not be used.", SaveCatalogAttribution);
+            }
+        }
+
         // Write the backup-candidate items to an app-managed manifest as they are classified — the seed
         // of the "scan + decisions" session file, and the input the Backup screen copies. Both CAPTURE
         // (auto-kept: config / user / secret) and REVIEW (the "human decides" pile) are recorded, with
@@ -107,7 +137,7 @@ public sealed class WindowsScanRunner : IScanRunner
             OnCapture: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
             OnReview: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
             ReinstallZones: reinstallZones,
-            AppDataZones: appDataZones,
+            AppDataZones: saveZones.Count == 0 ? appDataZones : appDataZones.Concat(saveZones).ToList(),
             CategoryModules: request.CategoryModules,
             RecognizeZone: recognizeZone);
 
@@ -132,6 +162,11 @@ public sealed class WindowsScanRunner : IScanRunner
         if (recognized)
         {
             result = result with { InstalledApps = InstalledAppsImpactOf(report, appCount) };
+        }
+
+        if (gameSaves is not null)
+        {
+            result = result with { GameSaves = gameSaves };
         }
 
         // Optional second pass: hunt byte-identical files. Read-only. If it is cancelled, the
@@ -303,6 +338,16 @@ public sealed class WindowsScanRunner : IScanRunner
         var trimmed = match.Trim().TrimEnd('*').Trim();
         return trimmed.Length == 0 ? match.Trim() : trimmed;
     }
+
+    /// <summary>The licence-required credit for the game-save locations (PCGamingWiki is CC BY-NC-SA).</summary>
+    private const string SaveCatalogAttribution = "Save locations from PCGamingWiki (CC BY-NC-SA), via the ludusavi project.";
+
+    private static string GameSaveSourceText(LudusaviSourceStatus status) => status switch
+    {
+        LudusaviSourceStatus.Downloaded => "Downloaded the ludusavi save catalog.",
+        LudusaviSourceStatus.Cached => "Using the ludusavi save catalog already on this PC.",
+        _ => "Could not download the save catalog (offline?), so none were added.",
+    };
 
     /// <summary>
     /// What recognizing installed apps did, read straight off the engine's own counted rule hits:

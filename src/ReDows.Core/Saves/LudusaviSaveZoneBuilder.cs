@@ -21,6 +21,12 @@ public static class LudusaviSaveZoneBuilder
     private const string SaveTag = "save";
     private static readonly char[] GlobChars = ['*', '?', '['];
 
+    // Windows containers that hold MANY apps, not one game's saves: if a save path wildcards away the
+    // per-app segment (e.g. "<winLocalAppData>/Packages/&lt;storeGameId&gt;/…" → "…/Local/Packages"),
+    // the prefix truncates to the shared root and would sweep every Store app. Reject such a leaf.
+    // "My Games" is deliberately NOT here — it holds game saves only, so capturing it is on-target.
+    private static readonly HashSet<string> SharedContainers = new(StringComparer.OrdinalIgnoreCase) { "Packages" };
+
     public static IReadOnlyList<AppDataZone> Build(LudusaviManifest manifest, ScanContext context)
     {
         var byPrefix = new Dictionary<string, AppDataZone>(StringComparer.OrdinalIgnoreCase);
@@ -28,6 +34,15 @@ public static class LudusaviSaveZoneBuilder
         foreach (var profile in context.Profiles)
         {
             var vars = ResolvePlaceholders(profile, context);
+            // The resolved Known-Folder roots (AppData, Documents, home, LocalAppData, Public…). A zone must
+            // be a proper DESCENDANT of one of them — a game-specific subfolder — never the bare root: a path
+            // like "<winAppData>/*" would otherwise capture the WHOLE Roaming folder (caught by a real smoke).
+            var roots = vars.Values
+                .Where(v => v != "*")
+                .Select(ScanPaths.Normalize)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             foreach (var location in manifest.Locations)
             {
                 if (!location.Tags.Contains(SaveTag, StringComparer.OrdinalIgnoreCase))
@@ -47,9 +62,15 @@ public static class LudusaviSaveZoneBuilder
                 }
 
                 var prefix = ConcretePrefix(substituted);
-                if (prefix is null || ScanPaths.Split(prefix).Length < 2)
+                if (prefix is null || !IsGameSpecificSubfolder(prefix, roots))
                 {
-                    continue; // no concrete prefix, or too shallow to be a safe zone
+                    continue; // no concrete prefix, or it is a bare Known-Folder root (would over-capture)
+                }
+
+                var leaf = ScanPaths.Split(prefix)[^1];
+                if (SharedContainers.Contains(leaf))
+                {
+                    continue; // a multi-app system container (Packages…) — the per-game segment was wildcarded away
                 }
 
                 byPrefix.TryAdd(prefix, new AppDataZone("ludusavi:" + Sanitize(location.Game), prefix, Verdict.CaptureUser));
@@ -121,6 +142,32 @@ public static class LudusaviSaveZoneBuilder
         // we don't know where it is, so the location is skipped rather than guessed.
         return path.Contains('<') ? null : path;
     }
+
+    /// <summary>
+    /// True when <paramref name="prefix"/> is at least one segment BELOW the deepest Known-Folder root it
+    /// sits under — i.e. a game-specific subfolder, not a bare root. A save path whose first segment after
+    /// the placeholder is a wildcard truncates back to the root itself (e.g. "&lt;winAppData&gt;/*" →
+    /// "…/Roaming"); capturing that would sweep the whole folder, so it is rejected.
+    /// </summary>
+    private static bool IsGameSpecificSubfolder(string prefix, IReadOnlyList<string> roots)
+    {
+        var depth = ScanPaths.Split(prefix).Length;
+        var deepestRoot = 0;
+        foreach (var root in roots)
+        {
+            if (IsUnderOrEqual(prefix, root))
+            {
+                deepestRoot = Math.Max(deepestRoot, ScanPaths.Split(root).Length);
+            }
+        }
+
+        return deepestRoot > 0 && depth > deepestRoot;
+    }
+
+    private static bool IsUnderOrEqual(string path, string root) =>
+        path.Length >= root.Length
+        && path.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+        && (path.Length == root.Length || path[root.Length] == '/');
 
     /// <summary>The path down to (but excluding) the first wildcard segment — the concrete folder to capture.</summary>
     private static string? ConcretePrefix(string path)

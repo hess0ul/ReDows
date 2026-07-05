@@ -16,7 +16,8 @@ public sealed record ScanRequest(
     string? FolderRoot,
     IReadOnlyList<CategoryModule>? CategoryModules = null,
     DuplicateScan? Duplicates = null,
-    bool RecognizeInstalledApps = true);
+    bool RecognizeInstalledApps = true,
+    bool UseGameSaveCatalog = false);
 
 /// <summary>
 /// Whether to also find byte-identical files, and — for a per-type run — the lower-cased extensions
@@ -55,6 +56,13 @@ public sealed record DuplicateSummary(int Groups, int ExtraCopies, string Reclai
 public sealed record InstalledAppsImpact(int Apps, string IgnoredText, string KeptText, string SurfacedText);
 
 /// <summary>
+/// What using the optional ludusavi game-save catalog did: how many recognised save folders actually
+/// exist on THIS PC (and were added as capture zones), where the catalog came from (downloaded / cached /
+/// unavailable), and the attribution the licence requires. Null on the result when the option was off.
+/// </summary>
+public sealed record GameSavesImpact(int Folders, string SourceText, string Attribution);
+
+/// <summary>
 /// One recognized place for the Scan screen's end-of-scan briefing: its <see cref="Importance"/>
 /// (keep/maybe/drop → colour dot), a friendly <see cref="Label"/>, how many were found
 /// (<see cref="CountText"/>, e.g. "×12" or empty for a single one), and the human <see cref="Note"/>.
@@ -81,7 +89,8 @@ public sealed record ScanResultView(
     DuplicateSummary? Duplicates = null,
     InstalledAppsImpact? InstalledApps = null,
     string? ManifestPath = null,
-    IReadOnlyList<RecognizedZoneRow>? RecognizedZones = null);
+    IReadOnlyList<RecognizedZoneRow>? RecognizedZones = null,
+    GameSavesImpact? GameSaves = null);
 
 /// <summary>
 /// Runs a scan off the UI thread. A seam: the real implementation drives the engine on this PC;

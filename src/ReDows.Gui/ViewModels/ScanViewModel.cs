@@ -20,6 +20,7 @@ public sealed class ScanViewModel : ViewModelBase
     private bool _wholePc = true;
     private string _folderPath = "";
     private bool _recognizeInstalledApps = true;
+    private bool _useGameSaveCatalog;
     private bool _findDuplicates;
     private bool _duplicatesGlobal = true;
     private bool _isRunning;
@@ -91,6 +92,17 @@ public sealed class ScanViewModel : ViewModelBase
     {
         get => _recognizeInstalledApps;
         set => Set(ref _recognizeInstalledApps, value);
+    }
+
+    /// <summary>
+    /// Use the optional ludusavi game-save catalog (off by default): the manifest of per-game save
+    /// locations is downloaded onto this PC (first use) and cached, then the save folders that actually
+    /// exist here are kept automatically. Its data is PCGamingWiki's (CC BY-NC-SA), never bundled.
+    /// </summary>
+    public bool UseGameSaveCatalog
+    {
+        get => _useGameSaveCatalog;
+        set => Set(ref _useGameSaveCatalog, value);
     }
 
     /// <summary>Also hunt byte-identical files during the scan (a slower extra pass; read-only).</summary>
@@ -182,7 +194,8 @@ public sealed class ScanViewModel : ViewModelBase
                 WholePc ? null : FolderPath,
                 Modules.Select(module => module.ToCategoryModule()).ToList(),
                 BuildDuplicateScan(),
-                RecognizeInstalledApps);
+                RecognizeInstalledApps,
+                UseGameSaveCatalog);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
             Scanned?.Invoke(); // let the shell persist the session (scan summary + manifest to back up)

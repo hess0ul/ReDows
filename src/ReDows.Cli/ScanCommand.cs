@@ -5,9 +5,11 @@ using ReDows.Core.Apps;
 using ReDows.Core.Modules;
 using ReDows.Core.Rules;
 using ReDows.Core.Rules.Loading;
+using ReDows.Core.Saves;
 using ReDows.Core.Scanning;
 using ReDows.Providers.Windows;
 using ReDows.Providers.Windows.Apps;
+using ReDows.Providers.Windows.Saves;
 
 namespace ReDows.Cli;
 
@@ -40,9 +42,10 @@ public static class ScanCommand
         string? manifestFile = null;
         var asJson = false;
         var noReinstall = false;
+        var useLudusavi = false;
         var moduleActions = new Dictionary<string, ModuleAction>(StringComparer.OrdinalIgnoreCase);
 
-        const string usage = "Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json] [--no-reinstall] [--module <name>=<review|keep|ignore>]";
+        const string usage = "Usage: redows scan [--root <path>] [--rules <dir>] [--out <file>] [--manifest <file>] [--json] [--no-reinstall] [--ludusavi] [--module <name>=<review|keep|ignore>]";
 
         for (var i = 0; i < options.Length; i++)
         {
@@ -65,6 +68,9 @@ public static class ScanCommand
                     break;
                 case "--no-reinstall":
                     noReinstall = true;
+                    break;
+                case "--ludusavi":
+                    useLudusavi = true;
                     break;
                 case "--module" when i + 1 < options.Length:
                     var spec = options[++i];
@@ -208,6 +214,39 @@ public static class ScanCommand
             }
         };
         Console.CancelKeyPress += onCancel;
+
+        // Optional ludusavi game-save catalog (--ludusavi): download (first use) / read from cache the
+        // per-game save locations, build capture zones and keep only the folders that exist here. Additive,
+        // so it only ever moves a save from REVIEW to CAPTURE. Its data is PCGamingWiki's (CC BY-NC-SA),
+        // never bundled — it is fetched onto this machine. Best-effort: a failure just adds no zones.
+        if (useLudusavi)
+        {
+            Console.Error.WriteLine("Game-save catalog (ludusavi): loading (download on first use, then cached)…");
+            try
+            {
+                using var ludusavi = new WindowsLudusaviSource();
+                var load = ludusavi.LoadAsync(forceRefresh: false, cancellation.Token).GetAwaiter().GetResult();
+                var saveZones = LudusaviSaveZoneBuilder.Build(load.Manifest, windowsContext.Context)
+                    .Where(z => Directory.Exists(z.PathPrefix))
+                    .ToList();
+                appDataZones = appDataZones.Concat(saveZones).ToList();
+                Console.Error.WriteLine(
+                    $"Game-save catalog: {load.Status} ({load.Manifest.GameCount:N0} games) → {saveZones.Count} save folder(s) found on this PC (captured where scanned). " +
+                    "Save locations from PCGamingWiki (CC BY-NC-SA), via ludusavi.");
+                if (load.Detail is not null)
+                {
+                    Console.Error.WriteLine($"  {load.Detail}");
+                }
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Game-save catalog: skipped ({ex.GetType().Name}: {ex.Message}).");
+            }
+        }
 
         // The manifest is a ReDows output too: exclude it (and the report) from the
         // scan so the run never inventories its own files (engine.self_output).
