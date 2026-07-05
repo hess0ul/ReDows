@@ -20,7 +20,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner(), new FileSessionStore(), new WindowsAiAnalyzer(), new FileAiSettingsStore(), new FileAiLearnedStore(), new WindowsTriageCatalog());
+        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner(), new FileSessionStore(), new WindowsAiAnalyzer(), new FileAiSettingsStore(), new FileAiLearnedStore(), new WindowsTriageCatalog(), new WindowsMemoryCatalog(), new WindowsInstalledAppsSource());
         var window = new MainWindow(shell);
         shell.Initialize();
         window.Show();

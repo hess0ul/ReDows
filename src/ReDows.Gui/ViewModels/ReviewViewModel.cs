@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
 using ReDows.Core.Ai;
+using ReDows.Core.Apps;
+using ReDows.Core.Memory;
 using ReDows.Core.Triage;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Reviewing;
+using ReDows.Gui.Scanning;
 
 namespace ReDows.Gui.ViewModels;
 
@@ -31,11 +34,16 @@ public sealed class ReviewViewModel : ViewModelBase
     private CancellationTokenSource? _cancellation;
     private CancellationTokenSource? _filesCancellation; // per-file colour pass — its own Cancel
     private readonly FileTriage? _triage; // fast-path rules: colour obvious entries without an AI call
+    private readonly FolderMemory? _memory; // memory of known folders/apps: colour + a rich note, on browse
+    private readonly IInstalledAppsSource? _appsSource; // recogniser of app-made folders (ShareX, Adobe…)
+    private InstalledAppFolders? _appFolders; // loaded once, lazily, on first browse
+    private bool _appsLoaded;
     private readonly Dictionary<string, (string Key, string Reason)> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour+why, this folder
     private bool _isAnalyzingFiles;
     private string _filesBusyText = "";
     private string _filesSummary = "";
     private string _cloudReminder = "";
+    private string _memoryNote = "";
     private ReviewSort _sort = ReviewSort.Size;
 
     private bool _scanned;
@@ -47,11 +55,13 @@ public sealed class ReviewViewModel : ViewModelBase
     private string _folderNote = "";
     private string _learnedNote = "";
 
-    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null, FileTriage? triage = null)
+    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null, FileTriage? triage = null, FolderMemory? memory = null, IInstalledAppsSource? appsSource = null)
     {
         _browser = browser;
         Ai = ai;
         _triage = triage;
+        _memory = memory;
+        _appsSource = appsSource;
         if (ai is not null)
         {
             // The user accepted a "safe to drop" suggestion → same gesture as "Drop this folder",
@@ -129,6 +139,44 @@ public sealed class ReviewViewModel : ViewModelBase
     {
         get => _cloudReminder;
         private set => Set(ref _cloudReminder, value);
+    }
+
+    /// <summary>What ReDows knows about the CURRENT folder (a rich note from its memory), shown as a banner.</summary>
+    public string MemoryNote
+    {
+        get => _memoryNote;
+        private set => Set(ref _memoryNote, value);
+    }
+
+    /// <summary>
+    /// The free colour for one entry: what ReDows already KNOWS about it — its memory (a recognised
+    /// folder/app, with a rich note) first, then the fast-path rules (a short reason). Null when it
+    /// recognises nothing (the entry is unknown and only the AI could judge it).
+    /// </summary>
+    private (string Key, string Reason)? KnownColour(EntryRow row)
+    {
+        if (_memory?.Describe(row.Name, row.FullPath) is { } known)
+        {
+            var key = known.Importance
+                ?? (_triage?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) is { IsKnown: true } t ? t.Importance : null)
+                ?? "maybe"; // recognised but no strong colour → "worth a look"
+            return (key, known.Note);
+        }
+
+        if (_triage?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) is { IsKnown: true } verdict)
+        {
+            return (verdict.Importance, verdict.Reason);
+        }
+
+        // A FOLDER whose name is an installed app or its publisher (ShareX, Adobe…) → made by that app, not
+        // by the user. Review (never keep/drop — the match is best-effort): keep what you made inside, the
+        // app recreates the rest. Only for folders whose own name matches, so a chance hit stays rare.
+        if (row.IsDirectory && _appFolders?.Match(row.Name) is { } app)
+        {
+            return ("maybe", $"Looks like {app}'s data folder — made by the app, not by you. Keep what you exported or created inside; the app recreates the rest.");
+        }
+
+        return null;
     }
 
     /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
@@ -382,11 +430,10 @@ public sealed class ReviewViewModel : ViewModelBase
         var targets = Entries.ToList(); // snapshot of the rows visible now
         IsAnalyzingFiles = true;
         FilesSummary = "";
-        CloudReminder = "";
         _filesCancellation = new CancellationTokenSource();
         var token = _filesCancellation.Token;
         var consecutiveFailures = 0;
-        int byRule = 0, byAi = 0, cloud = 0;
+        int byRule = 0, byAi = 0;
         try
         {
             for (var i = 0; i < targets.Count; i++)
@@ -394,22 +441,18 @@ public sealed class ReviewViewModel : ViewModelBase
                 token.ThrowIfCancellationRequested();
                 var row = targets[i];
 
-                // FAST PATH FIRST: a rule that recognises the entry colours it and SKIPS the AI entirely.
-                var verdict = _triage?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) ?? TriageVerdict.Unknown;
-                if (verdict.IsKnown)
+                // KNOWN already? Memory + fast-path coloured it for free on browse — count it, skip the AI.
+                if (_fileImportance.TryGetValue(row.FullPath, out var already))
                 {
-                    _fileImportance[row.FullPath] = (verdict.Importance, verdict.Reason);
-                    ColourRow(row.FullPath, verdict.Importance, verdict.Reason);
-                    byRule++;
-                    if (verdict.IsCloudSync)
+                    if (already.Reason != "AI")
                     {
-                        cloud++;
+                        byRule++;
                     }
 
                     continue;
                 }
 
-                // Unknown to the rules → the AI decides, if it's on. No AI → leave it uncoloured.
+                // Unknown to memory and the rules → the AI decides, if it's on. No AI → leave it uncoloured.
                 if (Ai is null || !Ai.IsEnabled)
                 {
                     continue;
@@ -454,14 +497,54 @@ public sealed class ReviewViewModel : ViewModelBase
             IsAnalyzingFiles = false;
             FilesBusyText = "";
             FilesSummary = byRule + byAi == 0 ? "" : $"Coloured {byRule + byAi}: {byRule} by rule · {byAi} by AI.";
-            if (cloud > 0)
-            {
-                CloudReminder = $"{cloud} item(s) are in a cloud-synced folder — make sure they're synced to your cloud before you drop them, so nothing is lost.";
-            }
-
             _filesCancellation?.Dispose();
             _filesCancellation = null;
         }
+    }
+
+    /// <summary>
+    /// Colour every entry ReDows already KNOWS — its memory (a recognised folder/app + a rich note) and
+    /// the fast-path rules — for FREE as the folder loads, so the tree lights up the moment you open it.
+    /// Also surfaces the cloud-sync reminder and the memory note for the folder you're standing in.
+    /// Unknown entries stay uncoloured; the AI can judge them on demand.
+    /// </summary>
+    private void ApplyKnownColours(string folderPath)
+    {
+        // Load the installed-apps recogniser ONCE, on the first folder we colour (the registry read is a
+        // small one-time cost; after that it's just dictionary lookups).
+        if (!_appsLoaded)
+        {
+            _appsLoaded = true;
+            _appFolders = _appsSource?.Load();
+        }
+
+        var cloud = 0;
+        var coloured = 0;
+        foreach (var entry in _current)
+        {
+            if (KnownColour(entry) is { } colour)
+            {
+                _fileImportance[entry.FullPath] = colour;
+                coloured++;
+            }
+
+            if (_triage?.Classify(entry.Name, entry.IsDirectory, entry.Bytes, entry.FullPath).IsCloudSync == true)
+            {
+                cloud++;
+            }
+        }
+
+        FilesSummary = coloured == 0
+            ? ""
+            : $"{coloured} of {_current.Count} coloured automatically (memory & rules){(coloured < _current.Count ? " — “Colour these files” asks the AI about the rest." : ".")}";
+
+        CloudReminder = cloud > 0
+            ? $"{cloud} item(s) here are in a cloud-synced folder — make sure they're synced to your cloud before you drop them, so nothing is lost."
+            : "";
+
+        var trimmed = folderPath.TrimEnd('/', '\\');
+        var cut = trimmed.LastIndexOfAny(['/', '\\']);
+        MemoryNote = _memory?.Describe(cut < 0 ? trimmed : trimmed[(cut + 1)..], folderPath)?.Note ?? "";
     }
 
     /// <summary>Replace a visible row with a colour-tinted copy (record copy — no in-place mutation).</summary>
@@ -536,6 +619,7 @@ public sealed class ReviewViewModel : ViewModelBase
         FolderNote = "";
         _filesCancellation?.Cancel();  // a per-file colour pass is about THIS folder — stop it on the move
         _fileImportance.Clear();       // colours belong to the folder you were in; a new one starts fresh
+        FilesSummary = "";
         Ai?.ClearResult(); // a suggestion is about ONE folder — never survive navigation
         Ai?.ShowStoredFor(path); // …but a REMEMBERED one (analyze-all) greets you on its folder
         IsLoading = true;
@@ -543,6 +627,7 @@ public sealed class ReviewViewModel : ViewModelBase
         try
         {
             _current = await _browser.ListAsync(path, _cancellation.Token);
+            ApplyKnownColours(path); // memory + fast-path colour every entry for free, before it's shown
             ApplySort();
             if (Entries.Count == 0)
             {

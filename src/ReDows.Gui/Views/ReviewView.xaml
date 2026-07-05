@@ -314,15 +314,37 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <!-- Per-file colour pass: one AI call per entry below, each judged in this folder's
-                         context (the folder tree + its own verdict). Bounded to what's on screen. -->
-                    <Grid Margin="0,0,0,8" Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}">
+                    <!-- What ReDows KNOWS about this folder (from its memory) — a rich note, shown when recognised. -->
+                    <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,9" Margin="0,0,0,8"
+                            BorderBrush="{StaticResource App.Level.Keep}" BorderThickness="0,0,0,2">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding MemoryNote}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE946;" FontFamily="{StaticResource App.IconFont}" FontSize="14"
+                                       Foreground="{StaticResource App.Level.Keep}" VerticalAlignment="Top" Margin="0,1,10,0"/>
+                            <TextBlock Text="{Binding MemoryNote}" Foreground="{StaticResource App.Text}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Colour these files: the memory + rules already tinted the known ones on browse; this
+                         asks the AI about whatever is left unknown. Shown even with the AI off (the summary
+                         then just reports what the rules coloured). -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="✨ Colour these files" Style="{StaticResource GhostButton}"
-                                Command="{Binding AnalyzeFilesCommand}"/>
+                        <Button Grid.Column="0" Content="✨ Colour the rest with AI" Style="{StaticResource GhostButton}"
+                                Command="{Binding AnalyzeFilesCommand}"
+                                Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
                                     Visibility="{Binding IsAnalyzingFiles, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{Binding FilesBusyText}" Foreground="{StaticResource App.Muted}" FontSize="12" VerticalAlignment="Center"/>

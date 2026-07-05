@@ -31,6 +31,11 @@
       <Link>triage\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Folder memory: known-folder/app notes the Review screen shows as it colours the tree. -->
+    <Content Include="..\..\memory\**\*">
+      <Link>memory\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- The settings catalog: the Apps screen reads it to build the full InDows profile (apps + settings). -->
     <Content Include="..\..\settings\**\*">
       <Link>settings\%(RecursiveDir)%(Filename)%(Extension)</Link>

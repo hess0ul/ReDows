@@ -27,12 +27,12 @@ public sealed class ShellViewModel : ViewModelBase
     private string _sessionSummary = "";
     private string? _scannedUtc;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore, IAiAnalyzer aiAnalyzer, IAiSettingsStore aiSettingsStore, IAiLearnedStore aiLearnedStore, ITriageCatalog triageCatalog)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore, IAiAnalyzer aiAnalyzer, IAiSettingsStore aiSettingsStore, IAiLearnedStore aiLearnedStore, ITriageCatalog triageCatalog, IMemoryCatalog memoryCatalog, IInstalledAppsSource installedAppsSource)
     {
         _sessionStore = sessionStore;
         Home = new HomeViewModel(contextSource);
         Scan = new ScanViewModel(scanRunner, moduleCatalog);
-        Review = new ReviewViewModel(folderBrowser, new AiAssistantViewModel(aiAnalyzer, aiSettingsStore, aiLearnedStore), triageCatalog.Load());
+        Review = new ReviewViewModel(folderBrowser, new AiAssistantViewModel(aiAnalyzer, aiSettingsStore, aiLearnedStore), triageCatalog.Load(), memoryCatalog.Load(), installedAppsSource);
         Backup = new BackupViewModel(backupRunner);
         Restore = new RestoreViewModel(restoreRunner);
         Apps = new AppsViewModel(appsRunner);
