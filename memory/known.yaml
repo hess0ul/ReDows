@@ -157,7 +157,31 @@ known:
     importance: keep
     note: >
       The Windows "Saved Games" folder — game save files. Hard or impossible to get back after a reset,
-      so keep them.
+      so ReDows keeps them automatically.
+
+  # Generic game/app save folders that live anywhere (a game's own, not the Windows one). Recognised and
+  # left in REVIEW (they're made by the app, so a look — not an automatic keep), with a strong "keep your
+  # saves" hint: the saves inside are hard to re-acquire, the rest (settings, logs) is re-buildable.
+  - match: Saves
+    importance: maybe
+    note: >
+      A "Saves" folder — most likely game or app save files. Worth keeping: saves are hard or impossible
+      to get back after a reset. Made by the app, so it's a look rather than an automatic keep.
+
+  - match: Savegame*
+    importance: maybe
+    note: >
+      A game's savegame folder. Keep the saves inside — they can't be re-downloaded; the rest is re-buildable.
+
+  - match: SaveData
+    importance: maybe
+    note: >
+      A "SaveData" folder — a game or app's saved progress. Worth keeping; saves rarely come back after a reset.
+
+  - match: SavedGames
+    importance: maybe
+    note: >
+      A game's own "SavedGames" folder (not the Windows one). Keep the saves inside; they're hard to re-acquire.
 
   - match: OneDrive*
     importance: maybe

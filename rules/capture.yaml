@@ -49,6 +49,14 @@ rules:
     prio: high
     source: 'vault capture §B'
 
+  - id: user.kf.savedgames
+    scope: user
+    match: 'FOLDERID_SavedGames/**'
+    verdict: capture:user
+    prio: high
+    source: 'vault capture §B (Known Folders)'
+    note: 'The Windows "Saved Games" folder: game saves are hard or impossible to re-acquire after a reset — kept like Documents/Pictures. Game-specific save spots elsewhere are recognised and left in REVIEW.'
+
   - id: user.ssh
     scope: user
     match: '<UserProfile>/.ssh/**'
