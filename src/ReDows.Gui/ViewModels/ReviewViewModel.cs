@@ -38,8 +38,8 @@ public sealed class ReviewViewModel : ViewModelBase
     private readonly IInstalledAppsSource? _appsSource; // recogniser of app-made folders (ShareX, Adobe…)
     private InstalledAppFolders? _appFolders; // loaded once, lazily, on first browse
     private bool _appsLoaded;
-    private readonly Dictionary<string, (string Key, string Reason)> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour+why, this folder
-    private readonly Dictionary<string, Dictionary<string, string>> _aiByFolder = new(StringComparer.OrdinalIgnoreCase); // folder → (entry path → AI colour), kept so walking away and back never re-asks the AI
+    private readonly Dictionary<string, (string Key, string Reason, bool FromAi)> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour + why (+ from the AI?), this folder
+    private readonly Dictionary<string, Dictionary<string, (string Key, string Reason)>> _aiByFolder = new(StringComparer.OrdinalIgnoreCase); // folder → (entry path → AI colour + its explanation), kept so walking away and back never re-asks the AI
     private bool _isAnalyzingFiles;
     private string _filesBusyText = "";
     private string _filesSummary = "";
@@ -447,7 +447,7 @@ public sealed class ReviewViewModel : ViewModelBase
                 // KNOWN already? Memory + fast-path coloured it for free on browse — count it, skip the AI.
                 if (_fileImportance.TryGetValue(row.FullPath, out var already))
                 {
-                    if (already.Reason != "AI")
+                    if (!already.FromAi)
                     {
                         byRule++;
                     }
@@ -472,9 +472,10 @@ public sealed class ReviewViewModel : ViewModelBase
                     }
 
                     var key = AiAssistantViewModel.ImportanceKeyOf(suggestion);
-                    _fileImportance[row.FullPath] = (key, "AI");
-                    aiCache[row.FullPath] = key; // cached: returning to this folder re-shows it, no new call
-                    ColourRow(row.FullPath, key, "AI");
+                    var reason = AiReason(suggestion); // the model's OWN explanation, so the tooltip helps you decide — not just "AI"
+                    _fileImportance[row.FullPath] = (key, reason, FromAi: true);
+                    aiCache[row.FullPath] = (key, reason); // cached: returning to this folder re-shows it (with its why), no new call
+                    ColourRow(row.FullPath, key, reason);
                     byAi++;
                     consecutiveFailures = 0;
                 }
@@ -527,7 +528,7 @@ public sealed class ReviewViewModel : ViewModelBase
         {
             if (KnownColour(entry) is { } colour)
             {
-                _fileImportance[entry.FullPath] = colour;
+                _fileImportance[entry.FullPath] = (colour.Key, colour.Reason, FromAi: false);
             }
 
             if (_triage?.Classify(entry.Name, entry.IsDirectory, entry.Bytes, entry.FullPath).IsCloudSync == true)
@@ -536,15 +537,16 @@ public sealed class ReviewViewModel : ViewModelBase
             }
         }
 
-        // Re-show any AI colours computed for this folder earlier this session — walking into a subfolder
-        // and back must not lose them, nor re-ask the model. Memory/rules win, so only entries they left blank.
+        // Re-show any AI colours (with their explanations) computed for this folder earlier this session —
+        // walking into a subfolder and back must not lose them, nor re-ask the model. Memory/rules win, so
+        // only entries they left blank.
         if (_aiByFolder.TryGetValue(folderPath, out var aiCache))
         {
             foreach (var entry in _current)
             {
-                if (!_fileImportance.ContainsKey(entry.FullPath) && aiCache.TryGetValue(entry.FullPath, out var key))
+                if (!_fileImportance.ContainsKey(entry.FullPath) && aiCache.TryGetValue(entry.FullPath, out var cached))
                 {
-                    _fileImportance[entry.FullPath] = (key, "AI");
+                    _fileImportance[entry.FullPath] = (cached.Key, cached.Reason, FromAi: true);
                 }
             }
         }
@@ -563,17 +565,26 @@ public sealed class ReviewViewModel : ViewModelBase
         MemoryNote = _memory?.Describe(cut < 0 ? trimmed : trimmed[(cut + 1)..], folderPath)?.Note ?? "";
     }
 
-    /// <summary>Get (or create) this folder's cache of AI colours (entry path → colour key).</summary>
-    private Dictionary<string, string> AiCacheFor(string folderPath)
+    /// <summary>Get (or create) this folder's cache of AI colours (entry path → colour key + explanation).</summary>
+    private Dictionary<string, (string Key, string Reason)> AiCacheFor(string folderPath)
     {
         if (!_aiByFolder.TryGetValue(folderPath, out var cache))
         {
-            cache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            cache = new Dictionary<string, (string Key, string Reason)>(StringComparer.OrdinalIgnoreCase);
             _aiByFolder[folderPath] = cache;
         }
 
         return cache;
     }
+
+    /// <summary>
+    /// The tooltip for an AI-coloured row: the model's OWN explanation, prefixed "AI:" so you know the
+    /// source (a suggestion, not a verdict — it can be wrong). "AI" alone told you nothing; this is the why.
+    /// </summary>
+    private static string AiReason(AiSuggestion suggestion) =>
+        string.IsNullOrWhiteSpace(suggestion.Explanation)
+            ? "AI suggestion (no explanation given)."
+            : "AI: " + suggestion.Explanation.Trim();
 
     /// <summary>Replace a visible row with a colour-tinted copy (record copy — no in-place mutation).</summary>
     private void ColourRow(string fullPath, string key, string reason)
