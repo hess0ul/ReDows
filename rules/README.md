@@ -43,7 +43,7 @@ rules:
     scope: drive                 # machine | user | volume | drive
     match: '**/.terraform/**'    # bounded glob, see grammar below
     verdict: ignore              # ignore | review | note_only | capture:{user,config,secret}
-    prio: normal                 # optional: critical | high | normal | low
+    prio: normal                 # optional, RESERVED (parsed, not yet used): critical | high | normal | low
     bare_name_class: distinctive # required on floating ignores, see §0-8 policy
     when: …                      # optional context condition
     exceptions: …                # nested rules evaluated before this one
@@ -195,5 +195,8 @@ ReDows → InDows loop). It has its own schema (`schema_version` + `settings:` w
 
 The schema evolves **additively**: new optional fields (with defaults), new
 condition predicates, new rule kinds. Axes like `prio` (and later `mode` and
-`flags`) are attributes, **never encoded in the verdict value**. A file
-declaring a newer `schema_version` is refused, never best-effort parsed.
+`flags`) are attributes, **never encoded in the verdict value**. `prio` is
+currently **reserved**: it is parsed and validated (and many rules annotate it),
+but classification does not consume it yet — it records importance for a future
+feature (ordering the review queue, a manifest column), with no runtime effect
+today. A file declaring a newer `schema_version` is refused, never best-effort parsed.

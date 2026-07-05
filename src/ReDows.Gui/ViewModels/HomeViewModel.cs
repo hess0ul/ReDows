@@ -46,7 +46,7 @@ public sealed class HomeViewModel(IContextSource source) : ViewModelBase
             foreach (var volume in context.AllVolumes)
             {
                 var mount = volume.PreferredMountPath ?? "(no mount point)";
-                var size = volume.TotalBytes is { } bytes ? $"{bytes / (1024.0 * 1024 * 1024):F1} GB" : "?";
+                var size = volume.TotalBytes is { } bytes ? Format.Gigabytes(bytes) : "?";
                 var detail = $"{volume.DriveKind}, {volume.FileSystemFormat ?? "?"}, {size}";
                 Volumes.Add(new VolumeRow(volume.Scannable ? "scan" : "excluded", mount, detail, volume.Scannable));
             }

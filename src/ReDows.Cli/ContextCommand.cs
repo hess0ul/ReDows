@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ReDows.Core;
 using ReDows.Providers.Windows;
 
 namespace ReDows.Cli;
@@ -46,7 +47,7 @@ public static class ContextCommand
         foreach (var volume in windowsContext.AllVolumes)
         {
             var mounts = volume.MountPaths.Count > 0 ? S(string.Join(", ", volume.MountPaths)) : "(no mount point)";
-            var size = volume.TotalBytes is { } bytes ? $"{bytes / (1024.0 * 1024 * 1024):F1} GB" : "?";
+            var size = volume.TotalBytes is { } bytes ? Format.Gigabytes(bytes) : "?";
             var status = volume.Scannable ? "scan" : $"excluded: {volume.ExclusionReason}";
             Console.WriteLine($"  [{status}] {mounts} — {volume.DriveKind}, {volume.FileSystemFormat ?? "?"}, {size}, label '{S(volume.Label ?? "")}'");
             Console.WriteLine($"         {volume.GuidPath}");

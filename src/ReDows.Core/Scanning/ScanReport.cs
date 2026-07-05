@@ -231,6 +231,16 @@ public sealed record ScanReport(
     public long UnaccountedItems => TotalItems - AccountedItems;
 
     /// <summary>
+    /// The accounting equation as text — the per-verdict item counts summed and checked against the total
+    /// ("a + b + c = N accounted vs M seen"). Shared by both front-ends so they can never print a different
+    /// accounting for the same scan; each appends its own "✓" / "UNACCOUNTED" verdict suffix.
+    /// </summary>
+    public string AccountingEquation =>
+        string.Join(" + ", Enum.GetValues<Verdict>()
+            .Select(v => ByVerdict.GetValueOrDefault(v, new VerdictTotals(0, 0)).Items))
+        + $" = {AccountedItems:N0} accounted vs {TotalItems:N0} seen";
+
+    /// <summary>
     /// V1 limits, stated rather than hidden (deny-list §0-5: a known deviation is
     /// declared, never silent).
     /// </summary>

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ReDows.Core;
 using ReDows.Core.Backup;
 using ReDows.Core.Scanning;
 using ReDows.Providers.Windows;
@@ -119,7 +120,7 @@ public static class CopyCommand
         // back is byte-identical to the original — even if the backup medium degraded in between.
         if (report.Hashes.Count > 0)
         {
-            WriteHashManifest(fullDestination, report.Hashes);
+            BackupHashManifest.Write(fullDestination, report.Hashes);
         }
 
         var vaultStatus = VerifyVault(vaultPath, vaultPassword, report.SecretsVaulted);
@@ -166,15 +167,6 @@ public static class CopyCommand
         }
     }
 
-    /// <summary>Write the per-file checksum manifest (SHA-256) at the destination root, for restore verification.</summary>
-    private static void WriteHashManifest(string destination, IReadOnlyList<FileHash> hashes)
-    {
-        var json = JsonSerializer.Serialize(
-            new { version = 1, algorithm = "SHA-256", files = hashes.Select(h => new { path = h.RelativePath, sha256 = h.Sha256 }) },
-            new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        File.WriteAllText(Path.Combine(destination, "redows-hashes.json"), json);
-    }
-
     /// <summary>Stream the JSONL manifest line by line (it can be large): blank/bad lines are skipped.</summary>
     private static IEnumerable<ManifestEntry> ReadManifest(string path)
     {
@@ -203,9 +195,7 @@ public static class CopyCommand
         text.AppendLine($"  secrets → encrypted vault: {report.SecretsVaulted,11:N0}  {Bytes(report.SecretBytesVaulted)}");
         text.AppendLine($"  secrets deferred (no pw): {report.SecretsDeferred,12:N0}  {Bytes(report.SecretBytesDeferred)}");
         text.AppendLine($"  failed                  : {report.Failures.Count,12:N0}");
-        text.AppendLine(
-            $"  equation: {report.FilesCopied} + {report.Directories} + {report.SecretsVaulted} + {report.SecretsDeferred} + {report.Failures.Count} " +
-            $"= {report.Accounted:N0} accounted vs {report.TotalEntries:N0} entries → " +
+        text.AppendLine($"  equation: {report.AccountingEquation} → " +
             (report.Unaccounted == 0 ? "0 unaccounted ✓" : $"{report.Unaccounted:N0} UNACCOUNTED ✗ (engine bug)"));
         if (vaultStatus is not null)
         {
@@ -239,12 +229,6 @@ public static class CopyCommand
 
     private static string Sanitize(string text) => ConsoleText.Sanitize(text);
 
-    private static string Bytes(long bytes) => bytes switch
-    {
-        >= 1L << 40 => $"{bytes / (double)(1L << 40):F2} TB",
-        >= 1L << 30 => $"{bytes / (double)(1L << 30):F2} GB",
-        >= 1L << 20 => $"{bytes / (double)(1L << 20):F2} MB",
-        >= 1L << 10 => $"{bytes / (double)(1L << 10):F1} KB",
-        _ => $"{bytes} B",
-    };
+    // Byte sizes come from ReDows.Core.Format so the CLI and GUI never drift.
+    private static string Bytes(long bytes) => Format.Bytes(bytes);
 }

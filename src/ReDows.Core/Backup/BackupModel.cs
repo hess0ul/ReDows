@@ -65,6 +65,15 @@ public sealed record CopyReport(
 
     public long Unaccounted => TotalEntries - Accounted;
 
+    /// <summary>
+    /// The accounting equation as text ("copied + dirs + vaulted + deferred + failed = N accounted vs M
+    /// entries"). Shared by both front-ends so they can never print a different accounting for the same
+    /// backup; each appends its own "✓" / "UNACCOUNTED" verdict suffix.
+    /// </summary>
+    public string AccountingEquation =>
+        $"{FilesCopied} + {Directories} + {SecretsVaulted} + {SecretsDeferred} + {Failures.Count} " +
+        $"= {Accounted:N0} accounted vs {TotalEntries:N0} entries";
+
     /// <summary>V1 limits, stated rather than hidden (deny-list §0-5).</summary>
     public static readonly IReadOnlyList<string> V1Limits =
     [

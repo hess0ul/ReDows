@@ -87,7 +87,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
         // back is byte-identical to the original — catching a backup medium that degraded in between.
         if (report.Hashes.Count > 0)
         {
-            WriteHashManifest(destination, report.Hashes);
+            BackupHashManifest.Write(destination, report.Hashes);
         }
 
         var vaultStatus = VerifyVault(vaultPath, request.VaultPassword, report.SecretsVaulted);
@@ -119,7 +119,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
         }
 
         long hashed = 0;
-        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
+        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), FileTimes.SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++hashed % 500 == 0)
@@ -137,18 +137,6 @@ public sealed class WindowsBackupRunner : IBackupRunner
     private static bool IsPlainCopy(ManifestEntry entry) =>
         !entry.IsDirectory && !string.Equals(entry.Verdict, SecretVerdict, StringComparison.OrdinalIgnoreCase);
 
-    private static DateTime SafeLastModifiedUtc(string path)
-    {
-        try
-        {
-            return File.GetLastWriteTimeUtc(path.Replace('/', '\\'));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return DateTime.MinValue;
-        }
-    }
-
     /// <summary>Write the de-duplication restore map at the destination root (human-readable JSON).</summary>
     private static void WriteRestoreMap(string destination, IReadOnlyList<RestoreMapEntry> map)
     {
@@ -156,15 +144,6 @@ public sealed class WindowsBackupRunner : IBackupRunner
             new { version = 1, duplicates = map },
             new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         File.WriteAllText(Path.Combine(destination, "redows-restore-map.json"), json);
-    }
-
-    /// <summary>Write the per-file checksum manifest at the destination root (SHA-256, for restore verification).</summary>
-    private static void WriteHashManifest(string destination, IReadOnlyList<FileHash> hashes)
-    {
-        var json = JsonSerializer.Serialize(
-            new { version = 1, algorithm = "SHA-256", files = hashes.Select(h => new { path = h.RelativePath, sha256 = h.Sha256 }) },
-            new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        File.WriteAllText(Path.Combine(destination, "redows-hashes.json"), json);
     }
 
     /// <summary>
@@ -223,9 +202,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
 
     private static BackupResultView Shape(CopyReport report, string? vaultStatus, long? rescued)
     {
-        var equation =
-            $"{report.FilesCopied} + {report.Directories} + {report.SecretsVaulted} + {report.SecretsDeferred} + {report.Failures.Count} " +
-            $"= {report.Accounted:N0} accounted vs {report.TotalEntries:N0} entries → " +
+        var equation = report.AccountingEquation + " → " +
             (report.Unaccounted == 0 ? "0 unaccounted" : $"{report.Unaccounted:N0} UNACCOUNTED (bug)");
 
         return new BackupResultView(

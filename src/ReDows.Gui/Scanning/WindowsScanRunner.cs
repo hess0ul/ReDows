@@ -216,7 +216,7 @@ public sealed class WindowsScanRunner : IScanRunner
         }
 
         long hashed = 0;
-        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
+        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), FileTimes.SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++hashed % 500 == 0)
@@ -252,18 +252,6 @@ public sealed class WindowsScanRunner : IScanRunner
 
         var dot = name.LastIndexOf('.');
         return dot >= 0 && dot < name.Length - 1 ? name[(dot + 1)..].ToString().ToLowerInvariant() : "";
-    }
-
-    private static DateTime SafeLastModifiedUtc(string path)
-    {
-        try
-        {
-            return File.GetLastWriteTimeUtc(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return DateTime.MinValue;
-        }
     }
 
     /// <summary>The app-managed capture manifest of the last scan (the Backup screen's default input).</summary>
@@ -378,9 +366,7 @@ public sealed class WindowsScanRunner : IScanRunner
         var keepItems = Items(Verdict.CaptureConfig) + Items(Verdict.CaptureUser) + Items(Verdict.CaptureSecret);
         var keepBytes = Bytes(Verdict.CaptureConfig) + Bytes(Verdict.CaptureUser) + Bytes(Verdict.CaptureSecret);
 
-        var equation = string.Join(" + ", Enum.GetValues<Verdict>()
-            .Select(v => report.ByVerdict.GetValueOrDefault(v, new VerdictTotals(0, 0)).Items));
-        var equationText = $"{equation} = {report.AccountedItems:N0} accounted vs {report.TotalItems:N0} seen" +
+        var equationText = report.AccountingEquation +
             (report.UnaccountedItems == 0 ? " → 0 unaccounted" : $" → {report.UnaccountedItems:N0} UNACCOUNTED (bug)");
 
         var alerts = report.PreResetAlerts

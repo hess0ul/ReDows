@@ -65,7 +65,7 @@
         },
         "prio": {
           "type": "string",
-          "description": "Priority axis (orthogonal to the verdict). Default: normal.",
+          "description": "Reserved importance axis (orthogonal to the verdict): parsed and validated but NOT yet consumed by classification \u2014 reserved for future review ordering and manifest output, so setting it has no runtime effect today. Default: normal.",
           "pattern": "^(critical|high|normal|low)$"
         },
         "bare_name_class": {
@@ -127,6 +127,7 @@
         },
         "prio": {
           "type": "string",
+          "description": "Reserved importance axis (orthogonal to the verdict); parsed and validated but not yet consumed by classification. Default: normal.",
           "pattern": "^(critical|high|normal|low)$"
         },
         "when": {
@@ -254,6 +255,7 @@
         },
         "prio": {
           "type": "string",
+          "description": "Reserved importance axis (orthogonal to the verdict); parsed and validated but not yet consumed by classification. Default: normal.",
           "pattern": "^(critical|high|normal|low)$"
         },
         "flags": {
@@ -300,6 +302,7 @@
         },
         "prio": {
           "type": "string",
+          "description": "Reserved importance axis (orthogonal to the verdict); parsed and validated but not yet consumed by classification. Default: normal.",
           "pattern": "^(critical|high|normal|low)$"
         },
         "flags": {

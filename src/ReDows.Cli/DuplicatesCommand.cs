@@ -1,3 +1,4 @@
+using ReDows.Core;
 using ReDows.Core.Duplicates;
 using ReDows.Providers.Windows;
 
@@ -68,28 +69,40 @@ public static class DuplicatesCommand
             : $"Scanning '{root}' for duplicate files (read-only)…");
 
         var walker = new WindowsFileSystemWalker();
-        var files = new List<FileRef>();
-        long seen = 0;
-        foreach (var scanRoot in roots)
-        {
-            foreach (var entry in walker.Walk(scanRoot))
-            {
-                if (entry.Error is null && !entry.IsDirectory)
-                {
-                    files.Add(new FileRef(entry.Path, entry.SizeBytes));
-                }
 
-                if (++seen % 100_000 == 0)
+        // Stream the walk straight into the finder instead of materialising a List<FileRef> for the
+        // whole machine: each file is bucketed by size and then becomes garbage, so we no longer hold
+        // one live record per file across the (long) hashing phase — peak memory drops on big trees.
+        // The finder enumerates this sequence exactly once (locked by a test), so the walk runs once.
+        long fileCount = 0;
+
+        IEnumerable<FileRef> StreamFiles()
+        {
+            long seen = 0;
+            foreach (var scanRoot in roots)
+            {
+                foreach (var entry in walker.Walk(scanRoot))
                 {
-                    Console.Error.WriteLine($"  … {seen:N0} items seen");
+                    if (++seen % 100_000 == 0)
+                    {
+                        Console.Error.WriteLine($"  … {seen:N0} items seen");
+                    }
+
+                    if (entry.Error is null && !entry.IsDirectory)
+                    {
+                        fileCount++;
+                        yield return new FileRef(entry.Path, entry.SizeBytes);
+                    }
                 }
             }
+
+            // Runs when the finder has pulled the last file (walk done, hashing about to begin): the
+            // same message and timing the eager version printed between collecting and hashing.
+            Console.Error.WriteLine($"{fileCount:N0} files collected — hashing same-size candidates…");
         }
 
-        Console.Error.WriteLine($"{files.Count:N0} files collected — hashing same-size candidates…");
-
         long hashed = 0;
-        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), SafeLastModifiedUtc, minSize, onFullHash: _ =>
+        var groups = DuplicateFinder.Find(StreamFiles(), new Sha256FileHasher(), FileTimes.SafeLastModifiedUtc, minSize, onFullHash: _ =>
         {
             if (++hashed % 2_000 == 0)
             {
@@ -97,11 +110,11 @@ public static class DuplicatesCommand
             }
         });
 
-        Console.WriteLine(Render(files.Count, minSize, groups));
+        Console.WriteLine(Render(fileCount, minSize, groups));
         return 0;
     }
 
-    private static string Render(int filesConsidered, long minSize, IReadOnlyList<DuplicateGroup> groups)
+    private static string Render(long filesConsidered, long minSize, IReadOnlyList<DuplicateGroup> groups)
     {
         var text = new System.Text.StringBuilder();
         var reclaimable = groups.Sum(g => g.ReclaimableBytes);
@@ -163,24 +176,6 @@ public static class DuplicatesCommand
         return true;
     }
 
-    private static DateTime SafeLastModifiedUtc(string path)
-    {
-        try
-        {
-            return File.GetLastWriteTimeUtc(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return DateTime.MinValue; // vanished/denied: it just won't win the "most recent" tiebreak
-        }
-    }
-
-    private static string Bytes(long bytes) => bytes switch
-    {
-        >= 1L << 40 => $"{bytes / (double)(1L << 40):F2} TB",
-        >= 1L << 30 => $"{bytes / (double)(1L << 30):F2} GB",
-        >= 1L << 20 => $"{bytes / (double)(1L << 20):F2} MB",
-        >= 1L << 10 => $"{bytes / (double)(1L << 10):F1} KB",
-        _ => $"{bytes} B",
-    };
+    // Byte sizes come from ReDows.Core.Format so the CLI and GUI never drift.
+    private static string Bytes(long bytes) => Format.Bytes(bytes);
 }

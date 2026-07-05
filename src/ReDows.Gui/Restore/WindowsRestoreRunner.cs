@@ -1,6 +1,7 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
+using ReDows.Core.Backup;
 using ReDows.Gui.Backup;
 using ReDows.Providers.Windows.Backup;
 
@@ -16,7 +17,6 @@ namespace ReDows.Gui.Restore;
 public sealed class WindowsRestoreRunner : IRestoreRunner
 {
     private const string RestoreMapName = "redows-restore-map.json";
-    private const string HashManifestName = "redows-hashes.json";
     private const string VaultName = "secrets-vault.zip";
 
     public Task<RestoreResultView> RunAsync(RestoreRequest request, IProgress<RestoreProgress> progress, CancellationToken cancellationToken) =>
@@ -36,7 +36,7 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
 
         var targetFolder = request.ToOriginalLocations ? null : NormalizeTargetFolder(request.TargetFolder);
         var plan = new RestorePlan(LoadRestoreMap(Path.Combine(backup, RestoreMapName)), request.ToOriginalLocations, targetFolder);
-        var expectedHashes = LoadHashManifest(Path.Combine(backup, HashManifestName));
+        var expectedHashes = BackupHashManifest.Read(Path.Combine(backup, BackupHashManifest.FileName));
 
         long restored = 0, restoredBytes = 0, skipped = 0, verified = 0, seen = 0;
         var failures = new List<RestoreFailureRow>();
@@ -165,7 +165,7 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
 
     private static bool IsSpecialFile(string relativePath) =>
         string.Equals(relativePath, RestoreMapName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(relativePath, HashManifestName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(relativePath, BackupHashManifest.FileName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(relativePath, VaultName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Whether the file on disk hashes to the SHA-256 recorded at backup time (end-to-end proof).</summary>
@@ -179,36 +179,6 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
-        }
-    }
-
-    /// <summary>Load the backup's per-file checksums (backup-relative path → SHA-256); empty if absent/broken.</summary>
-    private static IReadOnlyDictionary<string, string> LoadHashManifest(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return new Dictionary<string, string>();
-        }
-
-        try
-        {
-            var file = JsonSerializer.Deserialize<HashManifestFile>(
-                File.ReadAllText(path),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var entry in file?.Files ?? [])
-            {
-                if (!string.IsNullOrEmpty(entry.Path) && !string.IsNullOrEmpty(entry.Sha256))
-                {
-                    map[entry.Path.Replace('\\', '/')] = entry.Sha256;
-                }
-            }
-
-            return map;
-        }
-        catch (JsonException)
-        {
-            return new Dictionary<string, string>(); // a broken manifest just means no verification
         }
     }
 
@@ -252,7 +222,4 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
 
     private sealed record RestoreMapDto(string? StoredAt, IReadOnlyList<string>? BelongsAt);
 
-    private sealed record HashManifestFile(int Version, string? Algorithm, IReadOnlyList<HashDto>? Files);
-
-    private sealed record HashDto(string? Path, string? Sha256);
 }

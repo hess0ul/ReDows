@@ -146,7 +146,13 @@ public sealed class Classifier
         return best;
     }
 
-    /// <summary>Positive when <paramref name="a"/> beats <paramref name="b"/>.</summary>
+    /// <summary>
+    /// Positive when <paramref name="a"/> beats <paramref name="b"/>. Tie-breaks on
+    /// specificity (literal segments, then '**', then wildcard chars), then the most
+    /// conservative verdict, then rule id — deliberately NOT on <see cref="RulePriority"/>,
+    /// which is a reserved axis the classifier does not consume yet (it is not even
+    /// carried on <see cref="CompiledNode"/>). See <see cref="RulePriority"/>.
+    /// </summary>
     private static int Compare(CompiledNode a, CompiledNode b)
     {
         var byLiterals = a.Glob.LiteralSegmentCount.CompareTo(b.Glob.LiteralSegmentCount);

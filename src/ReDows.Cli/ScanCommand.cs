@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ReDows.Core;
 using ReDows.Core.Apps;
 using ReDows.Core.Modules;
 using ReDows.Core.Rules;
@@ -363,10 +364,8 @@ public static class ScanCommand
             text.AppendLine($"  {verdict.Format(),-14}: {totals.Items,12:N0} items  {Bytes(totals.Bytes),12}");
         }
 
-        var equation = string.Join(" + ", Enum.GetValues<Verdict>()
-            .Select(v => report.ByVerdict.GetValueOrDefault(v, new VerdictTotals(0, 0)).Items));
         var balanced = report.UnaccountedItems == 0;
-        text.AppendLine($"  equation: {equation} = {report.AccountedItems:N0} accounted vs {report.TotalItems:N0} seen → " +
+        text.AppendLine($"  equation: {report.AccountingEquation} → " +
             (balanced ? "0 unaccounted ✓" : $"{report.UnaccountedItems:N0} UNACCOUNTED ✗ (engine bug — report invalid)"));
 
         var engineHits = report.RuleHits.Where(h => h.Stage == EngineRuleIds.Stage).ToList();
@@ -531,12 +530,6 @@ public static class ScanCommand
         return text.ToString();
     }
 
-    private static string Bytes(long bytes) => bytes switch
-    {
-        >= 1L << 40 => $"{bytes / (double)(1L << 40):F2} TB",
-        >= 1L << 30 => $"{bytes / (double)(1L << 30):F2} GB",
-        >= 1L << 20 => $"{bytes / (double)(1L << 20):F2} MB",
-        >= 1L << 10 => $"{bytes / (double)(1L << 10):F1} KB",
-        _ => $"{bytes} B",
-    };
+    // Byte sizes come from ReDows.Core.Format so the CLI and GUI never drift.
+    private static string Bytes(long bytes) => Format.Bytes(bytes);
 }

@@ -43,6 +43,18 @@ public enum RuleScope
     Drive,
 }
 
+/// <summary>
+/// Reserved importance axis (orthogonal to the verdict, like <see cref="RuleFlag"/>):
+/// how irreplaceable a rule's data is, independent of keep/review/ignore. It is
+/// parsed, validated and stored on every <see cref="Rule"/>/<see cref="RuleException"/>,
+/// and many rules already annotate it — but it is NOT yet consumed: the classifier
+/// drops it when it compiles a rule, and no report or manifest reads it. Reserved for
+/// a future feature (order the REVIEW queue by importance×size; emit a prio column in
+/// the manifest); it is the twin of <see cref="RuleFlag"/>, which IS wired (the DPAPI
+/// pre-reset alert). Until it is wired, setting prio has no runtime effect — it only
+/// records intent for later. Keep this in mind before "using" it: it needs threading
+/// through the classifier output first.
+/// </summary>
 public enum RulePriority
 {
     Critical,

@@ -70,6 +70,7 @@ public sealed class TemplateRuleDto
     public string? Verdict { get; set; }
 
     [Pattern("^(critical|high|normal|low)$")]
+    [Description("Reserved importance axis (orthogonal to the verdict); parsed and validated but not yet consumed by classification. Default: normal.")]
     public string? Prio { get; set; }
 
     [Description("Orthogonal flags, same vocabulary as rule flags.")]
@@ -96,6 +97,7 @@ public sealed class TemplateExceptionDto
     public string? Verdict { get; set; }
 
     [Pattern("^(critical|high|normal|low)$")]
+    [Description("Reserved importance axis (orthogonal to the verdict); parsed and validated but not yet consumed by classification. Default: normal.")]
     public string? Prio { get; set; }
 
     [Description("Orthogonal flags, same vocabulary as rule flags.")]
@@ -151,7 +153,7 @@ public sealed class RuleDto
     public string? Verdict { get; set; }
 
     [Pattern("^(critical|high|normal|low)$")]
-    [Description("Priority axis (orthogonal to the verdict). Default: normal.")]
+    [Description("Reserved importance axis (orthogonal to the verdict): parsed and validated but NOT yet consumed by classification — reserved for future review ordering and manifest output, so setting it has no runtime effect today. Default: normal.")]
     public string? Prio { get; set; }
 
     [Pattern("^(distinctive|collision_prone)$")]
@@ -191,6 +193,7 @@ public sealed class ExceptionDto
     public string? Verdict { get; set; }
 
     [Pattern("^(critical|high|normal|low)$")]
+    [Description("Reserved importance axis (orthogonal to the verdict); parsed and validated but not yet consumed by classification. Default: normal.")]
     public string? Prio { get; set; }
 
     public ConditionDto? When { get; set; }
