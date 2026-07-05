@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using ReDows.Core.Scanning;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Scanning;
 
@@ -12,6 +14,7 @@ namespace ReDows.Gui.ViewModels;
 public sealed class ScanViewModel : ViewModelBase
 {
     private readonly IScanRunner _runner;
+    private readonly IModuleSettingsStore? _moduleSettings;
     private CancellationTokenSource? _cancellation;
 
     private bool _wholePc = true;
@@ -24,13 +27,40 @@ public sealed class ScanViewModel : ViewModelBase
     private ScanResultView? _result;
     private string? _error;
 
-    public ScanViewModel(IScanRunner runner, IModuleCatalog moduleCatalog)
+    public ScanViewModel(IScanRunner runner, IModuleCatalog moduleCatalog, IModuleSettingsStore? moduleSettings = null)
     {
         _runner = runner;
+        _moduleSettings = moduleSettings;
+
+        // Re-apply the keep/review/ignore choices the user last made (so they don't retype them every
+        // launch); subscribe AFTER applying, so restoring a saved choice doesn't count as a fresh change.
+        var saved = moduleSettings?.Load() ?? new Dictionary<string, string>();
         Modules = new ObservableCollection<ModuleRowViewModel>(
-            moduleCatalog.Load().Select(definition => new ModuleRowViewModel(definition)));
+            moduleCatalog.Load().Select(definition =>
+            {
+                var row = new ModuleRowViewModel(definition);
+                if (saved.TryGetValue(definition.Name, out var action) && Enum.TryParse<ModuleAction>(action, ignoreCase: true, out var parsed))
+                {
+                    row.Action = parsed;
+                }
+
+                row.PropertyChanged += OnModuleActionChanged;
+                return row;
+            }));
+
         RunCommand = new RelayCommand(async _ => await RunAsync(), _ => !IsRunning && ScopeIsValid());
         CancelCommand = new RelayCommand(_ => Cancel(), _ => IsRunning);
+    }
+
+    /// <summary>Persist the per-category choices whenever one changes, so next launch starts where you left off.</summary>
+    private void OnModuleActionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ModuleRowViewModel.Action))
+        {
+            _moduleSettings?.Save(Modules.ToDictionary(
+                module => module.Name,
+                module => module.Action.ToString().ToLowerInvariant()));
+        }
     }
 
     /// <summary>The category modules (games, media…) the user can set to keep / review / ignore before scanning.</summary>

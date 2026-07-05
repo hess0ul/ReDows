@@ -387,9 +387,28 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Style="{StaticResource RowButton}" Margin="0"
+                                    <Button Grid.Column="0" Margin="0"
                                             Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                             CommandParameter="{Binding}" IsEnabled="{Binding IsDirectory}">
+                                        <!-- The rectangle's outline takes the importance colour too (not just the dot). -->
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RowButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ImportanceKey}" Value="keep">
+                                                        <Setter Property="BorderBrush" Value="{StaticResource App.Level.Keep}"/>
+                                                        <Setter Property="BorderThickness" Value="1.4"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ImportanceKey}" Value="maybe">
+                                                        <Setter Property="BorderBrush" Value="{StaticResource App.Level.Maybe}"/>
+                                                        <Setter Property="BorderThickness" Value="1.4"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ImportanceKey}" Value="drop">
+                                                        <Setter Property="BorderBrush" Value="{StaticResource App.Level.Drop}"/>
+                                                        <Setter Property="BorderThickness" Value="1.4"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
