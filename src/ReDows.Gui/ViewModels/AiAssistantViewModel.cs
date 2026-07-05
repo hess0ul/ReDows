@@ -16,6 +16,9 @@ public sealed class AiAssistantViewModel : ViewModelBase
     /// <summary>LM Studio's local server — the default endpoint, on this PC (Ollama: port 11434).</summary>
     public const string DefaultBaseUrl = "http://localhost:1234";
 
+    /// <summary>The pre-filled reply cap for a paid API/subscription (self-hosted ignores it — unlimited).</summary>
+    public const int DefaultMaxTokens = 4000;
+
     private readonly IAiAnalyzer _analyzer;
     private readonly IAiSettingsStore _store;
     private readonly IAiLearnedStore? _learnedStore;
@@ -30,6 +33,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     private string? _apiKey; // IN MEMORY ONLY — never persisted (invariant #5); re-entered after a restart
     private bool _isExternal;              // false = self-hosted (local); true = an external service
     private string _externalKind = "api";  // when external: "api" (own key) or "proxy" (a subscription bridge)
+    private int _maxTokens = DefaultMaxTokens; // the reply cap applied to an external service (self-hosted = uncapped)
     private bool _isBusy;
     private string _busyText = "";
     private string? _connectionStatus;
@@ -51,6 +55,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
             var connection = saved.Connection ?? "local"; // old files had no field → self-hosted
             _isExternal = connection is "api" or "proxy";
             _externalKind = connection == "proxy" ? "proxy" : "api";
+            _maxTokens = saved.MaxTokens is > 0 ? saved.MaxTokens.Value : DefaultMaxTokens;
         }
 
         TestCommand = new RelayCommand(async _ => await TestAsync(), _ => !IsBusy);
@@ -135,6 +140,20 @@ public sealed class AiAssistantViewModel : ViewModelBase
         set { if (value) SetExternalKind("proxy"); }
     }
 
+    /// <summary>
+    /// The reply cap for a paid API/subscription (a pre-filled default the user can change). Self-hosted
+    /// ignores it — a local model runs uncapped. A non-positive value falls back to the default so a
+    /// cleared box can never send a zero cap.
+    /// </summary>
+    public int MaxTokens
+    {
+        get => _maxTokens;
+        set { Set(ref _maxTokens, value > 0 ? value : DefaultMaxTokens); Persist(); }
+    }
+
+    /// <summary>The token cap only applies to an external service; a self-hosted model is uncapped.</summary>
+    public bool ShowMaxTokens => _isExternal;
+
     /// <summary>The api-vs-proxy choice only matters for an external service.</summary>
     public bool ShowExternalChoice => _isExternal;
 
@@ -193,6 +212,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         Raise(nameof(ShowExternalChoice));
         Raise(nameof(ShowApiKey));
         Raise(nameof(ShowModel));
+        Raise(nameof(ShowMaxTokens));
         Raise(nameof(ShowProxyNote));
         Raise(nameof(PrivacyNote));
         Raise(nameof(EndpointHint));
@@ -202,10 +222,12 @@ public sealed class AiAssistantViewModel : ViewModelBase
     private string ConnectionValue => _isExternal ? _externalKind : "local";
 
     // The key and the model are sent ONLY where they apply — never a stale key from a mode you left.
+    // The token cap applies to an external service only; self-hosted sends none (null = uncapped).
     private AiEndpoint Endpoint => new(
         BaseUrl,
         ShowApiKey ? _apiKey : null,
-        ShowModel && !string.IsNullOrWhiteSpace(_model) ? _model.Trim() : null);
+        ShowModel && !string.IsNullOrWhiteSpace(_model) ? _model.Trim() : null,
+        _isExternal ? _maxTokens : null);
 
     public bool IsBusy
     {
@@ -248,10 +270,42 @@ public sealed class AiAssistantViewModel : ViewModelBase
             Raise(nameof(HasResult));
             Raise(nameof(ResultTitle));
             Raise(nameof(CanAcceptDrop));
+            Raise(nameof(ImportanceKey));
+            Raise(nameof(ImportanceLabel));
+            Raise(nameof(HasImportance));
         }
     }
 
     public bool HasResult => Result is not null;
+
+    /// <summary>
+    /// The current suggestion mapped to a 3-level importance for the Review colour triage — how much
+    /// you'd miss this folder, NOT good-vs-bad: "keep" = worth keeping, "maybe" = not sure,
+    /// "drop" = probably not needed, "" = not analysed yet. mixed and unknown both fall under "maybe".
+    /// </summary>
+    public string ImportanceKey => ImportanceKeyOf(Result);
+
+    /// <summary>Map a suggestion to the 3-level colour key ("keep"/"maybe"/"drop", "" = none) — shared by
+    /// the folder pill and the per-file row colours so both read the gradient the same way.</summary>
+    public static string ImportanceKeyOf(AiSuggestion? suggestion) => suggestion?.Classification switch
+    {
+        AiSuggestion.Keep => "keep",
+        AiSuggestion.Drop => "drop",
+        null => "",
+        _ => "maybe", // mixed / unknown → "not sure"
+    };
+
+    /// <summary>The colour-triage label shown on the folder's pill (empty when not analysed).</summary>
+    public string ImportanceLabel => ImportanceKey switch
+    {
+        "keep" => "Worth keeping",
+        "maybe" => "Maybe — not sure",
+        "drop" => "Probably not needed",
+        _ => "",
+    };
+
+    /// <summary>Whether the current folder has an importance colour to show (i.e. it was analysed).</summary>
+    public bool HasImportance => ImportanceKey.Length > 0;
 
     /// <summary>One line over the explanation: what the model suggests, and how sure it is.</summary>
     public string ResultTitle => Result switch
@@ -407,6 +461,25 @@ public sealed class AiAssistantViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Analyze ONE entry in the context of its folder (per-file colour triage). Gated on the OFF state
+    /// like every other call; returns null when disabled. The caller (Review) owns the loop, progress and
+    /// cancellation — this is a thin pass-through to the endpoint with the whitelisted file payload.
+    /// </summary>
+    public async Task<AiSuggestion?> AnalyzeFileAsync(FileInContext file, CancellationToken cancellationToken)
+    {
+        if (!IsEnabled)
+        {
+            return null;
+        }
+
+        return await _analyzer.AnalyzeFileAsync(Endpoint, file, cancellationToken);
+    }
+
+    /// <summary>The stored folder-level verdict's explanation, if any — used as context for its files.</summary>
+    public string? StoredExplanationFor(string folderPath) =>
+        _byFolder.TryGetValue(folderPath, out var suggestion) ? suggestion.Explanation : null;
+
     /// <summary>Show the remembered suggestion for a folder the wizard just landed on (no new analysis).</summary>
     public void ShowStoredFor(string? folderPath)
     {
@@ -533,5 +606,5 @@ public sealed class AiAssistantViewModel : ViewModelBase
     }
 
     private void Persist() => _store.Save(new AiSettings(
-        _isEnabled, _baseUrl, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim(), ConnectionValue)); // never the key
+        _isEnabled, _baseUrl, string.IsNullOrWhiteSpace(_model) ? null : _model.Trim(), ConnectionValue, _maxTokens)); // never the key
 }

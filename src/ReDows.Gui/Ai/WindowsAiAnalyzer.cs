@@ -19,13 +19,16 @@ public sealed class WindowsAiAnalyzer : IAiAnalyzer
     public Task<AiSuggestion> AnalyzeAsync(AiEndpoint endpoint, FolderMetadata folder, CancellationToken cancellationToken) =>
         ClientFor(endpoint).AnalyzeAsync(folder, cancellationToken);
 
+    public Task<AiSuggestion> AnalyzeFileAsync(AiEndpoint endpoint, FileInContext file, CancellationToken cancellationToken) =>
+        ClientFor(endpoint).AnalyzeFileAsync(file, cancellationToken);
+
     private OpenAiCompatibleClient ClientFor(AiEndpoint endpoint)
     {
         var normalized = endpoint with { BaseUrl = OpenAiCompatibleClient.NormalizeBaseUrl(endpoint.BaseUrl) };
         if (_client is null || _clientEndpoint != normalized)
         {
             _client?.Dispose();
-            _client = new OpenAiCompatibleClient(endpoint.BaseUrl, endpoint.ApiKey, model: endpoint.Model);
+            _client = new OpenAiCompatibleClient(endpoint.BaseUrl, endpoint.ApiKey, model: endpoint.Model, maxTokens: endpoint.MaxTokens);
             _clientEndpoint = normalized;
         }
 

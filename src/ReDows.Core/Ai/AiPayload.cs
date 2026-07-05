@@ -77,9 +77,69 @@ public static class AiPayload
     }
 
     /// <summary>
-    /// Parse the model's reply into a suggestion. Tolerates prose around the JSON (extracts the first
-    /// {...} block); null when no JSON can be read at all; an unexpected classification or confidence
-    /// degrades to "unknown"/"low" rather than inventing meaning.
+    /// The system message for judging ONE entry in the context of its folder — same strict-JSON contract
+    /// as the folder one, but told to weigh the surrounding folder (the tree) when deciding.
+    /// </summary>
+    public const string FileSystemPrompt =
+        "You help a user sort files on a Windows PC before a factory reset. You are given ONE entry (a file " +
+        "or subfolder) and, as CONTEXT, the folder it lives in and that folder's other entries (names and " +
+        "sizes only — you never see file contents). Weigh the entry's name/type/size TOGETHER WITH its " +
+        "surrounding folder to judge whether it is USER DATA worth keeping or a re-downloadable / regenerated " +
+        "file safe to drop. Answer with STRICT JSON only, no prose around it: " +
+        "{\"classification\":\"keep|drop|mixed|unknown\",\"explanation\":\"one short sentence, plain language\",\"confidence\":\"high|medium|low\"}. " +
+        "keep = user-created/edited or user-configured data. drop = a re-obtainable program file, cache, log, " +
+        "temp, or a file the app recreates. mixed = it depends on what's inside. " +
+        "If you are not reasonably sure, use unknown with low confidence — never guess confidently.";
+
+    /// <summary>
+    /// Build the whitelisted per-entry payload: the target entry plus its already-built parent
+    /// <see cref="FolderMetadata"/> (the folder tree) and an optional short context note. Pure — no I/O.
+    /// The note is length-capped so a hostile prior verdict can't bloat the prompt.
+    /// </summary>
+    public static FileInContext BuildFileInContext(
+        string entryPath, string entryName, bool isDirectory, long bytes, FolderMetadata parent, string? parentContext)
+    {
+        var note = string.IsNullOrWhiteSpace(parentContext)
+            ? null
+            : parentContext.Trim() is { Length: > MaxExplanationLength } tooLong
+                ? tooLong[..MaxExplanationLength] + "…"
+                : parentContext.Trim();
+        return new FileInContext(entryPath, entryName, isDirectory, bytes, parent, note);
+    }
+
+    /// <summary>Render the per-entry user message: the entry, then its folder context (tree), nothing else.</summary>
+    public static string RenderFilePrompt(FileInContext entry)
+    {
+        var text = new StringBuilder();
+        text.AppendLine($"Entry to judge: {entry.EntryName}");
+        text.AppendLine($"Type: {(entry.IsDirectory ? "folder" : "file")}");
+        text.AppendLine($"Size: {entry.Bytes} bytes");
+        text.AppendLine();
+        text.AppendLine("It lives in this folder (context):");
+        text.AppendLine($"Folder: {entry.Parent.FolderPath}");
+        text.AppendLine($"Name: {entry.Parent.FolderName}");
+        text.AppendLine($"Total size: {entry.Parent.TotalBytes} bytes");
+        text.AppendLine($"Contains an executable: {(entry.Parent.HasExecutable ? "yes" : "no")}");
+        if (entry.ParentContext is { Length: > 0 } note)
+        {
+            text.AppendLine($"Folder context: {note}");
+        }
+
+        text.AppendLine($"Other entries in this folder ({entry.Parent.Children.Count} listed{(entry.Parent.ChildrenOmitted > 0 ? $", {entry.Parent.ChildrenOmitted} more omitted" : "")}):");
+        foreach (var sibling in entry.Parent.Children)
+        {
+            text.AppendLine($"  {(sibling.IsDirectory ? "dir " : "file")}  {sibling.Name}  {sibling.Bytes} bytes");
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// Parse the model's reply into a suggestion. Robust to a "reasoning" model that thinks out loud
+    /// before answering: strips &lt;think&gt; blocks, then scans every balanced {...} object from LAST to
+    /// first and returns the model's real verdict — so the schema example it echoes while thinking (which
+    /// parses as "unknown") never wins over the actual answer that follows. Null when no JSON can be read;
+    /// an unexpected classification or confidence degrades to "unknown"/"low" rather than inventing meaning.
     /// </summary>
     public static AiSuggestion? ParseSuggestion(string modelText)
     {
@@ -88,21 +148,36 @@ public static class AiPayload
             return null;
         }
 
-        var start = modelText.IndexOf('{');
-        var end = modelText.LastIndexOf('}');
-        if (start < 0 || end <= start)
+        var text = StripThinkBlocks(modelText);
+        AiSuggestion? fallback = null;
+        foreach (var span in JsonObjectSpans(text).Reverse()) // the real answer is the LAST JSON object
         {
-            return null;
+            if (TryReadSuggestion(span) is not { } parsed)
+            {
+                continue;
+            }
+
+            if (parsed.Classification != AiSuggestion.Unknown)
+            {
+                return parsed; // a real verdict (keep/drop/mixed) beats an "unknown" echo of the schema
+            }
+
+            fallback ??= parsed; // keep the last "unknown" in case there is no clearer verdict anywhere
         }
 
+        return fallback;
+    }
+
+    private static AiSuggestion? TryReadSuggestion(string json)
+    {
         try
         {
             var dto = JsonSerializer.Deserialize<SuggestionDto>(
-                modelText[start..(end + 1)],
+                json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (dto is null)
+            if (dto is null || (dto.Classification is null && dto.Explanation is null && dto.Confidence is null))
             {
-                return null;
+                return null; // a {...} with none of our fields is not a suggestion at all
             }
 
             var classification = dto.Classification?.Trim().ToLowerInvariant() switch
@@ -129,6 +204,63 @@ public static class AiPayload
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    /// <summary>Remove &lt;think&gt;…&lt;/think&gt; / &lt;thinking&gt;…&lt;/thinking&gt; blocks a reasoning model inlines into its reply.</summary>
+    private static string StripThinkBlocks(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(
+            text,
+            "<think(?:ing)?>.*?</think(?:ing)?>",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>Yield each top-level balanced {...} substring, honoring quoted strings and escapes.</summary>
+    private static IEnumerable<string> JsonObjectSpans(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] != '{')
+            {
+                continue;
+            }
+
+            var depth = 0;
+            var inString = false;
+            var escaped = false;
+            for (var j = i; j < text.Length; j++)
+            {
+                var c = text[j];
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                    }
+                    else if (c == '\\')
+                    {
+                        escaped = true;
+                    }
+                    else if (c == '"')
+                    {
+                        inString = false;
+                    }
+                }
+                else if (c == '"')
+                {
+                    inString = true;
+                }
+                else if (c == '{')
+                {
+                    depth++;
+                }
+                else if (c == '}' && --depth == 0)
+                {
+                    yield return text[i..(j + 1)];
+                    i = j; // resume scanning after this object
+                    break;
+                }
+            }
         }
     }
 

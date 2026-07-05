@@ -31,11 +31,28 @@ public sealed record AiSuggestion(string Classification, string Explanation, str
 }
 
 /// <summary>
-/// Analyzes a folder's metadata with an AI model. A seam: the real implementation talks to an
-/// OpenAI-compatible endpoint (a local LM Studio / Ollama by default); a test swaps a fake.
-/// The ONLY input is the whitelisted <see cref="FolderMetadata"/> — nothing else ever leaves the PC.
+/// EVERYTHING the AI is allowed to see about ONE entry judged in the context of its folder — the same
+/// strict whitelist as <see cref="FolderMetadata"/>: the entry's name/kind/size, plus its parent folder
+/// (path, name and the names/sizes of its siblings — the folder "tree"). <see cref="ParentContext"/> is
+/// an OPTIONAL short sentence about the folder's role (e.g. the folder's own AI verdict) — plain text
+/// about metadata, never file contents. Produced only by <see cref="AiPayload.BuildFileInContext"/>.
+/// </summary>
+public sealed record FileInContext(
+    string EntryPath,
+    string EntryName,
+    bool IsDirectory,
+    long Bytes,
+    FolderMetadata Parent,
+    string? ParentContext);
+
+/// <summary>
+/// Analyzes metadata with an AI model. A seam: the real implementation talks to an OpenAI-compatible
+/// endpoint (a local LM Studio / Ollama by default); a test swaps a fake. The ONLY inputs are the
+/// whitelisted <see cref="FolderMetadata"/> / <see cref="FileInContext"/> — nothing else ever leaves the PC.
 /// </summary>
 public interface IAiProvider
 {
     Task<AiSuggestion> AnalyzeAsync(FolderMetadata folder, CancellationToken cancellationToken);
+
+    Task<AiSuggestion> AnalyzeFileAsync(FileInContext file, CancellationToken cancellationToken);
 }

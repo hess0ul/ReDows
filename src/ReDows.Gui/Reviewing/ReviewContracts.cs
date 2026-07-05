@@ -5,6 +5,13 @@ namespace ReDows.Gui.Reviewing;
 /// <summary>One row in the review explorer: a file or a folder, with its (recursive, for folders) size.</summary>
 public sealed record EntryRow(string Name, string FullPath, bool IsDirectory, long Bytes)
 {
+    /// <summary>
+    /// Per-entry AI importance for the colour triage — "keep"/"maybe"/"drop", or "" when not analysed.
+    /// Set with a record copy (<c>row with { ImportanceKey = … }</c>), so a fresh colour just replaces
+    /// the row in the list; the view maps it to the blue→pink→purple dot.
+    /// </summary>
+    public string ImportanceKey { get; init; } = "";
+
     public string SizeText => Format.Bytes(Bytes);
 
     public string Kind

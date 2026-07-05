@@ -87,6 +87,20 @@
                             <TextBox Grid.Column="1" Text="{Binding Ai.Model}" VerticalAlignment="Center"/>
                         </Grid>
 
+                        <!-- Reply cap: external only (it costs there). Self-hosted runs uncapped, so no field. -->
+                        <Grid Margin="0,8,0,0"
+                              Visibility="{Binding Ai.ShowMaxTokens, Converter={StaticResource BoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Max tokens:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding Ai.MaxTokens}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Visibility="{Binding Ai.ShowMaxTokens, Converter={StaticResource BoolToVis}}"
+                                   Text="Caps each reply to keep a paid service's cost bounded. A self-hosted model on your PC runs with no cap. Reasoning models (they think before answering) need a few thousand."/>
+
                         <!-- Honest caveat, subscription bridge only. -->
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
                                    Visibility="{Binding Ai.ShowProxyNote, Converter={StaticResource BoolToVis}}"
@@ -101,6 +115,8 @@
                             <TextBlock Text="{Binding Ai.BatchStatus}" Foreground="{StaticResource App.Good}"
                                        FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
+                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Text="Heads-up: a local &quot;reasoning&quot; model (it thinks before answering) can take a minute or two per folder — that's normal. Use Cancel to stop, or pick a faster non-reasoning model (or turn off thinking in your server) for quicker sorting."/>
                     </StackPanel>
                 </Border>
             </Expander>
@@ -119,6 +135,26 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
+
+            <!-- Colour guide: shown once the AI is on. The colours mean IMPORTANCE (how much you'd miss a
+                 folder), on a blue→pink→purple gradient — on purpose NOT red/green, so it never reads as
+                 good-vs-bad. A folder gets its colour after it is analysed. -->
+            <Border Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"
+                    Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                    BorderBrush="{StaticResource App.Border}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Colour guide — how much you'd miss a folder (from the AI, once it's analysed). It's about importance, not good vs bad."
+                               Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Keep}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Worth keeping" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
+                        <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Maybe}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Maybe — not sure" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
+                        <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Drop}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Probably not needed" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </StackPanel>
 
         <!-- Step header -->
@@ -128,7 +164,30 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="{Binding StepText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding StepText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <!-- Importance colour for THIS folder (once analysed): blue keep · pink maybe · purple drop. -->
+                <Border CornerRadius="9" Padding="9,2" Margin="10,0,0,0" VerticalAlignment="Center"
+                        Visibility="{Binding Ai.HasImportance, Converter={StaticResource BoolToVis}}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{StaticResource App.Muted}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="keep">
+                                    <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="maybe">
+                                    <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="drop">
+                                    <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding Ai.ImportanceLabel}" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                </Border>
+            </StackPanel>
             <Button Grid.Column="1" Content="✨ AI analysis" Style="{StaticResource GhostButton}"
                     Command="{Binding AnalyzeFolderCommand}" Margin="0,0,8,0"
                     Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"/>
@@ -254,6 +313,23 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+
+                    <!-- Per-file colour pass: one AI call per entry below, each judged in this folder's
+                         context (the folder tree + its own verdict). Bounded to what's on screen. -->
+                    <Grid Margin="0,0,0,8" Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="✨ Colour these files" Style="{StaticResource GhostButton}"
+                                Command="{Binding AnalyzeFilesCommand}"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
+                                    Visibility="{Binding IsAnalyzingFiles, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding FilesBusyText}" Foreground="{StaticResource App.Muted}" FontSize="12" VerticalAlignment="Center"/>
+                            <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelFilesCommand}" Margin="10,0,0,0" Padding="10,4"/>
+                        </StackPanel>
+                    </Grid>
+
                     <ItemsControl ItemsSource="{Binding Entries}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -268,15 +344,40 @@
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="96"/>
                                                 <ColumnDefinition Width="110"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"
+                                            <!-- Importance dot (once the file is coloured): blue keep · pink maybe · purple drop. -->
+                                            <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5" VerticalAlignment="Center"
+                                                    ToolTip="{Binding ImportanceKey}">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Setter Property="Margin" Value="0,0,10,0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ImportanceKey}" Value="keep">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ImportanceKey}" Value="maybe">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ImportanceKey}" Value="drop">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{Binding Icon}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"
                                                        TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Kind}"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
+                                            <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
                                                        VerticalAlignment="Center" TextAlignment="Right"/>
                                         </Grid>
                                     </Button>

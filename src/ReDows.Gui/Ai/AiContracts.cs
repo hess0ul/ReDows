@@ -4,10 +4,12 @@ namespace ReDows.Gui.Ai;
 
 /// <summary>
 /// Where the assistant talks to: the base URL, an OPTIONAL key (cloud services — held in memory only,
-/// never written to disk), and an OPTIONAL explicit model id (cloud services list hundreds of models,
-/// so picking one is required there; a local server just uses whatever it has loaded).
+/// never written to disk), an OPTIONAL explicit model id (cloud services list hundreds of models, so
+/// picking one is required there; a local server just uses whatever it has loaded), and an OPTIONAL
+/// max-tokens cap. A null <paramref name="MaxTokens"/> means NO cap — right for a self-hosted model
+/// (think as long as it needs, it's your own machine); a paid API/subscription sets a cap to bound cost.
 /// </summary>
-public sealed record AiEndpoint(string BaseUrl, string? ApiKey, string? Model);
+public sealed record AiEndpoint(string BaseUrl, string? ApiKey, string? Model, int? MaxTokens = null);
 
 /// <summary>
 /// Analyzes one folder's whitelisted metadata against the configured endpoint. A seam: the real
@@ -20,6 +22,8 @@ public interface IAiAnalyzer
     Task<string> TestAsync(AiEndpoint endpoint, CancellationToken cancellationToken);
 
     Task<AiSuggestion> AnalyzeAsync(AiEndpoint endpoint, FolderMetadata folder, CancellationToken cancellationToken);
+
+    Task<AiSuggestion> AnalyzeFileAsync(AiEndpoint endpoint, FileInContext file, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -27,9 +31,11 @@ public interface IAiAnalyzer
 /// model id, and which KIND of connection the user picked ("local" self-hosted / "api" external key /
 /// "proxy" external subscription) so the card reopens in the right mode. The API key is deliberately NOT
 /// here — it is never persisted (invariant #5): the user re-enters it after a restart, like the vault
-/// password. A null <paramref name="Connection"/> (old settings files) is read as "local".
+/// password. A null <paramref name="Connection"/> (old settings files) is read as "local". <paramref
+/// name="MaxTokens"/> is the reply cap the user set for a paid API/subscription (ignored — unlimited —
+/// when self-hosted); null falls back to a sensible default.
 /// </summary>
-public sealed record AiSettings(bool Enabled, string BaseUrl, string? Model = null, string? Connection = null);
+public sealed record AiSettings(bool Enabled, string BaseUrl, string? Model = null, string? Connection = null, int? MaxTokens = null);
 
 /// <summary>
 /// One AI "safe to drop" suggestion the user ACCEPTED — remembered so the next scan pre-trashes the

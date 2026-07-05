@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ReDows.Core.Ai;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Reviewing;
 
@@ -27,6 +28,10 @@ public sealed class ReviewViewModel : ViewModelBase
     private IReadOnlyList<EntryRow> _current = [];
     private long _totalReviewBytes;
     private CancellationTokenSource? _cancellation;
+    private CancellationTokenSource? _filesCancellation; // per-file colour pass — its own Cancel
+    private readonly Dictionary<string, string> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour, this folder
+    private bool _isAnalyzingFiles;
+    private string _filesBusyText = "";
     private ReviewSort _sort = ReviewSort.Size;
 
     private bool _scanned;
@@ -59,6 +64,8 @@ public sealed class ReviewViewModel : ViewModelBase
 
         AnalyzeFolderCommand = new RelayCommand(_ => _ = AnalyzeCurrentFolderAsync(), _ => Ai is not null && HasFolder && !IsLoading);
         AnalyzeAllCommand = new RelayCommand(_ => _ = AnalyzeAllFoldersAsync(), _ => Ai is not null && HasRoots && !IsLoading);
+        AnalyzeFilesCommand = new RelayCommand(_ => _ = AnalyzeFilesHereAsync(), _ => Ai is not null && HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
+        CancelFilesCommand = new RelayCommand(_ => _filesCancellation?.Cancel(), _ => IsAnalyzingFiles);
         OpenCommand = new RelayCommand(item => { if (item is EntryRow entry) _ = OpenAsync(entry); }, _ => !IsLoading);
         DropCommand = new RelayCommand(item => { if (item is EntryRow entry) DropEntry(entry); }, _ => !IsLoading);
         RestoreCommand = new RelayCommand(item => { if (item is TrashRow trashed) _ = RestoreAsync(trashed); });
@@ -80,6 +87,30 @@ public sealed class ReviewViewModel : ViewModelBase
     public RelayCommand AnalyzeFolderCommand { get; }
 
     public RelayCommand AnalyzeAllCommand { get; }
+
+    /// <summary>Colour every entry in THIS folder by importance (one AI call per entry, in folder context).</summary>
+    public RelayCommand AnalyzeFilesCommand { get; }
+
+    public RelayCommand CancelFilesCommand { get; }
+
+    /// <summary>True while the per-file colour pass runs — drives its progress row and Cancel.</summary>
+    public bool IsAnalyzingFiles
+    {
+        get => _isAnalyzingFiles;
+        private set
+        {
+            Set(ref _isAnalyzingFiles, value);
+            AnalyzeFilesCommand.RaiseCanExecuteChanged();
+            CancelFilesCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>What the per-file pass is doing right now (folder X of N — name).</summary>
+    public string FilesBusyText
+    {
+        get => _filesBusyText;
+        private set => Set(ref _filesBusyText, value);
+    }
 
     /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
     public event Action? TrashChanged;
@@ -312,6 +343,89 @@ public sealed class ReviewViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Colour every entry in the CURRENT folder by importance: one AI call per entry, each given the
+    /// folder as context (its full listing — the "tree" — and, if we have it, the folder's own verdict).
+    /// Bounded to the entries on screen (never the whole PC). Progress + Cancel; two failures in a row
+    /// stop the pass. Nothing is dropped — this only tints the rows to guide the eye.
+    /// </summary>
+    public async Task AnalyzeFilesHereAsync()
+    {
+        if (Ai is null || !HasFolder || Entries.Count == 0 || IsAnalyzingFiles)
+        {
+            return;
+        }
+
+        var folderPath = _trail[^1].Path;
+        var parent = AiPayload.Build(folderPath, _current.Select(e => (e.Name, e.IsDirectory, e.Bytes)));
+        var parentContext = Ai.StoredExplanationFor(folderPath); // the folder's own verdict, as context
+
+        var targets = Entries.ToList(); // snapshot of the rows visible now
+        IsAnalyzingFiles = true;
+        _filesCancellation = new CancellationTokenSource();
+        var token = _filesCancellation.Token;
+        var consecutiveFailures = 0;
+        try
+        {
+            for (var i = 0; i < targets.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                var row = targets[i];
+                FilesBusyText = $"Analyzing {i + 1} of {targets.Count} — {row.Name}…";
+                try
+                {
+                    var file = AiPayload.BuildFileInContext(row.FullPath, row.Name, row.IsDirectory, row.Bytes, parent, parentContext);
+                    var suggestion = await Ai.AnalyzeFileAsync(file, token);
+                    if (suggestion is null)
+                    {
+                        break; // the assistant was turned off mid-pass
+                    }
+
+                    var key = AiAssistantViewModel.ImportanceKeyOf(suggestion);
+                    _fileImportance[row.FullPath] = key;
+                    ColourRow(row.FullPath, key);
+                    consecutiveFailures = 0;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                    if (++consecutiveFailures >= 2)
+                    {
+                        Error = "The endpoint keeps failing — colouring stopped. Test the connection, then try again.";
+                        break;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // cancelled — the colours computed so far are kept
+        }
+        finally
+        {
+            IsAnalyzingFiles = false;
+            FilesBusyText = "";
+            _filesCancellation?.Dispose();
+            _filesCancellation = null;
+        }
+    }
+
+    /// <summary>Replace a visible row with a colour-tinted copy (record copy — no in-place mutation).</summary>
+    private void ColourRow(string fullPath, string key)
+    {
+        for (var i = 0; i < Entries.Count; i++)
+        {
+            if (string.Equals(Entries[i].FullPath, fullPath, StringComparison.OrdinalIgnoreCase))
+            {
+                Entries[i] = Entries[i] with { ImportanceKey = key };
+                return;
+            }
+        }
+    }
+
     public void DropEntry(EntryRow entry)
     {
         Trash.Drop(entry.FullPath, entry.Bytes);
@@ -369,6 +483,8 @@ public sealed class ReviewViewModel : ViewModelBase
         Location = path;
         Error = null;
         FolderNote = "";
+        _filesCancellation?.Cancel();  // a per-file colour pass is about THIS folder — stop it on the move
+        _fileImportance.Clear();       // colours belong to the folder you were in; a new one starts fresh
         Ai?.ClearResult(); // a suggestion is about ONE folder — never survive navigation
         Ai?.ShowStoredFor(path); // …but a REMEMBERED one (analyze-all) greets you on its folder
         IsLoading = true;
@@ -424,7 +540,8 @@ public sealed class ReviewViewModel : ViewModelBase
         Entries.Clear();
         foreach (var entry in ordered)
         {
-            Entries.Add(entry);
+            var key = _fileImportance.GetValueOrDefault(entry.FullPath, "");
+            Entries.Add(key.Length == 0 ? entry : entry with { ImportanceKey = key });
         }
     }
 
@@ -492,6 +609,7 @@ public sealed class ReviewViewModel : ViewModelBase
         DropFolderCommand.RaiseCanExecuteChanged();
         AnalyzeFolderCommand.RaiseCanExecuteChanged();
         AnalyzeAllCommand.RaiseCanExecuteChanged();
+        AnalyzeFilesCommand.RaiseCanExecuteChanged();
         OpenCommand.RaiseCanExecuteChanged();
         DropCommand.RaiseCanExecuteChanged();
     }

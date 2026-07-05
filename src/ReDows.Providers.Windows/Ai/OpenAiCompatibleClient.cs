@@ -18,16 +18,22 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
     private readonly HttpClient _http;
     private readonly string _baseUrl;
     private readonly bool _modelIsExplicit;
+    private readonly int? _maxTokens;
     private string? _model;
 
-    public OpenAiCompatibleClient(string baseUrl, string? apiKey = null, HttpMessageHandler? handler = null, string? model = null)
+    public OpenAiCompatibleClient(string baseUrl, string? apiKey = null, HttpMessageHandler? handler = null, string? model = null, int? maxTokens = null)
     {
         _baseUrl = NormalizeBaseUrl(baseUrl);
         _model = string.IsNullOrWhiteSpace(model) ? null : model.Trim(); // explicit model → no discovery needed
         _modelIsExplicit = _model is not null;
+        _maxTokens = maxTokens is > 0 ? maxTokens : null; // null = no cap (let a local model think as long as it needs)
         // No auto-redirect: the payload (whitelisted metadata) only ever goes to the URL the user set.
         _http = handler is null ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) : new HttpClient(handler);
-        _http.Timeout = TimeSpan.FromSeconds(120); // a small local model on CPU can be slow
+        // NO wall-clock timeout on the HTTP client: a reasoning model on CPU can think for many minutes, and
+        // any fixed cap would eventually cut a slow-but-working reply off mid-thought. The user stays in
+        // control instead — the Cancel button and navigation cancel the request through its token — and
+        // TestConnection sets its own quick 10-second bound via a linked token, so it never hangs.
+        _http.Timeout = Timeout.InfiniteTimeSpan;
         if (!string.IsNullOrEmpty(apiKey))
         {
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -66,23 +72,38 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
         return discovered ?? throw new InvalidOperationException("The endpoint answered but reports no loaded model.");
     }
 
-    public async Task<AiSuggestion> AnalyzeAsync(FolderMetadata folder, CancellationToken cancellationToken)
+    public Task<AiSuggestion> AnalyzeAsync(FolderMetadata folder, CancellationToken cancellationToken) =>
+        CompleteAsync(AiPayload.SystemPrompt, AiPayload.RenderPrompt(folder), cancellationToken);
+
+    public Task<AiSuggestion> AnalyzeFileAsync(FileInContext file, CancellationToken cancellationToken) =>
+        CompleteAsync(AiPayload.FileSystemPrompt, AiPayload.RenderFilePrompt(file), cancellationToken);
+
+    private async Task<AiSuggestion> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken)
     {
         _model ??= await FirstModelAsync(cancellationToken)
             ?? throw new InvalidOperationException("No model is loaded on the endpoint.");
 
-        var payload = JsonSerializer.Serialize(new
+        // Build the request with an OPTIONAL cap. A "reasoning" model (Qwen3, DeepSeek-R1…) thinks for
+        // hundreds of tokens BEFORE its answer, so a tight cap truncated it mid-thought and left an empty
+        // reply. Self-hosted → no cap at all (think as long as needed, it's your own machine); a paid
+        // API/subscription → the user's chosen cap so a runaway reply can't rack up cost.
+        var request = new Dictionary<string, object?>
         {
-            model = _model,
-            temperature = 0.2,
-            max_tokens = 500,
-            stream = false,
-            messages = new object[]
+            ["model"] = _model,
+            ["temperature"] = 0.2,
+            ["stream"] = false,
+            ["messages"] = new object[]
             {
-                new { role = "system", content = AiPayload.SystemPrompt },
-                new { role = "user", content = AiPayload.RenderPrompt(folder) },
+                new { role = "system", content = systemPrompt },
+                new { role = "user", content = userPrompt },
             },
-        });
+        };
+        if (_maxTokens is int cap)
+        {
+            request["max_tokens"] = cap;
+        }
+
+        var payload = JsonSerializer.Serialize(request);
 
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
         using var response = await _http.PostAsync($"{_baseUrl}/chat/completions", content, cancellationToken);
@@ -118,13 +139,26 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
         try
         {
             using var json = JsonDocument.Parse(responseBody);
-            return json.RootElement.TryGetProperty("choices", out var choices)
-                && choices.ValueKind == JsonValueKind.Array
-                && choices.GetArrayLength() > 0
-                && choices[0].TryGetProperty("message", out var message)
-                && message.TryGetProperty("content", out var text)
-                    ? text.GetString()
-                    : null;
+            if (!json.RootElement.TryGetProperty("choices", out var choices)
+                || choices.ValueKind != JsonValueKind.Array
+                || choices.GetArrayLength() == 0
+                || !choices[0].TryGetProperty("message", out var message))
+            {
+                return null;
+            }
+
+            // Normal case: the answer is in "content". A reasoning model may leave "content" empty and
+            // put everything (thinking + the JSON) in "reasoning_content" — fall back to that so its
+            // reply is still readable (ParseSuggestion then digs the JSON out of the thinking text).
+            if (message.TryGetProperty("content", out var content)
+                && content.GetString() is { } text && !string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+
+            return message.TryGetProperty("reasoning_content", out var reasoning)
+                ? reasoning.GetString()
+                : null;
         }
         catch (JsonException)
         {

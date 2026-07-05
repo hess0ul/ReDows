@@ -12,6 +12,12 @@
     <SolidColorBrush x:Key="App.Good" Color="#5DD5A8"/>
     <SolidColorBrush x:Key="App.Border" Color="#3A3A40"/>
 
+    <!-- Review colour triage: a blue→pink→purple gradient for IMPORTANCE (how much you'd miss a folder),
+         deliberately NOT red/green so it never reads as good-vs-bad. Keep=blue, maybe=pink, drop=purple. -->
+    <SolidColorBrush x:Key="App.Level.Keep" Color="#4C8DFF"/>
+    <SolidColorBrush x:Key="App.Level.Maybe" Color="#E86AC6"/>
+    <SolidColorBrush x:Key="App.Level.Drop" Color="#9B6BE8"/>
+
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource App.Text}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
