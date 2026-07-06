@@ -62,7 +62,7 @@ rules:
     match: '%APPDATA%/dorion/config.json'
     verdict: capture:config
     source: 'vault apps-ctt §3'
-    note: 'webdata/ is data, not cache (§11 faux-amis) — left to default REVIEW.'
+    note: 'webdata/ is data, not cache (§11 faux-amis), so it is left to default REVIEW.'
 
   - id: app.zoom.config
     scope: user
@@ -70,7 +70,7 @@ rules:
     verdict: capture:config
     prio: low
     source: 'vault apps-ctt §3'
-    note: 'Recordings land in Documents/Zoom — already captured by the Documents Known Folder rule.'
+    note: 'Recordings land in Documents/Zoom, which is already captured by the Documents Known Folder rule.'
 
   - id: app.element.e2e_keys
     scope: user
@@ -79,7 +79,7 @@ rules:
     prio: high
     flags: [dpapi_machine_bound]
     source: 'vault apps-ctt §12 / deny-list §D-14'
-    note: 'Matrix E2E keys; safeStorage pickle key is DPAPI-bound — unreadable after a reset unless server key backup exists.'
+    note: 'Matrix E2E keys; safeStorage pickle key is DPAPI-bound, so unreadable after a reset unless server key backup exists.'
 
   # --- Development (apps-ctt §4 + §12) ---
   - id: app.git.config
@@ -107,7 +107,7 @@ rules:
     verdict: capture:secret
     prio: critical
     source: 'vault apps-ctt §12'
-    note: 'Private keyrings + trustdb (Git signing, Thunderbird GPG, Kleopatra) — claimed by no single app, captured here.'
+    note: 'Private keyrings + trustdb (Git signing, Thunderbird GPG, Kleopatra); claimed by no single app, captured here.'
 
   - id: app.neovim.config
     scope: user
@@ -243,7 +243,7 @@ rules:
     verdict: capture:config
     prio: high
     source: 'vault apps-ctt §5'
-    note: 'The installed-games inventory the launcher reads — what to reinstall.'
+    note: 'The installed-games inventory the launcher reads: what to reinstall.'
 
   - id: app.xbox.wgs_saves
     scope: user
@@ -322,7 +322,7 @@ rules:
     verdict: capture:config
     prio: high
     source: 'vault apps-ctt §10 / deny-list §C-4'
-    note: 'User startup entries — AutoHotkey scripts and one-off .cmd live here.'
+    note: 'User startup entries; AutoHotkey scripts and one-off .cmd live here.'
 
   # --- Multimedia (apps-ctt §7) ---
   - id: app.obs.config
@@ -520,7 +520,7 @@ rules:
     match: '%LOCALAPPDATA%/Plex Media Server/Metadata/**'
     verdict: review
     source: 'vault apps-ctt §9'
-    note: 'Huge and mostly re-fetchable, but may hold local edits — human decides.'
+    note: 'Huge and mostly re-fetchable, but may hold local edits, so the human decides.'
 
   - id: app.kodi.userdata
     scope: user

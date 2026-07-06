@@ -1,6 +1,6 @@
 # Category module: presentations / slide decks scattered on the machine.
 # Extension detection. Deliberately EXCLUDED: key (Keynote, but overwhelmingly a
-# private-key SECRET — never ignorable), pot (gettext PO template = i18n source),
+# private-key SECRET and never ignorable), pot (gettext PO template = i18n source),
 # thmx (shared Office theme asset), odg (drawing, → vector module).
 schema_version: 1
 name: presentations

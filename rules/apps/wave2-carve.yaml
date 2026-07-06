@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../ruleset.schema.json
 # Wave 2 carve-outs: unsaved-work and only-copy zones (deny-list §C) that no
-# cache deny — present or future — may ever swallow. Stage order guarantees it.
+# cache deny (present or future) may ever swallow. Stage order guarantees it.
 schema_version: 1
 layer: carve_out
 rules:
@@ -10,7 +10,7 @@ rules:
     verdict: capture:user
     prio: high
     source: 'vault apps-ctt §12 / deny-list §C-12'
-    note: 'Uncommitted work history, next to ignorable caches — the very reason this is a carve-out.'
+    note: 'Uncommitted work history, next to ignorable caches, which is the very reason this is a carve-out.'
 
   - id: carve.unsaved.vscodium_hot_exit
     scope: user
@@ -55,7 +55,7 @@ rules:
     verdict: capture:secret
     prio: critical
     source: 'code review 0-4 / deny-list §C family (only-copy secrets)'
-    note: 'KeePass vaults: the canonical only-copy secret file, often parked in Downloads/Temp/exports — no deny zone may ever swallow one (same shape as mail.pst).'
+    note: 'KeePass vaults: the canonical only-copy secret file, often parked in Downloads/Temp/exports, so no deny zone may ever swallow one (same shape as mail.pst).'
 
   - id: carve.mobile_backups.itunes_store
     scope: user

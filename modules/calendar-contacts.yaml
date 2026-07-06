@@ -1,5 +1,5 @@
 # Category module: calendars & contacts (personal data worth preserving).
-# Extension detection. These are small, high-value and near-zero collision —
+# Extension detection. These are small, high-value and near-zero collision, so
 # almost always a keep candidate before a reset.
 schema_version: 1
 name: calendar-contacts

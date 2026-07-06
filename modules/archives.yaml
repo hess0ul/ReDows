@@ -1,10 +1,10 @@
 # Category module: compressed archives scattered on the machine.
 #
 # WARNING (kept as REVIEW by default on purpose): an archive can hold the ONLY copy
-# of anything — secrets, source, backups. Setting this module to "ignore" is the
+# of anything (secrets, source, backups). Setting this module to "ignore" is the
 # single riskiest choice in the whole design, so it is opt-in and never the default.
-# Deliberately EXCLUDED: installer/package artifacts (msi/cab/jar/apk/deb/rpm…, they
-# are re-acquirable program assets), disk images (iso/img/vhd…, their own module),
+# Deliberately EXCLUDED: installer/package artifacts (msi/cab/jar/apk/deb/rpm..., they
+# are re-acquirable program assets), disk images (iso/img/vhd..., their own module),
 # and self-extracting .exe.
 schema_version: 1
 name: archives

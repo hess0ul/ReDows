@@ -13,7 +13,7 @@ rules:
     verdict: ignore
     bare_name_class: distinctive
     source: 'vault apps-ctt §5 / deny-list §A.6 (deviation arbitrated, review 0-4)'
-    note: 'Installed Epic games + launcher binaries; manifests (%ProgramData%/Epic) and launcher config (%LOCALAPPDATA%/EpicGamesLauncher) are outside this tree and captured. ACCEPTED DEVIATION: hand-installed mods and in-install-dir saves inside game folders (and any user folder literally named "Epic Games") are swallowed — targeted mod/save detection is backlog.'
+    note: 'Installed Epic games + launcher binaries; manifests (%ProgramData%/Epic) and launcher config (%LOCALAPPDATA%/EpicGamesLauncher) are outside this tree and captured. ACCEPTED DEVIATION: hand-installed mods and in-install-dir saves inside game folders (and any user folder literally named "Epic Games") are swallowed; targeted mod/save detection is backlog.'
 
   - id: app.xbox.games_payload
     scope: drive
@@ -21,7 +21,7 @@ rules:
     verdict: ignore
     bare_name_class: distinctive
     source: 'vault apps-ctt §5 / deny-list §A.6 (deviation arbitrated, review 0-4)'
-    note: 'MSIX-managed game content; saves are the wgs capture rule. ACCEPTED DEVIATION: hand-installed mods inside game folders are swallowed — backlog.'
+    note: 'MSIX-managed game content; saves are the wgs capture rule. ACCEPTED DEVIATION: hand-installed mods inside game folders are swallowed (backlog).'
 
   - id: app.ubisoft.games_payload
     scope: machine
@@ -90,8 +90,8 @@ rules:
     verdict: ignore
     source: 'vault apps-ctt §5'
 
-  # itch refined (review 0-4 arbitration): indie games (RPG Maker/Ren'Py…) very
-  # commonly save INSIDE their install folder under apps/<game> — so apps/ falls
+  # itch refined (review 0-4 arbitration): indie games (RPG Maker/Ren'Py...) very
+  # commonly save INSIDE their install folder under apps/<game>, so apps/ falls
   # to default REVIEW and only the re-downloadable machinery is denied.
   - id: app.itch.broth
     scope: user
@@ -307,10 +307,10 @@ rules:
     match: '%LOCALAPPDATA%/Microsoft/OneDrive/**'
     verdict: ignore
     source: 'vault apps-ctt §6 / deny-list §A.3'
-    note: 'The app itself (binaries, logs, setup) — NOT the sync root, which is captured.'
+    note: 'The app itself (binaries, logs, setup); NOT the sync root, which is captured.'
   - id: app.googledrive.content_cache
     scope: user
     match: '%LOCALAPPDATA%/Google/DriveFS/**/content_cache/**'
     verdict: ignore
     source: 'vault apps-ctt §10 / deny-list §A.3 (declared limit, review 0-4)'
-    note: 'DECLARED LIMIT: deny-list v2 wants queued-upload content reviewed, but pending uploads are not identifiable inside this cache without parsing DriveFS internals — detection is backlog; an offline edit not yet synced could sit here.'
+    note: 'DECLARED LIMIT: deny-list v2 wants queued-upload content reviewed, but pending uploads are not identifiable inside this cache without parsing DriveFS internals, so detection is backlog; an offline edit not yet synced could sit here.'

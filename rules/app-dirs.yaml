@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=./ruleset.schema.json
-# Capture stage — app-directory detection (app-zones increment 2). Outside the
+# Capture stage: app-directory detection (app-zones increment 2). Outside the
 # standard install roots (handled by app-zones.yaml) and the OS tree, executables
 # live in custom install paths (D:\Tools, D:\Games) or as portable apps (a
 # self-contained folder, often on another drive or a USB stick). These rules
@@ -9,7 +9,7 @@
 #
 # Verdict is REVIEW, never ignore: detection is not a licence to drop anything
 # (forget-nothing). Whether an installed app is actually re-downloadable is
-# decided later by cross-referencing the app inventory (increment 3) — not
+# decided later by cross-referencing the app inventory (increment 3). It is not
 # guessed here.
 #
 # WHY the capture stage (not deny): an executable inside a captured user zone
@@ -18,11 +18,11 @@
 # executables from their capture zone. In the capture stage these rules are the
 # LEAST specific match (zero literal segments), so every real, anchored capture
 # rule wins over them, and they only fire on executables that would otherwise
-# fall to the default REVIEW — exactly the loose / custom / portable ones. An
+# fall to the default REVIEW: exactly the loose / custom / portable ones. An
 # executable inside a deny zone (Program Files, Windows, a game payload) is
 # already ignored one stage earlier, so these never see it.
 #
-# Granularity: the rules match the .exe itself (the app marker) — cheap (only
+# Granularity: the rules match the .exe itself (the app marker). This is cheap (only
 # executables run the ancestor probe) and it pinpoints WHERE the apps are. The
 # surrounding files keep their normal verdict; splitting user data from the
 # re-downloadable bundle inside an app folder is increments 3-4.
@@ -48,4 +48,4 @@ rules:
       none:
         - ancestor_marker: ['unins*.exe', 'uninstall.exe', 'uninstall.dat', 'unins*.dat']
     source: 'app-zones increment 2 (portable vs installed detection)'
-    note: 'A standalone executable with no uninstaller nearby: likely a portable / hand-placed app — the .exe may BE the app, so never ignore it without confirming it is re-downloadable.'
+    note: 'A standalone executable with no uninstaller nearby: likely a portable / hand-placed app; the .exe may BE the app, so never ignore it without confirming it is re-downloadable.'

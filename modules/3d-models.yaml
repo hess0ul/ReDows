@@ -1,7 +1,7 @@
 # Category module: 3D models & scene files scattered on the machine.
 # Extension detection. Deliberately EXCLUDED: obj (compiled C/C++ object files),
 # abc (ABC music notation / generic), off (generic token), asm (assembly source),
-# x/mesh/geo/scn (too generic) — all collision-prone under an ignore setting.
+# x/mesh/geo/scn (too generic). These are all collision-prone under an ignore setting.
 schema_version: 1
 name: 3d-models
 label: "3D models & scenes"

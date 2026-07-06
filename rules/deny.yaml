@@ -42,7 +42,7 @@ rules:
         verdict: review
         prio: high
         source: 'vault deny-list v2 §A.3 (H2)'
-        note: 'Content.Outlook/Content.MSO/Content.Word: attachments edited without saving — possibly the only copy.'
+        note: 'Content.Outlook/Content.MSO/Content.Word: attachments edited without saving, so possibly the only copy.'
 
   - id: user.crashdumps
     scope: user

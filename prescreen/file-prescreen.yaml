@@ -1,9 +1,9 @@
-# File prescreen — fast-path rules (classify an entry from metadata alone, before asking the AI).
-# Règles de tri rapide — classer une entrée d'après ses seules métadonnées, avant d'appeler l'IA.
+# File prescreen: fast-path rules (classify an entry from metadata alone, before asking the AI).
+# Règles de tri rapide : classer une entrée d'après ses seules métadonnées, avant d'appeler l'IA.
 #
 # Priority / priorité (forget-nothing): secret > keep > review > drop; anything unmatched -> the AI decides.
 # Importance keys / clés de couleur: keep = blue/bleu, maybe = pink/rose, drop = purple/violet.
-# Metadata only / métadonnées seules: names, extensions, path segments, size — never file contents.
+# Metadata only / métadonnées seules: names, extensions, path segments, size; never file contents.
 
 schema_version: 1
 
@@ -12,8 +12,8 @@ schema_version: 1
 thumbnail_max_bytes: 40000
 
 extensions:
-  # KEEP — memories, personal documents, creator projects, config backups.
-  # GARDER — souvenirs, documents personnels, projets créatifs, sauvegardes de config.
+  # KEEP: memories, personal documents, creator projects, config backups.
+  # GARDER : souvenirs, documents personnels, projets créatifs, sauvegardes de config.
   keep:
     # images
     - jpg
@@ -106,8 +106,8 @@ extensions:
     - tif
     - tiff
     - ico
-  # REVIEW — could hold anything: VM/disk images, archives, ebooks (re-obtainable, low value).
-  # REVOIR — peut contenir n'importe quoi : images VM/disque, archives, ebooks (ré-obtenables, peu de valeur).
+  # REVIEW: could hold anything, such as VM/disk images, archives, ebooks (re-obtainable, low value).
+  # REVOIR : peut contenir n'importe quoi, comme des images VM/disque, archives, ebooks (ré-obtenables, peu de valeur).
   review:
     # VM / disk images / images de VM & disque
     - iso
@@ -142,7 +142,7 @@ extensions:
     - azw3
     - azw
     - fb2
-  # DROP — cache, temp, logs, regenerated files. / JETER — cache, temp, logs, fichiers régénérés.
+  # DROP: cache, temp, logs, regenerated files. / JETER : cache, temp, logs, fichiers régénérés.
   drop:
     - tmp
     - temp
@@ -160,8 +160,8 @@ extensions:
     - class
     - nvph
     - dxcache
-  # SECRET — key/credential extensions (kept + flagged, never exposed).
-  # SECRET — extensions de clé/identifiant (gardées + marquées, jamais exposées).
+  # SECRET: key/credential extensions (kept + flagged, never exposed).
+  # SECRET : extensions de clé/identifiant (gardées + marquées, jamais exposées).
   secret:
     - kdbx
     - kdb
@@ -211,7 +211,7 @@ names:
     - "*identifiants*"
     - "metamask*"
     - "rarreg.key"
-  # KEEP by name — personal / identity documents (bilingual). / GARDER par nom — documents personnels/d'identité (bilingue).
+  # KEEP by name: personal / identity documents (bilingual). / GARDER par nom : documents personnels/d'identité (bilingue).
   keep:
     - "cni*"
     - "carte grise*"
@@ -232,7 +232,7 @@ names:
     - "*contrat*"
 
 folders:
-  # KEEP — a whole folder worth keeping (its files inherit keep). / GARDER — dossier entier à garder (ses fichiers héritent keep).
+  # KEEP: a whole folder worth keeping (its files inherit keep). / GARDER : dossier entier à garder (ses fichiers héritent keep).
   keep:
     - Saved Games
     - SaveGames
@@ -246,7 +246,7 @@ folders:
     - StateSlots
     - SramImportExport
     - Worlds
-  # DROP — regenerable folders (dependencies, caches). / JETER — dossiers régénérables (dépendances, caches).
+  # DROP: regenerable folders (dependencies, caches). / JETER : dossiers régénérables (dépendances, caches).
   drop:
     - node_modules
     - __pycache__
@@ -283,7 +283,7 @@ folders:
     - .thumbnails
     - Windows.old
     - $Recycle.Bin
-  # CLOUD-SYNC — safe to drop locally, but remind the user to sync first. / SYNCHRO CLOUD — jetable en local, mais rappeler de synchroniser d'abord.
+  # CLOUD-SYNC: safe to drop locally, but remind the user to sync first. / SYNCHRO CLOUD : jetable en local, mais rappeler de synchroniser d'abord.
   cloud_sync:
     - OneDrive
     - Dropbox

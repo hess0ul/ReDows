@@ -27,7 +27,7 @@ rules:
     verdict: capture:user
     prio: critical
     source: 'vault deny-list v2 §C-13'
-    note: 'Outlook personal archives: often the only copy of years of mail, wherever they sit — carve-out so no deny zone (Temp, caches, node_modules…) can ever swallow one.'
+    note: 'Outlook personal archives: often the only copy of years of mail, wherever they sit, a carve-out so no deny zone (Temp, caches, node_modules...) can ever swallow one.'
 
   - id: dev.tfstate
     scope: drive
@@ -92,7 +92,7 @@ rules:
     verdict: capture:user
     prio: critical
     source: 'vault apps-ctt §5 / deny-list §A.4(c) / app-zones increment 1'
-    note: 'Saves under Program Files — the classic faux-ami.'
+    note: 'Saves under Program Files: the classic faux-ami.'
   - id: app.sunshine.config
     scope: machine
     match: '%ProgramFiles%/Sunshine/config/**'

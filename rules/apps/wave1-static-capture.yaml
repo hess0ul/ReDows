@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=../ruleset.schema.json
-# Wave 1 static capture rules — apps whose shape does not fit a template
+# Wave 1 static capture rules: apps whose shape does not fit a template
 # (different verdict class than the family default, or drive-level zones).
 # Their cache denies live in wave1-static-deny.yaml (deny beats capture).
 schema_version: 1
@@ -11,7 +11,7 @@ rules:
     verdict: capture:user
     prio: critical
     source: 'vault apps-ctt §1 (gecko-family, static)'
-    note: 'Mail stores (mbox/maildir), MSF indexes, address books, prefs: capture:user, not config — often the only copy. Relocated mail stores (mail.server.*.directory) are claimed at scan time by the prefs.js parser.'
+    note: 'Mail stores (mbox/maildir), MSF indexes, address books, prefs: capture:user, not config; often the only copy. Relocated mail stores (mail.server.*.directory) are claimed at scan time by the prefs.js parser.'
 
   - id: app.signal.data
     scope: user
@@ -20,14 +20,14 @@ rules:
     prio: critical
     flags: [dpapi_machine_bound]
     source: 'vault apps-ctt §1 (electron-family, static)'
-    note: 'Signal Desktop: message DB key is DPAPI-encrypted — history unreadable after a reset. Re-link/export BEFORE resetting.'
+    note: 'Signal Desktop: message DB key is DPAPI-encrypted, so history is unreadable after a reset. Re-link/export BEFORE resetting.'
 
   - id: app.powertoys.config
     scope: user
     match: '%LOCALAPPDATA%/Microsoft/PowerToys/**'
     verdict: capture:config
     source: 'vault apps-ctt §1 (static)'
-    note: 'All PowerToys module settings (FancyZones layouts, Keyboard Manager remaps…).'
+    note: 'All PowerToys module settings (FancyZones layouts, Keyboard Manager remaps...).'
 
   - id: app.epic.config
     scope: user

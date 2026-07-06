@@ -10,7 +10,7 @@ rules:
     verdict: capture:user
     prio: high
     source: 'vault capture §B (Known Folders)'
-    note: 'Resolved per profile by GUID from each profile hive — follows redirections (other volume, OneDrive KFM).'
+    note: 'Resolved per profile by GUID from each profile hive; follows redirections (other volume, OneDrive KFM).'
 
   - id: user.kf.desktop
     scope: user
@@ -55,7 +55,7 @@ rules:
     verdict: capture:user
     prio: high
     source: 'vault capture §B (Known Folders)'
-    note: 'The Windows "Saved Games" folder: game saves are hard or impossible to re-acquire after a reset — kept like Documents/Pictures. Game-specific save spots elsewhere are recognised and left in REVIEW.'
+    note: 'The Windows "Saved Games" folder: game saves are hard or impossible to re-acquire after a reset, so kept like Documents/Pictures. Game-specific save spots elsewhere are recognised and left in REVIEW.'
 
   - id: user.ssh
     scope: user
@@ -63,4 +63,4 @@ rules:
     verdict: capture:secret
     prio: critical
     source: 'vault capture §D (PORTABLE secrets)'
-    note: 'Private keys: secrets pipeline — located and flagged, never inlined in the inventory.'
+    note: 'Private keys, handled by the secrets pipeline: located and flagged, never inlined in the inventory.'

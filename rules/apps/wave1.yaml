@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=../ruleset.schema.json
-# Wave 1 app instantiations (apps-ctt §2) — the measured wave: apps present on
+# Wave 1 app instantiations (apps-ctt §2). The measured wave: apps present on
 # the dev machine plus the most common members of each family. Each entry
 # expands the named template into rules with ids 'app.<name>.<suffix>'.
 # Static (non-template) wave-1 rules live in wave1-static-*.yaml.

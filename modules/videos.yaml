@@ -1,7 +1,7 @@
 # Category module: video files scattered outside the standard Videos folder.
 #
 # The Videos Known Folder is already captured by the ruleset, so this module only
-# affects videos that live elsewhere and would otherwise land in REVIEW — useful
+# affects videos that live elsewhere and would otherwise land in REVIEW. That is useful
 # because videos are often huge. Detection is by file EXTENSION (language-neutral).
 schema_version: 1
 name: videos

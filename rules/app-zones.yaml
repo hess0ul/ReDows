@@ -1,20 +1,20 @@
 # yaml-language-server: $schema=./ruleset.schema.json
-# Deny stage — "app zones": the standard install roots. By Windows convention
+# Deny stage ("app zones"): the standard install roots. By Windows convention
 # Program Files holds re-downloadable PROGRAM files; mutable user data belongs in
 # AppData / Documents / ProgramData, not here. So the content is IGNORE (the app
-# itself is separately inventoried by `redows apps` — that is the "reinstall"
+# itself is separately inventoried by `redows apps`, which is the "reinstall"
 # list, not something to copy). Same shape as os.systemroot: a broad machine-zone
 # ignore whose carve-backs are exceptions.
 #
 # TWO safety layers keep forget-nothing intact:
 #   1. Apps that break the convention and keep real data under Program Files
 #      (saves, configs, licences, keys) are promoted to the carve_out stage
-#      (carve-outs.yaml), which runs BEFORE deny — so they win, wherever they sit.
+#      (carve-outs.yaml), which runs BEFORE deny, so they win wherever they sit.
 #   2. For the UNCATALOGUED long tail, a generic name heuristic pulls any subtree
 #      whose folder name signals user data (config*, save*, profile*, preset*,
 #      settings, userdata, mods, backup*, keys, licen*) back to REVIEW (not
 #      capture: the name is
-#      a hint, not a certainty — default-to-review decides, the human confirms).
+#      a hint, not a certainty; default-to-review decides, the human confirms).
 #      Collision-prone program names (data, assets, bin, content, cache, logs,
 #      plugins) are deliberately NOT listed: they almost always mean program
 #      payload, and would re-inflate REVIEW with re-downloadable bytes.

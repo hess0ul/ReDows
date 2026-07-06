@@ -1,10 +1,10 @@
-# ReDows folder memory — well-known folders/apps it recognises, with a colour and a human note.
-# Mémoire de dossiers de ReDows — dossiers/apps connus, avec une couleur et une note.
+# ReDows folder memory: well-known folders/apps it recognises, with a colour and a human note.
+# Mémoire de dossiers de ReDows : dossiers/apps connus, avec une couleur et une note.
 #
-# match: a folder-NAME segment (case-insensitive glob '*'/'?'), locale-safe — never an absolute path.
-# importance (optional): keep | maybe | drop — overrides the scan verdict when the memory is confident.
+# match: a folder-NAME segment (case-insensitive glob '*'/'?'), locale-safe, and never an absolute path.
+# importance (optional): keep | maybe | drop; overrides the scan verdict when the memory is confident.
 # note: 2-3 sentences shown to the user. (English UI; FR localisation is a later step.)
-# The MOST SPECIFIC match wins (deepest path segment), so "…\AppData\Local\Discord" reads as Discord.
+# The MOST SPECIFIC match wins (deepest path segment), so "...\AppData\Local\Discord" reads as Discord.
 
 schema_version: 1
 
@@ -22,20 +22,20 @@ known:
     scope: self
     note: >
       The "Roaming" side of AppData. Apps store their settings and profiles here, and it is meant to
-      follow you between machines — usually worth keeping; each app's folder is judged on its own.
+      follow you between machines, so usually worth keeping; each app's folder is judged on its own.
 
   - match: LocalLow
     importance: maybe
     scope: self
     note: >
-      AppData\LocalLow — low-integrity app data (some games, browser plug-ins). A mix of small settings
+      AppData\LocalLow holds low-integrity app data (some games, browser plug-ins). A mix of small settings
       and re-buildable data; usually low value, worth a glance.
 
   - match: Temp
     importance: drop
     note: >
-      A temporary folder. Everything here is scratch data that apps and Windows recreate as needed —
-      safe to drop.
+      A temporary folder. Everything here is scratch data that apps and Windows recreate as needed,
+      so it is safe to drop.
 
   - match: Cache
     importance: drop
@@ -46,39 +46,39 @@ known:
     importance: drop
     note: >
       A project's downloaded dependencies. One command with the package manager rebuilds them exactly,
-      so it is safe to drop — your source code stays untouched.
+      so it is safe to drop; your source code stays untouched.
 
   - match: __pycache__
     importance: drop
     note: >
-      Compiled Python bytecode. It is regenerated automatically the next time the code runs — safe to drop.
+      Compiled Python bytecode. It is regenerated automatically the next time the code runs, so it is safe to drop.
 
   - match: .git
     importance: keep
     note: >
-      A Git repository's full history — every committed version of the project. Keep it, unless the repo
+      A Git repository's full history: every committed version of the project. Keep it, unless the repo
       is safely pushed to a remote you trust (then it can be re-cloned).
 
   - match: Downloads
     importance: maybe
     scope: self
     note: >
-      Your Downloads folder — a mix of installers you can fetch again and files you actually want to keep.
+      Your Downloads folder: a mix of installers you can fetch again and files you actually want to keep.
       Worth a look rather than an automatic keep or drop; each item is judged on its own.
 
   - match: Documents
     importance: keep
     scope: self
     note: >
-      Your Documents folder — mostly personal files you created, but some apps and games also keep their
+      Your Documents folder: mostly personal files you created, but some apps and games also keep their
       data in here. Files you made are worth keeping; the app/game subfolders inside are judged on their own.
 
-  # Game/app folders that LIVE inside Documents — created by the game, not by you. The game re-installs,
+  # Game/app folders that LIVE inside Documents and are created by the game, not by you. The game re-installs,
   # so this is "review": the saves inside are worth keeping, the rest (logs, configs, replays) is not.
   - match: My Games
     importance: maybe
     note: >
-      A folder games create inside Documents to store their data. Not personal files you made — the game
+      A folder games create inside Documents to store their data. Not personal files you made; the game
       recreates it on reinstall. Worth a look: keep the saves inside, the rest is re-buildable.
 
   - match: Assetto Corsa
@@ -103,7 +103,7 @@ known:
   - match: Adobe
     importance: maybe
     note: >
-      An Adobe apps data folder (Photoshop, Premiere…) created by the software. Keep your own exports and
+      An Adobe apps data folder (Photoshop, Premiere...) created by the software. Keep your own exports and
       presets; the caches and app settings are re-buildable.
 
   - match: ShareX
@@ -120,12 +120,12 @@ known:
   - match: PowerToys
     importance: maybe
     note: >
-      PowerToys settings/data, made by the app. Re-created when you reinstall PowerToys — a look, not a keep.
+      PowerToys settings/data, made by the app. Re-created when you reinstall PowerToys, so a look, not a keep.
 
   - match: OneNote Notebooks
     importance: keep
     note: >
-      Your OneNote notebooks — notes you wrote. Worth keeping (also usually synced to your Microsoft account).
+      Your OneNote notebooks: notes you wrote. Worth keeping (also usually synced to your Microsoft account).
 
   - match: Visual Studio*
     importance: maybe
@@ -146,37 +146,37 @@ known:
   - match: Pictures
     importance: keep
     note: >
-      Your Pictures folder — photos and images. Personal memories: keep.
+      Your Pictures folder: photos and images. Personal memories: keep.
 
   - match: Videos
     importance: keep
     note: >
-      Your Videos folder — personal recordings and clips. Usually worth keeping.
+      Your Videos folder: personal recordings and clips. Usually worth keeping.
 
   - match: Saved Games
     importance: keep
     note: >
-      The Windows "Saved Games" folder — game save files. Hard or impossible to get back after a reset,
+      The Windows "Saved Games" folder: game save files. Hard or impossible to get back after a reset,
       so ReDows keeps them automatically.
 
   # Generic game/app save folders that live anywhere (a game's own, not the Windows one). Recognised and
-  # left in REVIEW (they're made by the app, so a look — not an automatic keep), with a strong "keep your
+  # left in REVIEW (they're made by the app, so a look rather than an automatic keep), with a strong "keep your
   # saves" hint: the saves inside are hard to re-acquire, the rest (settings, logs) is re-buildable.
   - match: Saves
     importance: maybe
     note: >
-      A "Saves" folder — most likely game or app save files. Worth keeping: saves are hard or impossible
+      A "Saves" folder: most likely game or app save files. Worth keeping: saves are hard or impossible
       to get back after a reset. Made by the app, so it's a look rather than an automatic keep.
 
   - match: Savegame*
     importance: maybe
     note: >
-      A game's savegame folder. Keep the saves inside — they can't be re-downloaded; the rest is re-buildable.
+      A game's savegame folder. Keep the saves inside, because they can't be re-downloaded; the rest is re-buildable.
 
   - match: SaveData
     importance: maybe
     note: >
-      A "SaveData" folder — a game or app's saved progress. Worth keeping; saves rarely come back after a reset.
+      A "SaveData" folder: a game or app's saved progress. Worth keeping; saves rarely come back after a reset.
 
   - match: SavedGames
     importance: maybe
@@ -186,26 +186,26 @@ known:
   - match: OneDrive*
     importance: maybe
     note: >
-      A OneDrive folder — its files are (or can be) stored in the cloud. If everything is fully synced you
+      A OneDrive folder: its files are (or can be) stored in the cloud. If everything is fully synced you
       can drop the local copy, but check it is uploaded first so nothing is lost.
 
   - match: Dropbox
     importance: maybe
     note: >
-      A Dropbox folder synced to the cloud. If it is fully synced you can drop the local copy — confirm the
+      A Dropbox folder synced to the cloud. If it is fully synced you can drop the local copy, but confirm the
       upload first.
 
   - match: Google Drive*
     importance: maybe
     note: >
-      A Google Drive folder synced to the cloud. If it is fully synced you can drop the local copy — confirm
+      A Google Drive folder synced to the cloud. If it is fully synced you can drop the local copy, but confirm
       the upload first.
 
   - match: steamapps
     importance: drop
     note: >
       Steam's installed games and shader caches. All re-downloadable from your Steam account, so safe to
-      drop — your saves live elsewhere (Steam Cloud, and the "userdata" folder).
+      drop; your saves live elsewhere (Steam Cloud, and the "userdata" folder).
 
   - match: userdata
     importance: keep
@@ -217,30 +217,30 @@ known:
     importance: keep
     note: >
       A Chromium browser profile (Chrome, Edge or Brave). It holds your bookmarks, settings and saved
-      logins. Keep it — and note the saved passwords are encrypted, so export them BEFORE a reset.
+      logins. Keep it, and note the saved passwords are encrypted, so export them BEFORE a reset.
 
   - match: .ssh
     importance: keep
     note: >
-      Your SSH keys and known hosts — these are credentials. Keep them, guard them, and never share them.
+      Your SSH keys and known hosts: these are credentials. Keep them, guard them, and never share them.
 
   - match: Windows.old
     importance: drop
     note: >
       A backup of your previous Windows install, kept after a big update. It is huge and only useful to
-      roll back — safe to drop once you are happy with the current Windows.
+      roll back, so safe to drop once you are happy with the current Windows.
 
   - match: $Recycle.Bin
     importance: drop
     note: >
-      The Recycle Bin — files you already deleted. Safe to drop.
+      The Recycle Bin: files you already deleted. Safe to drop.
 
   - match: Crashpad
     importance: drop
     note: >
-      Crash reports an app collected about itself. Diagnostic only — safe to drop.
+      Crash reports an app collected about itself. Diagnostic only, so safe to drop.
 
   - match: .nuget
     importance: drop
     note: >
-      The NuGet package cache (.NET libraries). Re-downloaded automatically when a project builds — safe to drop.
+      The NuGet package cache (.NET libraries). Re-downloaded automatically when a project builds, so safe to drop.
