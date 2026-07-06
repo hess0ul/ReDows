@@ -26,9 +26,9 @@
       <Link>modules\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <!-- Fast-path file-triage rules: the Review screen colours obvious entries without an AI call. -->
-    <Content Include="..\..\triage\**\*">
-      <Link>triage\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <!-- Fast-path file-prescreen rules: the Review screen colours obvious entries without an AI call. -->
+    <Content Include="..\..\prescreen\**\*">
+      <Link>prescreen\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <!-- Folder memory: known-folder/app notes the Review screen shows as it colours the tree. -->

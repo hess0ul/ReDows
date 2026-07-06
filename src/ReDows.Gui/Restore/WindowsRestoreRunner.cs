@@ -8,8 +8,8 @@ using ReDows.Providers.Windows.Backup;
 namespace ReDows.Gui.Restore;
 
 /// <summary>
-/// The real restore: walks a backup folder and puts every file back — to its original location or under a
-/// chosen folder — replicating de-duplicated content to all the places it belonged (via the restore map)
+/// The real restore: walks a backup folder and puts every file back (to its original location or under a
+/// chosen folder), replicating de-duplicated content to all the places it belonged (via the restore map)
 /// and extracting the encrypted secrets vault when a password is given. Runs on a background thread,
 /// honoring cancellation. NON-DESTRUCTIVE: a file that already exists is skipped (kept), never overwritten,
 /// and nothing is ever deleted.
@@ -28,9 +28,9 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
         if (!Directory.Exists(backup))
         {
             // A network share (\\server\share) that isn't there usually means the share is unreachable
-            // (server off, not signed in) rather than a wrong path — say so, so a NAS restore fails clearly.
+            // (server off, not signed in) rather than a wrong path. Say so, so a NAS restore fails clearly.
             throw new InvalidOperationException(IsNetworkPath(backup)
-                ? $"Could not reach the network backup folder '{backup}'. Is the share available — server on, and are you signed in to it?"
+                ? $"Could not reach the network backup folder '{backup}'. Is the share available (server on, and are you signed in to it)?"
                 : $"That backup folder does not exist: '{backup}'.");
         }
 
@@ -64,9 +64,9 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
                 }
                 else if (expected is not null && !FileMatches(target, expected))
                 {
-                    // Written, but it does not match the checksum recorded at backup time — surface it,
+                    // Written, but it does not match the checksum recorded at backup time. Surface it,
                     // never a silent success. The (bad) file is left in place (non-destructive).
-                    failures.Add(new RestoreFailureRow(target, "checksum mismatch — restored file does not match the backup"));
+                    failures.Add(new RestoreFailureRow(target, "restored file does not match the backup checksum"));
                 }
                 else
                 {
@@ -107,7 +107,7 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
 
         if (string.IsNullOrEmpty(request.VaultPassword))
         {
-            return "secrets vault present — no password given, so secrets were not restored (open secrets-vault.zip yourself)";
+            return "A secrets vault is present. No password was given, so secrets were not restored (open secrets-vault.zip yourself).";
         }
 
         try
@@ -182,7 +182,7 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
         }
     }
 
-    /// <summary>Whether a full path is a UNC network share (\\server\share) — restore reads/writes it natively.</summary>
+    /// <summary>Whether a full path is a UNC network share (\\server\share). Restore reads and writes it natively.</summary>
     private static bool IsNetworkPath(string fullPath) => fullPath.StartsWith(@"\\", StringComparison.Ordinal);
 
     private static string NormalizeTargetFolder(string? folder)
@@ -214,7 +214,7 @@ public sealed class WindowsRestoreRunner : IRestoreRunner
         }
         catch (JsonException)
         {
-            return []; // a broken map just means no de-dup replication — the stored copies still restore
+            return []; // a broken map just means no de-dup replication; the stored copies still restore
         }
     }
 

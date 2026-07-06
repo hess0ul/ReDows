@@ -6,7 +6,7 @@ namespace ReDows.Gui.Ai;
 /// <summary>
 /// The real analyzer: one OpenAI-compatible client per endpoint (URL + key + model), kept while the
 /// endpoint doesn't change (so a discovered model id is reused between analyses). The key only ever
-/// lives inside the client's auth header — never on disk. UI-thread use only.
+/// lives inside the client's auth header; never on disk. UI-thread use only.
 /// </summary>
 public sealed class WindowsAiAnalyzer : IAiAnalyzer
 {

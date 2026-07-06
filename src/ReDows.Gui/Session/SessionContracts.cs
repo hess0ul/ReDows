@@ -3,7 +3,7 @@ namespace ReDows.Gui.Session;
 /// <summary>One review head-directory remembered from the last scan (mirrors a Scan result's review row).</summary>
 public sealed record SessionReviewRoot(string Size, string Items, string Folder, long Bytes);
 
-/// <summary>One item the user dropped in the review trash — a decision to remember (path + its size).</summary>
+/// <summary>One item the user dropped in the review trash: a decision to remember (path + its size).</summary>
 public sealed record SessionTrashItem(string Path, long Bytes);
 
 /// <summary>
@@ -12,7 +12,7 @@ public sealed record SessionTrashItem(string Path, long Bytes);
 /// Written after a scan and whenever a decision changes, so re-opening ReDows can offer to resume where
 /// the user left off instead of starting over. The manifest and settings live in their own files; this
 /// only records the summary + decisions. <see cref="DeselectedApps"/> is a deny-list of app keys the
-/// user unticked (default is "reinstall everything") — null/absent in older sessions, read as empty.
+/// user unticked (default is "reinstall everything"). Null/absent in older sessions, read as empty.
 /// </summary>
 public sealed record SessionFile(
     string ScannedUtc,

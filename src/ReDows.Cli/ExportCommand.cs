@@ -5,7 +5,7 @@ using ReDows.Core.Apps;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows export' — turn the apps inventory into an InDows-ready winget catalog
+/// 'redows export': turn the apps inventory into an InDows-ready winget catalog
 /// (configuration.dsc.yaml). Reads an existing apps.json (produced by
 /// 'redows apps --enrich-winget --out &lt;dir&gt;'): read-only, no machine side effects.
 /// Exit codes: 0 ok, 2 usage, 3 input missing/invalid, 4 unexpected error.

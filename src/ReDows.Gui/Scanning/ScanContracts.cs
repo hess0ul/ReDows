@@ -4,12 +4,12 @@ namespace ReDows.Gui.Scanning;
 
 /// <summary>
 /// What to scan. <see cref="FolderRoot"/> null = the whole PC (all in-scope volumes); else that subtree.
-/// <see cref="CategoryModules"/> are the user's per-category choices (games, media…): each acts only
+/// <see cref="CategoryModules"/> are the user's per-category choices (games, media...): each acts only
 /// where the ruleset would REVIEW, so an empty list simply means "no category overrides".
 /// <see cref="Duplicates"/> null = don't hunt duplicates.
 /// <see cref="RecognizeInstalledApps"/> true (default, mirrors the CLI's on-by-default) = feed the
 /// app inventory into the scan so recognised install folders are treated as re-downloadable (ignored
-/// where the ruleset would only review) and each app's settings are kept — the CLI's <c>--no-reinstall</c>
+/// where the ruleset would only review) and each app's settings are kept: the CLI's <c>--no-reinstall</c>
 /// off-switch, exposed as a checkbox.
 /// </summary>
 public sealed record ScanRequest(
@@ -20,10 +20,10 @@ public sealed record ScanRequest(
     bool UseGameSaveCatalog = false);
 
 /// <summary>
-/// Whether to also find byte-identical files, and — for a per-type run — the lower-cased extensions
+/// Whether to also find byte-identical files, and (for a per-type run) the lower-cased extensions
 /// (no dot) to limit the hunt to. <see cref="Extensions"/> null = every file (the "global" mode);
 /// a list = only files with one of those extensions (the "per type" mode). Read-only: this only
-/// reports duplicates and the space one copy each would free — nothing is ever deleted.
+/// reports duplicates and the space one copy each would free; nothing is ever deleted.
 /// </summary>
 public sealed record DuplicateScan(bool Enabled, IReadOnlyList<string>? Extensions);
 
@@ -46,18 +46,18 @@ public sealed record DuplicateGroupRow(string Reclaimable, string SizeEach, int 
 public sealed record DuplicateSummary(int Groups, int ExtraCopies, string Reclaimable, IReadOnlyList<DuplicateGroupRow> Top);
 
 /// <summary>
-/// What recognizing this PC's installed apps did to the scan — the same accounting the CLI prints,
+/// What recognizing this PC's installed apps did to the scan: the same accounting the CLI prints,
 /// shaped for display. <see cref="Apps"/> = how many apps the inventory found. <see cref="IgnoredText"/>
 /// = install folders treated as re-downloadable and moved out of REVIEW into IGNORE. <see cref="KeptText"/>
 /// = each app's %AppData% config captured. <see cref="SurfacedText"/> = each app's %LocalAppData%
 /// (mixed config + cache) surfaced for REVIEW. Null on the result when the option was off. All read-only
-/// accounting: recognition only ever acts where the ruleset would REVIEW — never over a keep or a secret.
+/// accounting: recognition only ever acts where the ruleset would REVIEW; never over a keep or a secret.
 /// </summary>
 public sealed record InstalledAppsImpact(int Apps, string IgnoredText, string KeptText, string SurfacedText);
 
 /// <summary>
 /// What using the optional ludusavi game-save catalog did: how many recognised save folders actually
-/// exist on THIS PC (and were added as capture zones), where the catalog came from (downloaded / cached /
+/// exist on this PC (and were added as capture zones), where the catalog came from (downloaded / cached /
 /// unavailable), and the attribution the licence requires. Null on the result when the option was off.
 /// </summary>
 public sealed record GameSavesImpact(int Folders, string SourceText, string Attribution);
@@ -70,7 +70,7 @@ public sealed record GameSavesImpact(int Folders, string SourceText, string Attr
 public sealed record RecognizedZoneRow(string Importance, string Label, string CountText, string Note);
 
 /// <summary>
-/// A scan result shaped for friendly display (formatted strings, not raw records) — what the
+/// A scan result shaped for friendly display (formatted strings, not raw records): what the
 /// Scan screen shows. <see cref="Partial"/> = the run was interrupted (Cancel), so figures cover
 /// only what was walked; <see cref="Balanced"/> = the total-accounting equation held (0 unaccounted).
 /// <see cref="ManifestPath"/> = the file this scan wrote its CAPTURE items to (the Backup screen's

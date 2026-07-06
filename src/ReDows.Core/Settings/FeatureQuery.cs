@@ -6,7 +6,7 @@ namespace ReDows.Core.Settings;
 /// Pure parsing of the JSON produced by the feature/capability/appx PowerShell
 /// queries (read-only). `ConvertTo-Json` does not wrap a single object in an
 /// array, so every parser accepts both a JSON array and a lone object. No process
-/// launch — testable on fixtures.
+/// launch, so it is testable on fixtures.
 /// </summary>
 public static class FeatureQuery
 {

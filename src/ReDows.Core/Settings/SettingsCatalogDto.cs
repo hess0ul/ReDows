@@ -62,7 +62,7 @@ public sealed class SettingDto
     [Description("True if an InDows module can re-apply this setting (part of the ReDows→InDows loop).")]
     public bool? InLoop { get; set; }
 
-    [Description("How the setting comes back after a reset: an existing module name, 'NEW:<module>' to build, or a sentinel — 'base' (InDows base install applies it), 'perso' (only the private config does), 'none' (nothing does, redo by hand). Blank = unmapped.")]
+    [Description("How the setting comes back after a reset: an existing module name, 'NEW:<module>' to build, or a sentinel: 'base' (InDows base install applies it), 'private' (only the private config does), 'none' (nothing does, redo by hand). Blank = unmapped.")]
     public string? IndowsModule { get; set; }
 
     [Description("True (default) when the named module actually applies this today; false when the module is the intended home but the line is commented/planned (not applied yet).")]

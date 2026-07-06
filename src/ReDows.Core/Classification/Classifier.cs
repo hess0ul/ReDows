@@ -16,7 +16,7 @@ public sealed record Classification(
 /// <summary>
 /// A rule that could not be instantiated for a binding because a location token
 /// had no resolved value (e.g. unread hive of another user's profile). Counted
-/// and reported — never silently skipped, and never instantiated on a guessed
+/// and reported. Never silently skipped, and never instantiated on a guessed
 /// path (an ignore rule on a wrong path could silently lose data).
 /// </summary>
 public sealed record UninstantiatedRule(string RuleId, string Binding, string MissingToken);
@@ -67,7 +67,7 @@ public sealed class Classifier
                 var node = TryCompile(rule, binding.Resolve, out var missingToken);
                 if (node is null)
                 {
-                    // Asymmetric policy: a rule (or any of its exceptions — they
+                    // Asymmetric policy: a rule (or any of its exceptions, which
                     // protect zones from their parent) that cannot resolve all its
                     // tokens is not instantiated for this binding, and counted.
                     _uninstantiated.Add(new UninstantiatedRule(rule.Id, binding.Label, missingToken ?? "?"));
@@ -149,7 +149,7 @@ public sealed class Classifier
     /// <summary>
     /// Positive when <paramref name="a"/> beats <paramref name="b"/>. Tie-breaks on
     /// specificity (literal segments, then '**', then wildcard chars), then the most
-    /// conservative verdict, then rule id — deliberately NOT on <see cref="RulePriority"/>,
+    /// conservative verdict, then rule id. Deliberately NOT on <see cref="RulePriority"/>,
     /// which is a reserved axis the classifier does not consume yet (it is not even
     /// carried on <see cref="CompiledNode"/>). See <see cref="RulePriority"/>.
     /// </summary>
@@ -245,7 +245,7 @@ public sealed class Classifier
 
     /// <summary>
     /// One binding per rule instantiation: machine rules bind once, user rules bind
-    /// per profile (ProfileList — never a Users\* glob), volume/drive rules bind per
+    /// per profile (ProfileList, never a Users\* glob), volume/drive rules bind per
     /// volume. Exceptions are compiled with the same binding as their parent.
     /// A resolver returns null when the binding has no value for the token.
     /// </summary>

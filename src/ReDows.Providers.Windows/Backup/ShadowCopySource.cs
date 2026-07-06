@@ -7,8 +7,8 @@ namespace ReDows.Providers.Windows.Backup;
 /// live read fails because the file is in use (a sharing violation) or access is denied, it
 /// falls back to reading the same file from a frozen volume shadow copy, which has no lock.
 /// A shadow is created on demand only when a lock is actually hit (see <see cref="IVolumeSnapshotSet"/>),
-/// so an idle machine pays nothing. When no shadow is available the original failure stands —
-/// it is reported by the copy engine, never silently skipped (invariant #2). READ-ONLY
+/// so an idle machine pays nothing. When no shadow is available the original failure stands.
+/// It is reported by the copy engine, never silently skipped (invariant #2). READ-ONLY
 /// throughout: neither the live file nor the shadow is ever opened for write (invariant #3).
 /// </summary>
 public sealed class ShadowCopySource(ICopySource live, IVolumeSnapshotSet snapshots) : ICopySource, IDisposable

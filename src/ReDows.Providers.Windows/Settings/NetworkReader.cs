@@ -14,7 +14,7 @@ public sealed record NetworkState(
 /// Reads network-profile and PowerShell-execution-policy settings (read-only, no
 /// elevation). The connection profile (Private/Public per adapter) comes from
 /// Get-NetConnectionProfile; the execution policy is the EFFECTIVE value
-/// (Get-ExecutionPolicy, precedence-aware) — distinct from the LocalMachine
+/// (Get-ExecutionPolicy, precedence-aware), distinct from the LocalMachine
 /// registry value, which any narrower scope or GPO can override.
 /// </summary>
 public static class NetworkReader

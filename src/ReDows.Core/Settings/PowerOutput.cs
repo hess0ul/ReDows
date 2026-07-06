@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace ReDows.Core.Settings;
 
-/// <summary>Pure parsing of <c>powercfg</c> text output. No process launch — testable on fixtures.</summary>
+/// <summary>Pure parsing of <c>powercfg</c> text output. No process launch, so it is testable on fixtures.</summary>
 public static class PowerOutput
 {
     /// <summary>The active scheme's friendly name, from "Power Scheme GUID: &lt;guid&gt;  (Name)".</summary>
@@ -18,7 +18,7 @@ public static class PowerOutput
         return open >= 0 && close > open ? output[(open + 1)..close].Trim() : null;
     }
 
-    /// <summary>The "Current AC Power Setting Index: 0x…" value as a decimal string (e.g. 1800 seconds).</summary>
+    /// <summary>The "Current AC Power Setting Index: 0x..." value as a decimal string (e.g. 1800 seconds).</summary>
     public static string? AcSettingIndex(string? output)
     {
         if (string.IsNullOrEmpty(output))

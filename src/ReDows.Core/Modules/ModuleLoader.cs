@@ -10,13 +10,13 @@ namespace ReDows.Core.Modules;
 /// <para>
 /// Fail-SAFE on absence: a missing directory or an empty one yields no modules, and
 /// the scan then behaves exactly as before (everything the ruleset would review
-/// stays review — nothing lost). Unlike the ruleset, modules are optional and their
+/// stays review, so nothing lost). Unlike the ruleset, modules are optional and their
 /// default is a no-op, so their absence is never an error.
 /// </para>
 /// <para>
 /// Fail-CLOSED on corruption: a present but malformed file (bad YAML, unknown key,
 /// invalid action, missing detector, duplicate name) aborts the whole load. A
-/// detector the user relies on must work or say why it cannot — never be silently
+/// detector the user relies on must work or say why it cannot. It is never silently
 /// skipped.
 /// </para>
 /// Modules live OUTSIDE rules/ on purpose: a module is a detector plus a

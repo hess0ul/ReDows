@@ -18,7 +18,7 @@ public sealed record AppsExportResult(string Folder, int AppsActive, int AppsCom
 /// Reads the installed-apps inventory (the same one 'redows apps' uses) and writes the FULL InDows profile
 /// from the user's selection (apps + Windows settings + README). A seam: the real implementation touches the
 /// machine; a test swaps a fake so the Apps view-model is exercised without reading the registry. Both calls
-/// run off the UI thread — loading winget-enriches (a few seconds) and the export reads the live settings.
+/// run off the UI thread: loading winget-enriches (a few seconds) and the export reads the live settings.
 /// Read-only on the machine; only writes the profile folder the user picks. Never reads a secret value.
 /// </summary>
 public interface IAppsRunner

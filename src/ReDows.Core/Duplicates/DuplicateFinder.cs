@@ -13,7 +13,7 @@ public sealed record FileLocation(string Path, DateTime LastModifiedUtc);
 /// A set of byte-identical files. Keeping ONE copy would free the rest, so
 /// <see cref="ReclaimableBytes"/> is the size times the number of extra copies.
 /// <see cref="Locations"/> are ordered most-recently-modified first: <see cref="Primary"/> is the
-/// copy to keep (the "truth"), the others are the remaining places the SAME content lives — recorded
+/// copy to keep (the "truth"), the others are the remaining places the SAME content lives. They are recorded
 /// so a later restore can write it back to one, some, or all of them. The content is identical, so
 /// only the locations differ: a backup can store a single copy and lose nothing.
 /// </summary>
@@ -29,7 +29,7 @@ public sealed record DuplicateGroup(string ContentHash, long Size, IReadOnlyList
 
 /// <summary>
 /// Hashes file content. A seam: the real implementation reads bytes off disk; a test fakes it.
-/// Returns null when a file cannot be read (locked, denied) — the finder then skips it, so an
+/// Returns null when a file cannot be read (locked, denied). The finder then skips it, so an
 /// unreadable file is simply not de-duplicated, never wrongly grouped. <see cref="PartialHash"/>
 /// covers a cheap prefix so files that differ early are separated without a full read;
 /// <see cref="FullHash"/> confirms byte-for-byte identity.
@@ -44,7 +44,7 @@ public interface IFileHasher
 /// <summary>
 /// Finds byte-identical files. Read-only and certainty-first: identity is always confirmed by a
 /// full content hash, so two files are only ever reported as duplicates when they match
-/// byte-for-byte (never "they look alike"). It PROPOSES — it never deletes anything.
+/// byte-for-byte (never "they look alike"). It PROPOSES and never deletes anything.
 /// </summary>
 public static class DuplicateFinder
 {
@@ -53,7 +53,7 @@ public static class DuplicateFinder
     /// alone at their exact size and are dropped without being read at all; of the rest, a cheap
     /// prefix hash separates the ones that differ early; only the survivors are fully hashed.
     /// <paramref name="lastModifiedUtc"/> is called only for files that turn out to be duplicates
-    /// (to pick the most-recent "truth" copy) — never for the whole tree. Empty files and files below
+    /// (to pick the most-recent "truth" copy) and never for the whole tree. Empty files and files below
     /// <paramref name="minSize"/> are ignored. <paramref name="onFullHash"/> fires once per full hash
     /// (progress). Groups are returned most-reclaimable first.
     /// </summary>
@@ -80,7 +80,7 @@ public static class DuplicateFinder
         {
             if (sameSize.Count < 2)
             {
-                continue; // unique size can't have a duplicate — never read
+                continue; // unique size can't have a duplicate, so never read
             }
 
             // Pass 2: a cheap prefix hash so files differing early are never fully read.

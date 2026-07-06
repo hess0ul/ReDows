@@ -7,7 +7,7 @@ namespace ReDows.Gui.Views;
 
 /// <summary>
 /// The Backup screen. Logic lives in BackupViewModel; this only opens the destination picker and hands
-/// the PasswordBox's value to the run — the password is passed transiently, never stored on the
+/// the PasswordBox's value to the run. The password is passed transiently, never stored on the
 /// view-model or logged (invariant #5).
 /// </summary>
 public partial class BackupView : UserControl

@@ -6,7 +6,7 @@ namespace ReDows.Gui.ViewModels;
 /// <summary>
 /// The Backup screen's brain. It copies the last scan's CAPTURE files to a destination the user picks,
 /// off the UI thread (so the window never freezes), with progress and Cancel. The vault password is
-/// NOT held here — it is passed straight to <see cref="RunAsync"/> from the view's PasswordBox at run
+/// NOT held here. It is passed straight to <see cref="RunAsync"/> from the view's PasswordBox at run
 /// time (never stored, never logged; invariant #5). All state is plain and testable off a fake runner.
 /// </summary>
 public sealed class BackupViewModel : ViewModelBase
@@ -34,7 +34,7 @@ public sealed class BackupViewModel : ViewModelBase
 
     public RelayCommand CancelCommand { get; }
 
-    /// <summary>Whether locked-file rescue (VSS) can work this run — drives the note and the toggle's enabled state.</summary>
+    /// <summary>Whether locked-file rescue (VSS) can work this run. Drives the note and the toggle's enabled state.</summary>
     public bool IsElevated => _runner.IsElevated;
 
     /// <summary>The scan manifest to back up (set by the shell from the last scan). Null/empty = nothing scanned yet.</summary>
@@ -115,7 +115,7 @@ public sealed class BackupViewModel : ViewModelBase
 
     /// <summary>
     /// Run the backup. The vault password is passed in transiently (from the view's PasswordBox) and is
-    /// used only if <see cref="UseVault"/> is on — it is never stored on the view-model.
+    /// used only if <see cref="UseVault"/> is on. It is never stored on the view-model.
     /// </summary>
     public async Task RunAsync(string? vaultPassword)
     {
@@ -126,21 +126,21 @@ public sealed class BackupViewModel : ViewModelBase
 
         Error = null;
         Result = null;
-        ProgressText = "Starting…";
+        ProgressText = "Starting...";
         IsRunning = true;
         _cancellation = new CancellationTokenSource();
-        var progress = new Progress<BackupProgress>(p => ProgressText = $"{p.Items:N0} entries — {p.CurrentPath}");
+        var progress = new Progress<BackupProgress>(p => ProgressText = $"{p.Items:N0} entries: {p.CurrentPath}");
         try
         {
             var request = new BackupRequest(ManifestPath!, Destination, UseVault ? vaultPassword : null, UseVss, ExcludedPaths, Dedupe);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
             ProgressText = Result.Balanced
-                ? "Done — every file copied and verified."
-                : "Done — but the accounting did not balance (see below).";
+                ? "Done. Every file copied and verified."
+                : "Done. The totals did not add up (see below).";
         }
         catch (OperationCanceledException)
         {
-            ProgressText = "Cancelled — the partial backup was left in place.";
+            ProgressText = "Cancelled. The partial backup was left in place.";
         }
         catch (Exception ex)
         {
@@ -157,7 +157,7 @@ public sealed class BackupViewModel : ViewModelBase
 
     public void Cancel()
     {
-        ProgressText = "Cancelling…";
+        ProgressText = "Cancelling...";
         _cancellation?.Cancel();
     }
 

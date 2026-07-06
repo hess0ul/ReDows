@@ -2,30 +2,30 @@ using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace ReDows.Core.Triage;
+namespace ReDows.Core.Prescreening;
 
-/// <summary>Raised when a present triage file is malformed — the fast path fails CLOSED, never silently wrong.</summary>
-public sealed class FileTriageValidationException(IReadOnlyList<string> errors)
-    : Exception("Invalid file-triage rules:\n  " + string.Join("\n  ", errors))
+/// <summary>Raised when a present prescreen file is malformed. The fast path fails CLOSED, never silently wrong.</summary>
+public sealed class FilePrescreenerValidationException(IReadOnlyList<string> errors)
+    : Exception("Invalid file-prescreen rules:\n  " + string.Join("\n  ", errors))
 {
     public IReadOnlyList<string> Errors { get; } = errors;
 }
 
 /// <summary>
-/// Loads the fast-path rules from a directory of triage files (triage/*.yaml), merging their lists into
-/// one <see cref="FileTriage"/>.
-/// <para>Fail-SAFE on absence: a missing/empty directory yields <c>null</c> — no fast path, so every entry
+/// Loads the fast-path rules from a directory of prescreen files (prescreen/*.yaml), merging their lists into
+/// one <see cref="FilePrescreener"/>.
+/// <para>Fail-SAFE on absence: a missing/empty directory yields <c>null</c>. No fast path, so every entry
 /// simply goes to the AI exactly as before. The feature is a pure optimisation, so its absence is never an error.</para>
 /// <para>Fail-CLOSED on corruption: a present but malformed file (bad YAML, wrong schema version) aborts the
-/// load — a classifier the user relies on must work or say why it cannot.</para>
-/// Triage lives OUTSIDE rules/ on purpose: it is a metadata classifier, not a fixed-verdict scan rule, so it
+/// load. A classifier the user relies on must work or say why it cannot.</para>
+/// Prescreen lives OUTSIDE rules/ on purpose: it is a metadata classifier, not a fixed-verdict scan rule, so it
 /// must never be swept into the ruleset (which would break the fail-closed rule loader and the rule count).
 /// </summary>
-public static class FileTriageLoader
+public static class FilePrescreenerLoader
 {
     public const int SupportedSchemaVersion = 1;
 
-    public static FileTriage? LoadDirectory(string directory)
+    public static FilePrescreener? LoadDirectory(string directory)
     {
         if (!Directory.Exists(directory))
         {
@@ -56,13 +56,13 @@ public static class FileTriageLoader
 
         if (errors.Count > 0)
         {
-            throw new FileTriageValidationException(errors);
+            throw new FilePrescreenerValidationException(errors);
         }
 
         return files.Count == 0 ? null : LoadFiles(files);
     }
 
-    public static FileTriage LoadFiles(IEnumerable<(string Path, string Content)> files)
+    public static FilePrescreener LoadFiles(IEnumerable<(string Path, string Content)> files)
     {
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
@@ -76,10 +76,10 @@ public static class FileTriageLoader
 
         foreach (var (path, content) in files)
         {
-            FileTriageDto? dto;
+            FilePrescreenerDto? dto;
             try
             {
-                dto = deserializer.Deserialize<FileTriageDto>(content);
+                dto = deserializer.Deserialize<FilePrescreenerDto>(content);
             }
             catch (YamlException ex)
             {
@@ -118,15 +118,15 @@ public static class FileTriageLoader
 
         if (errors.Count > 0)
         {
-            throw new FileTriageValidationException(errors);
+            throw new FilePrescreenerValidationException(errors);
         }
 
-        return new FileTriage(
+        return new FilePrescreener(
             keepExt, reviewExt, dropExt, secretExt, imageExt,
             secretNames, keepNames, keepFolders, dropFolders, cloudFolders, thumbnailMaxBytes);
     }
 
-    private sealed class FileTriageDto
+    private sealed class FilePrescreenerDto
     {
         public int? SchemaVersion { get; set; }
 

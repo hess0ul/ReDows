@@ -24,7 +24,7 @@ public static class ScanEngine
     /// <summary>Stage name of app-inventory data-zone keeps in rule hits (app-zones increment 4).</summary>
     public const string AppDataStage = "appdata";
 
-    /// <summary>Stage name of user-selected category-module verdicts in rule hits (games, media…).</summary>
+    /// <summary>Stage name of user-selected category-module verdicts in rule hits (games, media...).</summary>
     public const string ModuleStage = "module";
 
     /// <summary>Aggregation depth of the REVIEW rollup, in segments below each root.</summary>
@@ -65,7 +65,7 @@ public static class ScanEngine
             if (ScanPaths.Split(excluded).Length < 2)
             {
                 throw new ArgumentException(
-                    $"excluded output path '{excluded}' is too shallow — it would self-ignore a whole volume", nameof(options));
+                    $"excluded output path '{excluded}' is too shallow. It would ignore a whole volume", nameof(options));
             }
         }
 
@@ -166,7 +166,7 @@ public static class ScanEngine
                 }
 
                 // Recognized-places briefing (increment C): if a recogniser is supplied, note each
-                // DIRECTORY whose own name is a well-known place. Matched on the leaf name only — an
+                // DIRECTORY whose own name is a well-known place. Matched on the leaf name only. An
                 // ancestor was already visited as its own entry, so a descendant of steamapps/node_modules
                 // never inflates the count and each place is recorded once, at its shallowest occurrence.
                 if (options.RecognizeZone is not null && entry.IsDirectory && entry.Error is null && segments.Length > 0
@@ -239,9 +239,9 @@ public static class ScanEngine
     /// unenumerable directory is an unknown subtree (REVIEW); ReDows' own output is
     /// the one explicit engine whitelist; an orphan profile tree is user data off
     /// the radar, so no ignore rule may touch it; a non-traversed reparse DIRECTORY
-    /// (and a name-surrogate file: symlink) is a pointer whose target lives — and
-    /// is scanned — elsewhere. A reparse-tagged file that is NOT a name surrogate
-    /// (WOF compression, deduplication…) is real user data: it flows to the ruleset.
+    /// (and a name-surrogate file: symlink) is a pointer whose target lives (and
+    /// is scanned) elsewhere. A reparse-tagged file that is NOT a name surrogate
+    /// (WOF compression, deduplication) is real user data: it flows to the ruleset.
     /// </summary>
     private static Classification Classify(
         Classifier classifier,
@@ -274,8 +274,8 @@ public static class ScanEngine
         {
             if (ReparsePoints.IsNameSurrogate(entry.ReparseTag))
             {
-                // Symlink/junction/appexeclink: a pointer whose target lives —
-                // and is scanned — elsewhere. A note is enough.
+                // Symlink/junction/appexeclink: a pointer whose target lives
+                // (and is scanned) elsewhere. A note is enough.
                 return new Classification(Verdict.NoteOnly, EngineRuleIds.ReparsePoint, EngineRuleIds.Stage);
             }
 
@@ -283,16 +283,16 @@ public static class ScanEngine
             {
                 // Non-surrogate, non-traversed directory (ProjFS/WCI root,
                 // unknown 0x9000xxxx tag, unreadable tag): its contents are
-                // unique and were never walked — a blind spot, surfaced as
+                // unique and were never walked. This is a blind spot, surfaced as
                 // REVIEW, never as a benign note (forget-nothing).
                 return new Classification(Verdict.Review, EngineRuleIds.UnknownReparse, EngineRuleIds.Stage);
             }
 
-            // Non-surrogate FILE (WOF-compressed, deduplicated…): real data — ruleset.
+            // Non-surrogate FILE (WOF-compressed, deduplicated): real data, goes to the ruleset.
         }
 
         // Claimed zones (index-derived, review/capture only): the most specific
-        // claim wins — longest prefix, then the most conservative verdict.
+        // claim wins by longest prefix, then by the most conservative verdict.
         ClaimedZone? bestZone = null;
         var bestLength = -1;
         foreach (var (zone, prefix) in claimedZones)
@@ -320,14 +320,14 @@ public static class ScanEngine
 
         // App-inventory zones act ONLY over a REVIEW verdict (increments 3 & 4),
         // so an already-classified keep (capture / carve_out / secret) or ignore is
-        // never overridden — the forget-nothing ruleset stages always win.
+        // never overridden. The forget-nothing ruleset stages always win.
         if (classification.Verdict != Verdict.Review)
         {
             return classification;
         }
 
-        // Category modules — explicit, user-configured decisions about a whole
-        // category (games, media…). Like the app-inventory zones they act ONLY over a
+        // Category modules: explicit, user-configured decisions about a whole
+        // category (games, media). Like the app-inventory zones they act ONLY over a
         // REVIEW verdict, so a keep/secret is never touched. Every KEEP is applied
         // before every IGNORE (keeping data always beats dropping a re-acquirable
         // bulk), and a module decision beats the inventory heuristics below it (it is
@@ -337,8 +337,8 @@ public static class ScanEngine
             return new Classification(Verdict.CaptureUser, moduleKeepId, ModuleStage);
         }
 
-        // Increment 4 — app data zones (%AppData% kept, %LocalAppData% surfaced):
-        // checked before the ignores so keeping data beats ignoring a re-acquirable
+        // Increment 4: app data zones (%AppData% kept, %LocalAppData% surfaced for review).
+        // Checked before the ignores so keeping data beats ignoring a re-acquirable
         // install when the two ever overlap. Additive-only (review/capture), so it
         // can only make a REVIEW item more conservative.
         if (TryAppDataKeep(path, appDataZones, out var appDataId, out var appDataVerdict))
@@ -353,7 +353,7 @@ public static class ScanEngine
             return new Classification(Verdict.Ignore, moduleIgnoreId, ModuleStage);
         }
 
-        // Increment 3 — reinstall zones: a folder the inventory identified as a
+        // Increment 3: reinstall zones. A folder the inventory identified as a
         // re-acquirable app install. Downgrade REVIEW → IGNORE for its
         // re-downloadable content only, never a data-named subtree.
         if (TryReinstallIgnore(path, segments, reinstallZones, out var reinstallId))
@@ -385,13 +385,13 @@ public static class ScanEngine
     }
 
     /// <summary>
-    /// A REVIEW item is droppable when an active IGNORE module matches it AND — when
-    /// the module carves back saves — no user-data-named segment appears in its path
+    /// A REVIEW item is droppable when an active IGNORE module matches it AND (when
+    /// the module carves back saves) no user-data-named segment appears in its path
     /// (the app-zones net, reused via <see cref="AppDataFolders"/>): the user drops
     /// the game bulk, never the saves inside it. For a folder match the net starts
     /// BELOW the matched folder; for an extension match there is no category folder
-    /// (folderMatchDepth == -1, so the net starts at 0 and scans the whole path) — a
-    /// media file sitting under a save*/config*/… folder must be spared just the same.
+    /// (folderMatchDepth == -1, so the net starts at 0 and scans the whole path). A
+    /// media file sitting under a save*/config*/... folder must be spared just the same.
     /// First match wins.
     /// </summary>
     private static bool TryModuleIgnore(
@@ -406,7 +406,7 @@ public static class ScanEngine
             }
 
             // folderMatchDepth is -1 for an extension match, so +1 == 0 scans the
-            // whole path — the save-name net must never be silently skipped.
+            // whole path. The save-name net must never be silently skipped.
             if (module.SaveCarveBacks && HasDataNamedSegmentBelow(segments, folderMatchDepth + 1))
             {
                 continue;
@@ -421,7 +421,7 @@ public static class ScanEngine
 
     /// <summary>
     /// Does a category module match this path? By folder name (a path segment equal
-    /// to one of the module's tokens — <paramref name="folderMatchDepth"/> is the
+    /// to one of the module's tokens; <paramref name="folderMatchDepth"/> is the
     /// shallowest such segment, defining the category root for the save-name net) or,
     /// failing that, by the leaf's file extension (no folder context: depth stays -1).
     /// </summary>

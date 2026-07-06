@@ -7,7 +7,7 @@ namespace ReDows.Providers.Windows.Backup;
 /// no extra dependency is needed. One <c>ClientAccessible</c> shadow is created per volume on
 /// first use and deleted on <see cref="Dispose"/>. Creating a shadow needs elevation; without
 /// it the create fails and <see cref="DeviceRootForVolumeOf"/> returns <c>null</c> (cached so it
-/// is not retried per file). Not thread-safe — the copy engine reads sequentially.
+/// is not retried per file). Not thread-safe; the copy engine reads sequentially.
 /// </summary>
 public sealed class WmiVolumeSnapshotSet : IVolumeSnapshotSet
 {

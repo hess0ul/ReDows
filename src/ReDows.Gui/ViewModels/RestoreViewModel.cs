@@ -4,8 +4,8 @@ using ReDows.Gui.Restore;
 namespace ReDows.Gui.ViewModels;
 
 /// <summary>
-/// The Restore screen's brain. It puts a backup folder back — to the original locations or under a folder
-/// you pick — off the UI thread, with progress and Cancel. The vault password is passed transiently to
+/// The Restore screen's brain. It puts a backup folder back (to the original locations or under a folder
+/// you pick) off the UI thread, with progress and Cancel. The vault password is passed transiently to
 /// <see cref="RunAsync"/> from the view's PasswordBox (never stored). All state is plain and testable off
 /// a fake runner. Non-destructive: existing files are skipped, never overwritten.
 /// </summary>
@@ -89,10 +89,10 @@ public sealed class RestoreViewModel : ViewModelBase
 
         Error = null;
         Result = null;
-        ProgressText = "Starting…";
+        ProgressText = "Starting...";
         IsRunning = true;
         _cancellation = new CancellationTokenSource();
-        var progress = new Progress<RestoreProgress>(p => ProgressText = $"{p.Items:N0} files — {p.CurrentPath}");
+        var progress = new Progress<RestoreProgress>(p => ProgressText = $"{p.Items:N0} files: {p.CurrentPath}");
         try
         {
             var request = new RestoreRequest(
@@ -105,7 +105,7 @@ public sealed class RestoreViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
-            ProgressText = "Cancelled — what was restored so far is in place.";
+            ProgressText = "Cancelled. What was restored so far is in place.";
         }
         catch (Exception ex)
         {
@@ -122,7 +122,7 @@ public sealed class RestoreViewModel : ViewModelBase
 
     public void Cancel()
     {
-        ProgressText = "Cancelling…";
+        ProgressText = "Cancelling...";
         _cancellation?.Cancel();
     }
 

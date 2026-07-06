@@ -6,10 +6,10 @@ namespace ReDows.Providers.Windows;
 
 /// <summary>
 /// Real-machine IFileSystemWalker. Recursion is driven here, not by .NET
-/// (RecurseSubdirectories=false), for two reasons: error attribution — the
-/// framework cannot tell us WHICH queued directory failed to open, we can — and
-/// the shared reparse policy (never follow symlinks/junctions, do descend into
-/// cloud placeholder directories). The three default-.NET traps are neutralized:
+/// (RecurseSubdirectories=false), for two reasons. First, error attribution: the
+/// framework cannot tell us WHICH queued directory failed to open, but we can.
+/// Second, the shared reparse policy (never follow symlinks/junctions, do descend
+/// into cloud placeholder directories). The three default-.NET traps are neutralized:
 /// AttributesToSkip=0 (hidden/system files must be seen), IgnoreInaccessible=false
 /// (every refusal becomes a counted 'unknown subtree' entry), and no framework
 /// recursion (which would follow junctions into cycles).
@@ -27,7 +27,7 @@ public sealed class WindowsFileSystemWalker : IFileSystemWalker
     public IEnumerable<ScanEntry> Walk(string rootPath)
     {
         // The engine hands roots in normalized '/' form, but the '\\?\' extended-length
-        // prefix below is a raw Win32 path that is NOT normalized — forward slashes are
+        // prefix below is a raw Win32 path that is NOT normalized. Forward slashes are
         // taken literally and the open fails (a subtree --root would yield one bogus
         // 'inaccessible' marker). Switch to '\' for the OS; entry paths are re-split by
         // the engine, so the separator never leaks into classification or the report.
@@ -50,7 +50,7 @@ public sealed class WindowsFileSystemWalker : IFileSystemWalker
     {
         // Enumerate through the extended-length form: Win32 normalization strips
         // trailing dots/spaces from components, so re-opening a "trail." entry
-        // by its logical path would land on "trail" — its real children silently
+        // by its logical path would land on "trail", with its real children silently
         // skipped with NO marker (a gap the equation cannot see) and the wrong
         // tree double-walked. Entry paths stay LOGICAL (rebuilt from the parent):
         // the prefix must never leak into classification or the report.
@@ -149,7 +149,7 @@ public sealed class WindowsFileSystemWalker : IFileSystemWalker
         if (handle == NativeMethods.InvalidHandleValue)
         {
             // The attribute says reparse but the tag is unreadable (race, filter
-            // driver): fail closed — never traverse an unverified link.
+            // driver): fail closed, never traverse an unverified link.
             return ReparsePoints.UnreadableTag;
         }
 
@@ -179,7 +179,7 @@ public sealed class WindowsFileSystemView : IFileSystemView
         {
             return new FileSystemEnumerable<string>(
                 // Conditions probe ancestors down to the bare drive segment
-                // ("C:") — unanchored, that is the process CWD, and a project
+                // ("C:"). Unanchored, that is the process CWD, and a project
                 // marker in the launch directory would enable collision-prone
                 // ignores volume-wide (§0-8 regression).
                 ScanPaths.AnchorDriveRoot(directoryPath),

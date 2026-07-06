@@ -1,4 +1,4 @@
-# File triage — fast-path rules (classify an entry from metadata alone, before asking the AI).
+# File prescreen — fast-path rules (classify an entry from metadata alone, before asking the AI).
 # Règles de tri rapide — classer une entrée d'après ses seules métadonnées, avant d'appeler l'IA.
 #
 # Priority / priorité (forget-nothing): secret > keep > review > drop; anything unmatched -> the AI decides.

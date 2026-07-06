@@ -7,10 +7,10 @@ using ReDows.Providers.Windows.Settings;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows settings' — reads the catalogued Windows settings from the registry
+/// 'redows settings': reads the catalogued Windows settings from the registry
 /// (read-only) and writes settings.json (source of truth) + settings.md. The
 /// catalog (the list of settings to read) is the YAML under 'settings/'.
-/// Exit codes: 0 ok, 1 invalid catalog (fail-closed), 2 usage, 4 unexpected error.
+/// Exit codes: 0 ok, 1 invalid catalog, 2 usage, 4 unexpected error.
 /// </summary>
 public static class SettingsCommand
 {
@@ -65,7 +65,7 @@ public static class SettingsCommand
         }
         catch (SettingsCatalogException ex)
         {
-            Console.Error.WriteLine($"Settings catalog INVALID — {ex.Errors.Count} error(s). Refusing to read (fail-closed).");
+            Console.Error.WriteLine($"The settings catalog has {ex.Errors.Count} error(s), so nothing was read.");
             foreach (var error in ex.Errors)
             {
                 Console.Error.WriteLine($"  - {error}");

@@ -28,7 +28,7 @@ public static partial class RulesetLoader
 
         var paths = Directory.EnumerateFiles(directory, "*.yaml", SearchOption.AllDirectories)
             .Concat(Directory.EnumerateFiles(directory, "*.yml", SearchOption.AllDirectories))
-            // Win32 3-char-extension quirk: "*.yml" also matches ".ymlx" — a
+            // Win32 3-char-extension quirk: "*.yml" also matches ".ymlx". A
             // stray file must never silently merge into the ruleset.
             .Where(f => f.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)
                 || f.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
@@ -47,7 +47,7 @@ public static partial class RulesetLoader
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 readErrors.Add(new RulesetError(relative, null,
-                    $"file unreadable ({ex.GetType().Name}: {ex.Message}) — refusing to load a partial ruleset (fail-closed)"));
+                    $"file unreadable ({ex.GetType().Name}: {ex.Message}). The ruleset was not loaded."));
             }
         }
 
@@ -78,7 +78,7 @@ public static partial class RulesetLoader
         var parsed = new List<(string Path, RulesetFileDto Dto)>();
         var templates = new Dictionary<string, (string File, TemplateDto Dto)>(StringComparer.Ordinal);
 
-        // Pass 1: parse, version-check, register every template — apps may then
+        // Pass 1: parse, version-check, register every template. Apps may then
         // reference templates from any file (load order stays irrelevant).
         foreach (var (path, content) in files)
         {
@@ -108,7 +108,7 @@ public static partial class RulesetLoader
             if (dto.SchemaVersion != SupportedSchemaVersion)
             {
                 errors.Add(new RulesetError(path, null,
-                    $"schema_version {dto.SchemaVersion} is not supported by this engine (max {SupportedSchemaVersion}) — refusing to load (fail-closed)"));
+                    $"schema_version {dto.SchemaVersion} is not supported by this engine (max {SupportedSchemaVersion}). The ruleset was not loaded."));
                 continue;
             }
 
@@ -209,7 +209,7 @@ public static partial class RulesetLoader
         }
 
         // Fail-closed coherence: every placeholder used must be a declared param.
-        // The scan is case-insensitive on purpose — '{Vendor_Path}' would neither
+        // The scan is case-insensitive on purpose. '{Vendor_Path}' would neither
         // be flagged nor substituted (a silently dead rule), so it is an error.
         var declared = new HashSet<string>(dto.Params ?? [], StringComparer.Ordinal);
         foreach (var match in EnumerateTemplateMatches(dto.Rules))
@@ -220,7 +220,7 @@ public static partial class RulesetLoader
                 if (name.Any(char.IsUpper))
                 {
                     errors.Add(new RulesetError(file, dto.Name,
-                        $"placeholder '{{{name}}}' must be all-lowercase (placeholders are case-sensitive — this one would never be substituted)"));
+                        $"placeholder '{{{name}}}' must be all-lowercase (placeholders are case-sensitive, so this one would never be substituted)"));
                 }
                 else if (!declared.Contains(name))
                 {
@@ -299,7 +299,7 @@ public static partial class RulesetLoader
             if (value.AsSpan().IndexOfAny('*', '?', '{') >= 0 || value.Contains('}'))
             {
                 errors.Add(new RulesetError(file, app.Name,
-                    $"param '{key}' value '{value}' contains '*', '?', '{{' or '}}' — param values must be literal path fragments"));
+                    $"param '{key}' value '{value}' contains '*', '?', '{{' or '}}'. Param values must be literal path fragments."));
             }
         }
 
@@ -427,7 +427,7 @@ public static partial class RulesetLoader
             else if (!isFloatingIgnore && bareNameClass is not null)
             {
                 errors.Add(new RulesetError(file, id,
-                    "bare_name_class only applies to floating ignore rules (scope drive + verdict ignore) — remove it"));
+                    "bare_name_class only applies to floating ignore rules (scope drive + verdict ignore). Remove it."));
             }
             else if (bareNameClass == BareNameClass.CollisionProne && when is null)
             {
@@ -626,14 +626,14 @@ public static partial class RulesetLoader
             || id.StartsWith("engine.", StringComparison.Ordinal))
         {
             errors.Add(new RulesetError(file, id,
-                "id is reserved for the engine (engine.* and default.review — see rules/README.md)"));
+                "id is reserved for the engine (engine.* and default.review, see rules/README.md)"));
             return null;
         }
 
         if (!seenIds.TryAdd(id, file))
         {
             errors.Add(new RulesetError(file, id,
-                $"duplicate id (already defined in {seenIds[id]}) — one zone, one verdict (deny-list §0-9)"));
+                $"duplicate id (already defined in {seenIds[id]}). One zone gets one verdict (deny-list §0-9)."));
             return null;
         }
 
@@ -663,7 +663,7 @@ public static partial class RulesetLoader
         var message = $"{ex.Message} (at {ex.Start})";
         for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
         {
-            message += $" — {inner.Message}";
+            message += $"; {inner.Message}";
         }
 
         return message;

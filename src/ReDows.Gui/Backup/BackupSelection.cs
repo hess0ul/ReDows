@@ -6,7 +6,7 @@ namespace ReDows.Gui.Backup;
 /// <summary>
 /// Applies the review trash to the backup manifest. The rule (pure, so it is unit-tested): the trash
 /// removes a REVIEW item whose path is a trashed path or lives under a trashed folder. It NEVER removes
-/// a CAPTURE item — config, user files and secrets are auto-kept, so dropping a folder in the sorter
+/// a CAPTURE item: config, user files and secrets are auto-kept, so dropping a folder in the sorter
 /// can't lose an auto-captured file or a secret that happens to sit inside it (forget-nothing +
 /// secrets-apart). Paths are compared case-insensitively on the Windows form ('\'-separated).
 /// </summary>

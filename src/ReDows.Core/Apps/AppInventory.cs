@@ -2,7 +2,7 @@ namespace ReDows.Core.Apps;
 
 /// <summary>
 /// Bucket of an inventory entry. Nothing is dropped (total accounting): noise
-/// (components, updates) is classified into visible REVIEW-grade buckets — some
+/// (components, updates) is classified into visible REVIEW-grade buckets. Some
 /// real tools ship SystemComponent=1, so the bucket must reach human eyes.
 /// </summary>
 public enum AppEntryKind
@@ -15,7 +15,7 @@ public enum AppEntryKind
 /// <summary>
 /// Confidence of a reinstall id. Only exact correlations (winget's own engine,
 /// package-manager native ids) may be presented as preferred; a heuristic match
-/// is a candidate — a wrong reinstall id is worse than none.
+/// is a candidate. A wrong reinstall id is worse than none.
 /// </summary>
 public enum ReinstallConfidence
 {
@@ -58,7 +58,7 @@ public sealed record SourceAccounting(
 
 /// <summary>
 /// A (source × subject) that could not be read: other users' hives or packages,
-/// missing winget… Counted and listed, never guessed (asymmetric policy).
+/// missing winget... Counted and listed, never guessed (asymmetric policy).
 /// </summary>
 public sealed record InventoryDegradation(string Source, string Subject, string Reason);
 
@@ -78,7 +78,7 @@ public sealed record AppInventoryReport(
         "Browser extensions, Windows optional features, scheduled tasks/autoruns and third-party drivers are later blocks.",
         "Other users' per-user installs (HKCU hives) and Store packages are invisible to a standard-user scan: counted as degradations, never guessed.",
         "GOG is read from its registry keys (the Galaxy SQLite database is a later step); EA app games are covered through the standard registry only (its own manifest is hardware-encrypted).",
-        "A game may legitimately appear twice (launcher source AND registry): records are never destructively merged — linking is a later step.",
+        "A game may legitimately appear twice (launcher source AND registry): records are never destructively merged. Linking is a later step.",
         "UniGetUI bundles (.ubundle) have no fixed location: found opportunistically by the file scan, not here.",
         "Reinstall ids are attached only when exact; without --enrich-winget, Win32 apps default to manual reinstall.",
     ];

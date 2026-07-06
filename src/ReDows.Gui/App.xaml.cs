@@ -13,14 +13,14 @@ namespace ReDows.Gui;
 
 /// <summary>
 /// Application entry point. The shell is built here with the real, read-only sources (context +
-/// scan) — the same seams a test replaces with fakes — then handed to the window.
+/// scan): the same seams a test replaces with fakes. It is then handed to the window.
 /// </summary>
 public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner(), new FileSessionStore(), new WindowsAiAnalyzer(), new FileAiSettingsStore(), new FileAiLearnedStore(), new WindowsTriageCatalog(), new WindowsMemoryCatalog(), new WindowsInstalledAppsSource(), new WindowsModuleSettingsStore());
+        var shell = new ShellViewModel(new WindowsContextSource(), new WindowsScanRunner(), new WindowsFolderBrowser(), new WindowsModuleCatalog(), new WindowsBackupRunner(), new WindowsRestoreRunner(), new WindowsAppsRunner(), new FileSessionStore(), new WindowsAiAnalyzer(), new FileAiSettingsStore(), new FileAiLearnedStore(), new WindowsPrescreenCatalog(), new WindowsMemoryCatalog(), new WindowsInstalledAppsSource(), new WindowsModuleSettingsStore());
         var window = new MainWindow(shell);
         shell.Initialize();
         window.Show();

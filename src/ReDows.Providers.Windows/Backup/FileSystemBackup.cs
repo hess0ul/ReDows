@@ -4,7 +4,7 @@ namespace ReDows.Providers.Windows.Backup;
 
 /// <summary>
 /// Real-machine read-only copy source. Opens each file for READ only, sharing with other
-/// readers/writers so a file being used elsewhere can still be read where possible — it
+/// readers/writers so a file being used elsewhere can still be read where possible. It
 /// never opens for write, so the scanned source is never modified (invariant #3).
 /// </summary>
 public sealed class FileSystemCopySource : ICopySource
@@ -23,7 +23,7 @@ public sealed class FileSystemCopySource : ICopySource
 
 /// <summary>
 /// Writes the backup under a destination directory (local disk, USB key, or UNC network
-/// share — all just paths). Relative paths use '/'; they are joined onto the destination
+/// share, all just paths). Relative paths use '/'; they are joined onto the destination
 /// with the OS separator. Creates parent directories as needed.
 /// </summary>
 public sealed class FileSystemSink(string destinationRoot) : IBackupSink

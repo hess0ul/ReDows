@@ -6,7 +6,7 @@ namespace ReDows.Gui.ViewModels;
 /// <summary>
 /// The Home screen's brain: it asks the (injected, read-only) context source for the machine
 /// context and shapes it into display rows plus a one-line summary. Pure enough to test off a
-/// fake source — it touches no WPF type. A provider failure becomes <see cref="Error"/>, never a crash.
+/// fake source: it touches no WPF type. A provider failure becomes <see cref="Error"/>, never a crash.
 /// </summary>
 public sealed class HomeViewModel(IContextSource source) : ViewModelBase
 {

@@ -1,7 +1,7 @@
 namespace ReDows.Core;
 
 /// <summary>
-/// Human-readable byte sizes — the single source of truth shared by the CLI and the GUI so the
+/// Human-readable byte sizes. The single source of truth shared by the CLI and the GUI so the
 /// two front-ends can never drift (they used to each carry their own copy of these switches).
 /// </summary>
 public static class Format

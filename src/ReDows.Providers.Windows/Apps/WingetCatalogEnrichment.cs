@@ -45,14 +45,14 @@ public static class WingetCatalogEnrichment
                 catch (Exception)
                 {
                     // A missing predefined source degrades correlation quality,
-                    // not correctness: unmatched apps stay reinstall:manual —
+                    // not correctness: unmatched apps stay reinstall:manual,
                     // but the note must say WHY matching was poor (§0-5).
                     failedCatalogs.Add(predefined.ToString());
                 }
             }
 
             // LocalCatalogs: enumerate INSTALLED packages, remote sources used
-            // only to correlate them — exactly `winget list`.
+            // only to correlate them, exactly like `winget list`.
             compositeOptions.CompositeSearchBehavior = CompositeSearchBehavior.LocalCatalogs;
 
             stage = "Connect";
@@ -117,7 +117,7 @@ public static class WingetCatalogEnrichment
         }
 
         static Result Failure(string reason) => new([], new InventoryDegradation(
-            "winget", "COM correlation", $"{reason} — falling back to `winget export` corroboration"), null);
+            "winget", "COM correlation", $"{reason}. Falling back to `winget export` corroboration"), null);
     }
 
 }

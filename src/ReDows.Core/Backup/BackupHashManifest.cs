@@ -26,7 +26,7 @@ public static class BackupHashManifest
 
     /// <summary>
     /// Read the manifest as a backup-relative-path → SHA-256 map (forward slashes). Returns empty if the
-    /// file is absent or unreadable — a missing or broken manifest just means "no verification", never a crash.
+    /// file is absent or unreadable. A missing or broken manifest just means "no verification", never a crash.
     /// </summary>
     public static IReadOnlyDictionary<string, string> Read(string path)
     {

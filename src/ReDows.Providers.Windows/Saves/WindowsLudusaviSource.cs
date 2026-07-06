@@ -6,10 +6,10 @@ namespace ReDows.Providers.Windows.Saves;
 
 /// <summary>
 /// Downloads the ludusavi manifest onto THIS machine and caches it, then parses it. The manifest DATA is
-/// compiled from PCGamingWiki (CC BY-NC-SA), so it is never shipped with ReDows — it is fetched, with the
+/// compiled from PCGamingWiki (CC BY-NC-SA), so it is never shipped with ReDows. It is fetched, with the
 /// user's opt-in, onto their own PC, exactly like ludusavi itself does.
 /// <para>Best-effort: a network failure falls back to the cached copy if one exists, else to an empty
-/// manifest — never an exception (only a user cancellation propagates). The HTTP handler and the cache
+/// manifest, never an exception (only a user cancellation propagates). The HTTP handler and the cache
 /// path are injectable so the whole thing is unit-tested without a network or the real profile folder.</para>
 /// </summary>
 public sealed class WindowsLudusaviSource : ILudusaviSource, IDisposable
@@ -36,7 +36,7 @@ public sealed class WindowsLudusaviSource : ILudusaviSource, IDisposable
 
     public async Task<LudusaviLoadResult> LoadAsync(bool forceRefresh, CancellationToken cancellationToken)
     {
-        // Use the copy already on disk unless the user asked to refresh — no network needed then.
+        // Use the copy already on disk unless the user asked to refresh; no network needed then.
         if (!forceRefresh && TryReadCache() is { } cached)
         {
             return new LudusaviLoadResult(LudusaviManifest.Parse(cached), LudusaviSourceStatus.Cached);
@@ -50,7 +50,7 @@ public sealed class WindowsLudusaviSource : ILudusaviSource, IDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            throw; // the user cancelled — let it propagate, don't dress it up as a failure
+            throw; // the user cancelled, so let it propagate, don't dress it up as a failure
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
@@ -84,7 +84,7 @@ public sealed class WindowsLudusaviSource : ILudusaviSource, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // The cache is a convenience — a failed write just means the next load downloads again.
+            // The cache is a convenience; a failed write just means the next load downloads again.
         }
     }
 

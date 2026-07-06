@@ -7,7 +7,7 @@ namespace ReDows.Core.Apps;
 // INDEX_EXTERNE parsers (deny-list §D-15): app configs that POINT at data living
 // elsewhere (relocated profiles, mail stores, libraries, VM folders). All pure
 // text-in/paths-out, testable on fixtures; the targets they yield become claimed
-// zones (review/capture only — a wrong index over-captures, never loses).
+// zones (review/capture only: a wrong index over-captures, never loses).
 
 /// <summary>Gecko profiles.ini: profile directories, including absolute relocated ones.</summary>
 public static partial class GeckoProfilesIni
@@ -18,7 +18,7 @@ public static partial class GeckoProfilesIni
     /// <summary>
     /// Returns every profile path. Relative entries (IsRelative=1 or absent) are
     /// resolved against <paramref name="vendorRoot"/>; IsRelative=0 paths are
-    /// returned as-is (arbitrary absolute locations — the whole point §D-15).
+    /// returned as-is (arbitrary absolute locations: the whole point §D-15).
     /// </summary>
     public static IReadOnlyList<string> GetProfilePaths(string profilesIni, string vendorRoot)
     {

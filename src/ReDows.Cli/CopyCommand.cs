@@ -9,9 +9,9 @@ using ReDows.Providers.Windows.Backup;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows copy' — copy the CAPTURE files of a scan manifest to a destination the user picks
+/// 'redows copy' copies the CAPTURE files of a scan manifest to a destination the user picks
 /// (local disk, USB key, or UNC network share). READ-ONLY on the source; every copied file is
-/// verified by hash. capture:secret files are counted but not copied here — they go into the
+/// verified by hash. capture:secret files are counted but not copied here. They go into the
 /// encrypted vault (next step). Exit codes: 0 ok, 2 usage, 3 manifest missing/invalid, 4 error,
 /// 5 completed with failures.
 /// </summary>
@@ -74,7 +74,7 @@ public static class CopyCommand
         var fullDestination = Path.GetFullPath(destination);
         Directory.CreateDirectory(fullDestination);
 
-        Console.Error.WriteLine($"Copying the manifest's CAPTURE files to '{fullDestination}' (read-only on the source)…");
+        Console.Error.WriteLine($"Copying the manifest's CAPTURE files to '{fullDestination}' (read-only on the source)...");
         if (vaultPassword is null)
         {
             Console.Error.WriteLine("  (no --vault-password: capture:secret files will be counted and deferred, never copied in clear.)");
@@ -107,7 +107,7 @@ public static class CopyCommand
                 copySource,
                 new FileSystemSink(fullDestination),
                 vault,
-                onProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} entries — {Sanitize(path)}"));
+                onProgress: (items, path) => Console.Error.WriteLine($"  {items:N0} entries   {Sanitize(path)}"));
             rescued = shadow?.RescuedPaths.Count;
         }
         finally
@@ -117,7 +117,7 @@ public static class CopyCommand
         }
 
         // Record each copied file's checksum, so a later restore can verify end-to-end that what it puts
-        // back is byte-identical to the original — even if the backup medium degraded in between.
+        // back is byte-identical to the original. This holds even if the backup medium degraded in between.
         if (report.Hashes.Count > 0)
         {
             BackupHashManifest.Write(fullDestination, report.Hashes);
@@ -129,7 +129,7 @@ public static class CopyCommand
         return report.Failures.Count > 0 ? 5 : 0;
     }
 
-    /// <summary>Say, on stderr, how locked files will be handled this run — never leave it implicit.</summary>
+    /// <summary>Say, on stderr, how locked files will be handled this run. Never leave it implicit.</summary>
     private static void AnnounceVssMode(bool noVss, bool elevated)
     {
         if (noVss)
@@ -142,7 +142,7 @@ public static class CopyCommand
         }
         else
         {
-            Console.Error.WriteLine("  not elevated: locked files cannot be rescued (they will be reported) — re-run as administrator to capture them.");
+            Console.Error.WriteLine("  not elevated: locked files cannot be rescued (they will be reported). Re-run as administrator to capture them.");
         }
     }
 
@@ -158,8 +158,8 @@ public static class CopyCommand
         {
             var verified = ZipVaultSink.Verify(vaultPath, vaultPassword);
             return verified == expected
-                ? $"vault OK — {verified:N0} secret(s) encrypted and verified ('{Path.GetFileName(vaultPath)}')"
-                : $"vault MISMATCH — verified {verified:N0} but vaulted {expected:N0} ✗";
+                ? $"vault OK. {verified:N0} secret(s) encrypted and verified ('{Path.GetFileName(vaultPath)}')"
+                : $"vault MISMATCH: verified {verified:N0} but vaulted {expected:N0} ✗";
         }
         catch (Exception ex)
         {
@@ -195,8 +195,8 @@ public static class CopyCommand
         text.AppendLine($"  secrets → encrypted vault: {report.SecretsVaulted,11:N0}  {Bytes(report.SecretBytesVaulted)}");
         text.AppendLine($"  secrets deferred (no pw): {report.SecretsDeferred,12:N0}  {Bytes(report.SecretBytesDeferred)}");
         text.AppendLine($"  failed                  : {report.Failures.Count,12:N0}");
-        text.AppendLine($"  equation: {report.AccountingEquation} → " +
-            (report.Unaccounted == 0 ? "0 unaccounted ✓" : $"{report.Unaccounted:N0} UNACCOUNTED ✗ (engine bug)"));
+        text.AppendLine($"  check: {report.AccountingEquation} " +
+            (report.Unaccounted == 0 ? "(0 missed) ✓" : $"({report.Unaccounted:N0} missed) ✗ (bug)"));
         if (vaultStatus is not null)
         {
             text.AppendLine($"  {vaultStatus}");
@@ -205,15 +205,15 @@ public static class CopyCommand
         if (report.Failures.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"== Failed ({report.Failures.Count}) — reported, never silently dropped ==");
+            text.AppendLine($"== Failed ({report.Failures.Count}): reported, never silently dropped ==");
             foreach (var failure in report.Failures.Take(50))
             {
-                text.AppendLine($"  {Sanitize(failure.Path)} — {Sanitize(failure.Reason)}");
+                text.AppendLine($"  {Sanitize(failure.Path)}: {Sanitize(failure.Reason)}");
             }
 
             if (report.Failures.Count > 50)
             {
-                text.AppendLine($"  … and {report.Failures.Count - 50:N0} more.");
+                text.AppendLine($"  ... and {report.Failures.Count - 50:N0} more.");
             }
         }
 

@@ -7,7 +7,7 @@ namespace ReDows.Core.Saves;
 /// <summary>
 /// One save-file location declared by the ludusavi manifest for one game: the raw path (still holding
 /// ludusavi placeholders like <c>&lt;winAppData&gt;</c> and glob wildcards), the tags on it (we care about
-/// <c>save</c>), and the OS/store conditions under which it applies. Purely the parsed data — resolving the
+/// <c>save</c>), and the OS/store conditions under which it applies. Purely the parsed data. Resolving the
 /// placeholders to real paths is the zone builder's job.
 /// </summary>
 public sealed record LudusaviSaveLocation(
@@ -19,16 +19,16 @@ public sealed record LudusaviSaveLocation(
 /// <summary>
 /// A parsed ludusavi manifest (github.com/mtkennerly/ludusavi-manifest), flattened to a list of
 /// per-game save locations. The manifest DATA is compiled from PCGamingWiki (CC BY-NC-SA 3.0), so it is
-/// never bundled in ReDows — it is downloaded onto the user's own machine and parsed here.
+/// never bundled in ReDows. It is downloaded onto the user's own machine and parsed here.
 /// <para>Parsing is fail-SAFE: a missing, empty or malformed manifest yields an EMPTY manifest (the
-/// feature simply does nothing), never an exception — unlike ReDows' own shipped rules, this is optional
+/// feature simply does nothing), never an exception. Unlike ReDows' own shipped rules, this is optional
 /// third-party data and a bad download must never break a scan.</para>
 /// </summary>
 public sealed class LudusaviManifest
 {
     private static readonly IDeserializer Deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .IgnoreUnmatchedProperties() // the manifest also carries installDir/registry/steam/gog/launch — we only read files
+        .IgnoreUnmatchedProperties() // the manifest also carries installDir/registry/steam/gog/launch, but we only read files
         .Build();
 
     public LudusaviManifest(IReadOnlyList<LudusaviSaveLocation> locations) => Locations = locations;

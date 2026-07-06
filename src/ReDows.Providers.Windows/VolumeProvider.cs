@@ -5,7 +5,7 @@ namespace ReDows.Providers.Windows;
 
 /// <summary>
 /// One volume as discovered by GUID (never by drive letters: a volume mounted
-/// only in a folder, or not mounted at all, must still be accounted for —
+/// only in a folder, or not mounted at all, must still be accounted for,
 /// deny-list §0-3).
 /// </summary>
 public sealed record DiscoveredVolume(
@@ -26,7 +26,7 @@ public sealed record DiscoveredVolume(
     public string? ExclusionReason => Scannable
         ? null
         : MountPathsUnreadable
-            ? "mount paths unreadable (volume excluded — the report must never claim 'no mount point' it did not verify)"
+            ? "mount paths unreadable (volume excluded; the report must never claim 'no mount point' it did not verify)"
             : MountPaths.Count == 0
                 ? "no mount point (volume listed for accounting, not walked in v1)"
                 : $"drive kind '{DriveKind}' is out of scan scope";

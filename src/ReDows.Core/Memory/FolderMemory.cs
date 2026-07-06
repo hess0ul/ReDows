@@ -4,12 +4,12 @@ namespace ReDows.Core.Memory;
 
 /// <summary>
 /// One thing ReDows RECOGNISES: a folder or app matched by name, with an OPTIONAL importance override
-/// (keep/maybe/drop — used when the memory is more confident than the scan verdict) and a human
+/// (keep/maybe/drop: used when the memory is more confident than the scan verdict) and a human
 /// <see cref="Note"/> (2-3 sentences) explaining what it is and what matters inside.
 /// <para><see cref="Scope"/> decides how far the entry reaches: "subtree" (default) tints the folder AND
-/// everything under it (right for node_modules, a cache, game saves…); "self" tints ONLY the folder
+/// everything under it (right for node_modules, a cache, game saves...); "self" tints ONLY the folder
 /// itself, so its children are judged on their own (right for a mixed CONTAINER like Documents or AppData,
-/// which holds both your files and app-made subfolders — the container must not stamp "personal" onto a
+/// which holds both your files and app-made subfolders, so the container must not stamp "personal" onto a
 /// game's data folder that lives inside it).</para>
 /// </summary>
 public sealed record KnownEntry(string Match, string? Importance, string Note, string Scope = "subtree");
@@ -22,13 +22,13 @@ public static class ScanMemory
     {
         Verdict.CaptureConfig or Verdict.CaptureUser or Verdict.CaptureSecret => "keep",
         Verdict.Review => "maybe",
-        _ => "drop", // Ignore, NoteOnly — not part of the backup
+        _ => "drop", // Ignore and NoteOnly are not part of the backup
     };
 }
 
 /// <summary>
 /// ReDows' MEMORY of well-known folders and apps. Given an entry's name and path, it returns a rich
-/// note — and, when confident, a colour — for the DEEPEST thing it recognises (so <c>…\AppData\Local\
+/// note (and, when confident, a colour) for the DEEPEST thing it recognises (so <c>...\AppData\Local\
 /// Discord</c> is described as "Discord", not the generic "AppData"). It knows what an AppData or a
 /// node_modules folder is EVERYWHERE, without opening anything: pure, data-driven, locale-safe (it
 /// matches folder-NAME segments, never absolute personal paths). Rules come from memory/known.yaml.
@@ -56,7 +56,7 @@ public sealed class FolderMemory
             var segment = segments[i].ToLowerInvariant();
             foreach (var (entry, matchLower) in _entries)
             {
-                // A "self"-scoped container (Documents, AppData…) describes only ITSELF — it must not tint a
+                // A "self"-scoped container (Documents, AppData...) describes only ITSELF. It must not tint a
                 // child that lives inside it (e.g. a game's data folder under Documents). Only a "subtree"
                 // entry reaches down into its descendants.
                 if (!isOwnSegment && !entry.Scope.Equals("subtree", StringComparison.OrdinalIgnoreCase))
@@ -77,7 +77,7 @@ public sealed class FolderMemory
     /// <summary>
     /// The known entry matching a folder's OWN name (its leaf only, ignoring ancestors and scope), or
     /// null. Unlike <see cref="Describe"/>, this never reaches up the path: it answers "is THIS folder a
-    /// recognised place?" — used by the scan's recognized-places briefing, where every folder is judged by
+    /// recognised place?". It is used by the scan's recognized-places briefing, where every folder is judged by
     /// its own name (an ancestor is visited as its own entry), so a place is recorded once, never per child.
     /// </summary>
     public KnownEntry? DescribeName(string name)

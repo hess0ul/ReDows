@@ -2,7 +2,7 @@ namespace ReDows.Core.Secrets;
 
 /// <summary>
 /// The result of a registry-secrets pass: one finding per catalog target, with a
-/// closed accounting — every target is exactly one of present-with-secret /
+/// closed accounting: every target is exactly one of present-with-secret /
 /// present-without-secret / absent / unreadable (no target silently dropped).
 /// </summary>
 public sealed record RegistrySecretsReport(IReadOnlyList<RegistrySecretFinding> Findings)
@@ -38,7 +38,7 @@ public static class RegistrySecretsScan
     /// <summary>
     /// The impurity boundary: <paramref name="observe"/> does live registry I/O. Any fault
     /// becomes a per-target Unreadable so a single bad/locked target can never abort the whole
-    /// pass — total accounting holds against every exception class, not just today's known ones.
+    /// pass. Total accounting holds against every exception class, not just today's known ones.
     /// </summary>
     private static RegistryObservation ObserveSafely(
         RegistrySecretTarget target, Func<RegistrySecretTarget, RegistryObservation> observe)

@@ -16,7 +16,7 @@ public sealed class AppRowViewModel(AppEntry entry) : ViewModelBase
 
     public string Source => Entry.Source;
 
-    /// <summary>Whether the app can be reinstalled automatically — has a reinstall id (winget / steam / choco…).</summary>
+    /// <summary>Whether the app can be reinstalled automatically: has a reinstall id (winget / steam / choco...).</summary>
     public bool IsAuto => Entry.Reinstall is not null;
 
     /// <summary>A short badge: how it would reinstall ("auto · winget") or that it is manual.</summary>

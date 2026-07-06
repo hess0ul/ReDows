@@ -57,8 +57,8 @@ public sealed record AnyOfCondition(IReadOnlyList<RuleCondition> Conditions) : R
 
 /// <summary>
 /// True when NONE of the child conditions is true (logical NOT-any). Completes the
-/// all/any/none algebra so a rule can require the absence of a marker — e.g. a
-/// standalone executable is one whose tree has an *.exe but NO uninstaller.
+/// all/any/none algebra so a rule can require the absence of a marker. For example,
+/// a standalone executable is one whose tree has an *.exe but NO uninstaller.
 /// </summary>
 public sealed record NoneOfCondition(IReadOnlyList<RuleCondition> Conditions) : RuleCondition
 {

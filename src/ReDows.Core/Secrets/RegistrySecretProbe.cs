@@ -3,7 +3,7 @@ namespace ReDows.Core.Secrets;
 /// <summary>
 /// One value seen under a key: its NAME, and its <see cref="Value"/> ONLY when the
 /// reader classified the name as config and chose to read it. For a secret (or an
-/// unknown name) <see cref="Value"/> is null — never read (invariant #5).
+/// unknown name) <see cref="Value"/> is null, never read (invariant #5).
 /// </summary>
 public sealed record ObservedValue(string Name, string? Value = null);
 
@@ -11,7 +11,7 @@ public sealed record ObservedValue(string Name, string? Value = null);
 public sealed record SubkeyObservation(string Name, IReadOnlyList<ObservedValue> Values);
 
 /// <summary>
-/// A snapshot of a target's key. It may carry CONFIG values (host, port, user — safe
+/// A snapshot of a target's key. It may carry CONFIG values (host, port, user; safe
 /// to keep) but NEVER a secret value: the reader reads a value only after classifying
 /// its name as config, so a secret value is never read in the first place.
 /// </summary>
@@ -37,8 +37,8 @@ public enum SecretClass
 }
 
 /// <summary>
-/// One located value under a target: its full registry path, name, class, and — for a
-/// config value only — its <see cref="Value"/>. A secret's value is always null here.
+/// One located value under a target: its full registry path, name, class, and (for a
+/// config value only) its <see cref="Value"/>. A secret's value is always null here.
 /// </summary>
 public sealed record RegistryItemFinding(string Location, string ValueName, SecretClass Class, string? Value = null);
 
@@ -62,8 +62,8 @@ public sealed record RegistrySecretFinding(
 /// Pure classification of a <see cref="RegistryObservation"/> against a target. A value
 /// name in the target's secret set is a Secret; in its config set, Config; otherwise the
 /// target's <see cref="RegistrySecretTarget.Unmatched"/> class (Config for host-key/MRU
-/// targets, else Review — default-to-review). The reader calls <see cref="ClassifyName"/>
-/// to decide whether to read a value at all; <see cref="Evaluate"/> is the second guard —
+/// targets, else Review; default-to-review). The reader calls <see cref="ClassifyName"/>
+/// to decide whether to read a value at all; <see cref="Evaluate"/> is the second guard:
 /// it surfaces a value ONLY for a config item, dropping any value on a non-config name.
 /// </summary>
 public static class RegistrySecretProbe

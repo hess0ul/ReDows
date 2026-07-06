@@ -14,12 +14,12 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="Review — drop what you don't need" FontSize="18" FontWeight="SemiBold"/>
-            <TextBlock Text="Everything under review is kept by default. Drop the junk — it leaves the list and goes to the trash (you can restore it). One folder at a time."
+            <TextBlock Text="Review and drop what you don't need" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock Text="Everything under review is kept by default. Drop the junk. It leaves the list and goes to the trash, where you can restore it. One folder at a time."
                        Foreground="{StaticResource App.Muted}" Margin="0,4,0,10"/>
 
             <!-- Optional AI assistant: OFF by default, local endpoint by default (nothing leaves this PC). -->
-            <Expander Header="AI assistant (optional) — explain unknown folders" Margin="0,0,0,12">
+            <Expander Header="AI assistant for unknown folders (optional)" Margin="0,0,0,12">
                 <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="14,12" Margin="0,8,0,0"
                         BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                     <StackPanel>
@@ -74,7 +74,7 @@
                         </Grid>
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                                    Visibility="{Binding Ai.ShowApiKey, Converter={StaticResource BoolToVis}}"
-                                   Text="The key is kept in memory only and NEVER saved to disk — you re-enter it after a restart."/>
+                                   Text="The key is kept in memory only and never saved to disk. You re-enter it after a restart."/>
 
                         <!-- Model: any external service hosts many, so one must be named. -->
                         <Grid Margin="0,8,0,0"
@@ -104,7 +104,7 @@
                         <!-- Honest caveat, subscription bridge only. -->
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
                                    Visibility="{Binding Ai.ShowProxyNote, Converter={StaticResource BoolToVis}}"
-                                   Text="You host the bridge yourself (for example via LiteLLM or a subscription proxy). Using a consumer subscription this way may be against the provider's terms — your call."/>
+                                   Text="You host the bridge yourself (for example via LiteLLM or a subscription proxy). Using a consumer subscription this way may be against the provider's terms. That's your call."/>
 
                         <TextBlock Text="{Binding Ai.ConnectionStatus}" Foreground="{StaticResource App.Muted}"
                                    FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"/>
@@ -116,7 +116,7 @@
                                        FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                         <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Text="Heads-up: a local &quot;reasoning&quot; model (it thinks before answering) can take a minute or two per folder — that's normal. Use Cancel to stop, or pick a faster non-reasoning model (or turn off thinking in your server) for quicker sorting."/>
+                                   Text="Note: a local &quot;reasoning&quot; model (it thinks before answering) can take a minute or two per folder. That's normal. Use Cancel to stop, or pick a faster non-reasoning model (or turn off thinking in your server) for quicker sorting."/>
                     </StackPanel>
                 </Border>
             </Expander>
@@ -136,20 +136,20 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <!-- Colour guide: shown once the AI is on. The colours mean IMPORTANCE (how much you'd miss a
-                 folder), on a blue→pink→purple gradient — on purpose NOT red/green, so it never reads as
+            <!-- Colour guide: shown once the AI is on. The colours mean importance (how much you'd miss a
+                 folder), on a blue/pink/purple gradient, deliberately not red/green, so it never reads as
                  good-vs-bad. A folder gets its colour after it is analysed. -->
             <Border Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"
                     Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
                     BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                 <StackPanel>
-                    <TextBlock Text="Colour guide — how much you'd miss a folder (from the AI, once it's analysed). It's about importance, not good vs bad."
+                    <TextBlock Text="Colour guide: how much you'd miss a folder (from the AI, once it's analysed). It's about importance, not good vs bad."
                                Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,6" TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal">
                         <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Keep}" VerticalAlignment="Center"/>
                         <TextBlock Text="Worth keeping" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
                         <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Maybe}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Maybe — not sure" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
+                        <TextBlock Text="Not sure" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
                         <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Drop}" VerticalAlignment="Center"/>
                         <TextBlock Text="Probably not needed" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"/>
                     </StackPanel>
@@ -217,7 +217,7 @@
             <ProgressBar IsIndeterminate="True" Height="4" BorderThickness="0"
                          Foreground="{StaticResource App.Accent}" Background="{StaticResource App.Card}"/>
             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                <TextBlock Text="Reading folder (computing sizes)…" Foreground="{StaticResource App.Muted}"
+                <TextBlock Text="Reading folder (computing sizes)..." Foreground="{StaticResource App.Muted}"
                            FontSize="12" VerticalAlignment="Center"/>
                 <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}"
                         Margin="12,0,0,0" Padding="10,4"/>
@@ -259,7 +259,7 @@
                 </Style>
             </Border.Style>
             <StackPanel>
-                <!-- Analyzing… (one folder, or the analyze-all batch) -->
+                <!-- Analyzing... (one folder, or the analyze-all batch) -->
                 <StackPanel Orientation="Horizontal" Visibility="{Binding Ai.IsBusy, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="{Binding Ai.BusyText}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
                     <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding Ai.CancelCommand}"
@@ -276,11 +276,11 @@
                     <TextBlock Text="{Binding Ai.Result.Explanation}" Foreground="{StaticResource App.Muted}"
                                TextWrapping="Wrap" Margin="0,4,0,10"/>
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Accept — drop this folder" Padding="12,6" Command="{Binding Ai.AcceptCommand}"
+                        <Button Content="Accept and drop this folder" Padding="12,6" Command="{Binding Ai.AcceptCommand}"
                                 Visibility="{Binding Ai.CanAcceptDrop, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0"/>
                         <Button Content="Dismiss" Style="{StaticResource GhostButton}" Command="{Binding Ai.DismissCommand}"/>
                     </StackPanel>
-                    <TextBlock Text="This is a suggestion from an AI model — it can be wrong. You decide."
+                    <TextBlock Text="This is a suggestion from an AI model. It can be wrong. You decide."
                                Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0"/>
                 </StackPanel>
             </StackPanel>
@@ -314,7 +314,7 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <!-- What ReDows KNOWS about this folder (from its memory) — a rich note, shown when recognised. -->
+                    <!-- What ReDows knows about this folder (from its memory). A note shown when recognised. -->
                     <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,9" Margin="0,0,0,8"
                             BorderBrush="{StaticResource App.Level.Keep}" BorderThickness="0,0,0,2">
                         <Border.Style>
@@ -478,7 +478,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Trash — dropped items (won't be backed up). Restore brings one back." FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="0" Text="Trash: dropped items won't be backed up. Restore brings one back." FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <Button Grid.Column="1" Content="Close" Style="{StaticResource GhostButton}" Command="{Binding ToggleTrashCommand}"/>
                     </Grid>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">

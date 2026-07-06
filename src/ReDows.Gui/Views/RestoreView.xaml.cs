@@ -7,7 +7,7 @@ namespace ReDows.Gui.Views;
 
 /// <summary>
 /// The Restore screen. Logic lives in RestoreViewModel; this opens the folder pickers and hands the
-/// PasswordBox's value to the run — the vault password is passed transiently, never stored (invariant #5).
+/// PasswordBox's value to the run. The vault password is passed transiently, never stored (invariant #5).
 /// </summary>
 public partial class RestoreView : UserControl
 {

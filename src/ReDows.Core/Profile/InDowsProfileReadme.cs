@@ -6,8 +6,8 @@ namespace ReDows.Core.Profile;
 
 /// <summary>
 /// Pure renderer of the human-facing README that tops the InDows profile folder: a
-/// plain-language summary of what InDows restores automatically and — the point for
-/// forget-nothing — what it will NOT, so the user keeps a redo-by-hand checklist.
+/// plain-language summary of what InDows restores automatically. It also lists what it
+/// will NOT restore (the point for forget-nothing), so the user keeps a redo-by-hand checklist.
 /// </summary>
 public static class InDowsProfileReadme
 {
@@ -23,10 +23,10 @@ public static class InDowsProfileReadme
         text.AppendLine("## Apps");
         text.AppendLine();
         text.AppendLine($"- **{catalog.ActiveCount}** ready to reinstall via winget (in `configuration.dsc.yaml`).");
-        text.AppendLine($"- **{catalog.CandidateCount}** uncertain + **{catalog.ManualCount}** without a winget id — left as comments to review by hand.");
+        text.AppendLine($"- **{catalog.CandidateCount}** uncertain and **{catalog.ManualCount}** without a winget id. Left as comments to review by hand.");
         text.AppendLine();
 
-        text.AppendLine("## Settings — InDows modules to enable (come back automatically)");
+        text.AppendLine("## Settings: InDows modules to enable (come back automatically)");
         text.AppendLine();
         if (profile.ExistingModules.Count > 0)
         {
@@ -43,7 +43,7 @@ public static class InDowsProfileReadme
         if (profile.ByBase.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Also applied automatically by the InDows base install — no action:");
+            text.AppendLine("Also applied automatically by the InDows base install (no action):");
             foreach (var reading in profile.ByBase)
             {
                 text.AppendLine($"- {Name(reading)}");
@@ -57,22 +57,22 @@ public static class InDowsProfileReadme
             text.AppendLine();
             foreach (var module in profile.NewModules)
             {
-                text.AppendLine($"- `{Clean(module.Module)}` — {Names(module)}");
+                text.AppendLine($"- `{Clean(module.Module)}`: {Names(module)}");
             }
         }
 
         text.AppendLine();
-        text.AppendLine("## ⚠️ Won't come back on its own — redo-by-hand checklist");
+        text.AppendLine("## ⚠️ Won't come back on its own: redo-by-hand checklist");
         text.AppendLine();
-        var anyManualWork = profile.Manual.Count + profile.NotApplied.Count + profile.PersoOnly.Count + profile.Unreadable.Count;
+        var anyManualWork = profile.Manual.Count + profile.NotApplied.Count + profile.PrivateOnly.Count + profile.Unreadable.Count;
         if (anyManualWork == 0)
         {
-            text.AppendLine("Nothing here — every captured setting is restored automatically.");
+            text.AppendLine("Nothing here. Every captured setting is restored automatically.");
         }
 
         if (profile.Manual.Count > 0)
         {
-            text.AppendLine($"**Nothing restores these — set them by hand ({profile.Manual.Count}):**");
+            text.AppendLine($"**Nothing restores these. Set them by hand ({profile.Manual.Count}):**");
             text.AppendLine();
             foreach (var reading in profile.Manual)
             {
@@ -84,7 +84,7 @@ public static class InDowsProfileReadme
 
         if (profile.NotApplied.Count > 0)
         {
-            text.AppendLine("**A module is the home, but its line is OFF today — wire it up or set by hand:**");
+            text.AppendLine("**A module is the home, but its line is OFF today. Wire it up or set by hand:**");
             text.AppendLine();
             foreach (var module in profile.NotApplied)
             {
@@ -97,11 +97,11 @@ public static class InDowsProfileReadme
             text.AppendLine();
         }
 
-        if (profile.PersoOnly.Count > 0)
+        if (profile.PrivateOnly.Count > 0)
         {
-            text.AppendLine($"**Only your private config applies these — a public InDows leaves the default ({profile.PersoOnly.Count}):**");
+            text.AppendLine($"**Only your private config applies these. A public InDows leaves the default ({profile.PrivateOnly.Count}):**");
             text.AppendLine();
-            foreach (var reading in profile.PersoOnly)
+            foreach (var reading in profile.PrivateOnly)
             {
                 text.AppendLine($"- {Name(reading)}: {Desired(reading)}");
             }

@@ -4,7 +4,7 @@ namespace ReDows.Providers.Windows.Apps;
 
 /// <summary>
 /// Chocolatey packages: one folder per package under &lt;root&gt;\lib with its
-/// .nuspec — exact reinstall ids. Roots: %ChocolateyInstall% (relocatable),
+/// .nuspec, giving exact reinstall ids. Roots: %ChocolateyInstall% (relocatable),
 /// the default ProgramData location, and UniGetUI's embedded copy.
 /// </summary>
 public static class ChocolateyAppSource
@@ -132,7 +132,7 @@ public static class ScoopAppSource
                         Reinstall: bucket is null
                             ? new ReinstallHint("scoop", name, ReinstallConfidence.Candidate)
                             : new ReinstallHint("scoop", $"{bucket}/{name}", ReinstallConfidence.Exact),
-                        Note: bucket is null ? "install.json has no bucket — id without bucket" : null));
+                        Note: bucket is null ? "install.json has no bucket, so the id has no bucket" : null));
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
                 {

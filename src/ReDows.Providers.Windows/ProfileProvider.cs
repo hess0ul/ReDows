@@ -5,9 +5,9 @@ namespace ReDows.Providers.Windows;
 public sealed record DiscoveredProfile(string Sid, string UserName, string RootPath, bool IsCurrentUser);
 
 /// <summary>
-/// Discovers real user profiles from HKLM ProfileList (never a Users\* glob —
+/// Discovers real user profiles from HKLM ProfileList (never a Users\* glob,
 /// deny-list §0-1): catches relocated profiles and provides the SID. Special
-/// profiles (Default, defaultuser0, WDAGUtilityAccount…) are recognized so the
+/// profiles (Default, defaultuser0, WDAGUtilityAccount...) are recognized so the
 /// orphan detector never flags them.
 /// </summary>
 public static class ProfileProvider
@@ -42,7 +42,7 @@ public static class ProfileProvider
                 // A real account whose root is unknown escapes both profile
                 // coverage AND the orphan sweep (which only scans the profiles
                 // directory): counted, never silent (§0-5).
-                notes?.Add($"profile {sid} has no ProfileImagePath — its tree (if any) is not covered by per-profile rules");
+                notes?.Add($"profile {sid} has no ProfileImagePath, so its tree (if any) is not covered by per-profile rules");
                 continue;
             }
 
@@ -59,7 +59,7 @@ public static class ProfileProvider
 
     /// <summary>
     /// Directories under the profiles root that belong to no ProfileList entry and
-    /// are not special: deleted accounts with kept files, migrations — user data
+    /// are not special: deleted accounts with kept files, migrations. User data
     /// off the profile radar (§A.7/§C-21 → high-priority REVIEW downstream).
     /// </summary>
     public static IReadOnlyList<string> FindOrphanDirectories(

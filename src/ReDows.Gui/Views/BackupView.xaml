@@ -4,7 +4,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="26,22" MaxWidth="920" HorizontalAlignment="Left">
             <TextBlock Text="Backup" FontSize="18" FontWeight="SemiBold"/>
-            <TextBlock Text="Copy the files your last scan marked to keep to a safe place — read-only on your PC, every file verified."
+            <TextBlock Text="Copy the files your last scan marked to keep to a safe place. Read-only on your PC, and every file is verified."
                        Foreground="{StaticResource App.Muted}" Margin="0,4,0,16"/>
 
             <!-- What gets backed up -->
@@ -26,7 +26,7 @@
                         </TextBlock.Style>
                     </TextBlock>
                     <TextBlock Foreground="#E8C97A" TextWrapping="Wrap"
-                               Text="Nothing to back up yet — run a scan first (Scan tab), then come back here.">
+                               Text="Nothing to back up yet. Run a scan first (Scan tab), then come back here.">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -56,7 +56,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}"/>
-                        <Button Grid.Column="1" Content="Browse…" Style="{StaticResource GhostButton}"
+                        <Button Grid.Column="1" Content="Browse..." Style="{StaticResource GhostButton}"
                                 Margin="8,0,0,0" Click="Browse_Click"/>
                     </Grid>
                 </StackPanel>
@@ -70,7 +70,7 @@
                               IsChecked="{Binding UseVault, Mode=TwoWay}"/>
                     <StackPanel Margin="24,8,0,0" Visibility="{Binding UseVault, Converter={StaticResource BoolToVis}}">
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8"
-                                   Text="Secrets go into a password-protected ZIP (AES-256) you can open with 7-Zip or WinRAR on any PC — so they survive the reset. Choose a password you will remember: it is NOT stored anywhere."/>
+                                   Text="Secrets go into a password-protected ZIP (AES-256). You can open it with 7-Zip or WinRAR on any PC, so it survives the reset. Choose a password you will remember: it is not stored anywhere."/>
                         <PasswordBox x:Name="VaultPassword" Width="280" HorizontalAlignment="Left" Padding="8,6"
                                      Background="{StaticResource App.Surface}" Foreground="White"
                                      BorderBrush="{StaticResource App.Border}" CaretBrush="White"/>
@@ -151,7 +151,7 @@
                     <CheckBox Content="Store duplicate files only once (save space)" FontWeight="SemiBold"
                               IsChecked="{Binding Dedupe, Mode=TwoWay}"/>
                     <TextBlock Margin="24,6,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
-                               Text="When the same file (byte-for-byte) sits in several places, only the most recent copy is saved; the other places it belongs are written to a restore map (redows-restore-map.json) so a later restore can put it back everywhere. Secrets are never de-duplicated. A slower extra pass — nothing is deleted from your PC."/>
+                               Text="When the same file sits in several places, only the most recent copy is saved; the other places it belongs are written to a restore map (redows-restore-map.json) so a later restore can put it back everywhere. Secrets are never de-duplicated. This is a slower extra pass. Nothing is deleted from your PC."/>
                 </StackPanel>
             </Border>
 
@@ -226,7 +226,7 @@
                 </TextBlock>
 
                 <TextBlock Margin="0,4,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap">
-                    <Run Text="Skipped because you trashed them: "/><Run Text="{Binding Result.ExcludedText, Mode=OneWay}"/><Run Text=" (review items only — a kept config or secret is never dropped by the trash)."/>
+                    <Run Text="Skipped because you trashed them: "/><Run Text="{Binding Result.ExcludedText, Mode=OneWay}"/><Run Text=" (review items only; a kept config or secret is never dropped by the trash)."/>
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -270,7 +270,7 @@
                 <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,10,0,0"
                         BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="Total accounting — nothing left uncounted" FontWeight="SemiBold" FontSize="12"/>
+                        <TextBlock Text="Everything is accounted for" FontWeight="SemiBold" FontSize="12"/>
                         <TextBlock Text="{Binding Result.EquationText}" Foreground="{StaticResource App.Muted}"
                                    FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
                     </StackPanel>

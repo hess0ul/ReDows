@@ -73,7 +73,7 @@ public static class WindowsScanContextProvider
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            notes.Add($"profiles directory '{profilesDirectory}' not enumerable ({ex.GetType().Name}) — orphan detection unavailable");
+            notes.Add($"profiles directory '{profilesDirectory}' could not be listed ({ex.GetType().Name}), so orphan detection is unavailable");
             return [];
         }
     }
@@ -113,7 +113,7 @@ public static class WindowsScanContextProvider
         }
         else
         {
-            notes.Add("FOLDERID_Public not resolved — %Public%-anchored rules will not be instantiated");
+            notes.Add("FOLDERID_Public not resolved, so %Public%-anchored rules will not be instantiated");
         }
 
         return environment;

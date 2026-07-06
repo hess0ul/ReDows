@@ -3,7 +3,7 @@ namespace ReDows.Core.Apps;
 /// <summary>
 /// One installed package as winget's own correlation engine sees it: the winget
 /// package id, the source it matched (null = installed but unmatched), and the
-/// EXACT keys winget extracted — ARP product codes (= Uninstall subkey names)
+/// EXACT keys winget extracted: ARP product codes (= Uninstall subkey names)
 /// and MSIX package family names.
 /// </summary>
 public sealed record WingetInstalledMatch(
@@ -13,7 +13,7 @@ public sealed record WingetInstalledMatch(
     IReadOnlyList<string> PackageFamilyNames);
 
 /// <summary>
-/// Row-level attachment of winget reinstall ids to inventory entries — pure and
+/// Row-level attachment of winget reinstall ids to inventory entries. Pure and
 /// exact-keys only (a wrong reinstall id is worse than none): ARP entries match
 /// by Uninstall subkey name against winget's ProductCodes, MSIX entries by
 /// PackageFamilyName. Never destructive: an existing exact hint is only

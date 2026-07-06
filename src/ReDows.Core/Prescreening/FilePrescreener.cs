@@ -1,29 +1,29 @@
-namespace ReDows.Core.Triage;
+namespace ReDows.Core.Prescreening;
 
 /// <summary>
-/// The fast-path decision for one entry. <see cref="Importance"/> uses the Review colour keys —
-/// "keep" (blue), "maybe" (pink), "drop" (purple) — or "" when no rule matched (the entry is UNKNOWN and
+/// The fast-path decision for one entry. <see cref="Importance"/> uses the Review colour keys:
+/// "keep" (blue), "maybe" (pink), "drop" (purple), or "" when no rule matched (the entry is UNKNOWN and
 /// should be handed to the AI). <see cref="IsSecret"/> marks a key/credential (kept, flagged, never
 /// exposed). <see cref="IsCloudSync"/> marks a file in a cloud-synced folder (dropped, but the user is
 /// reminded to sync first). <see cref="Reason"/> is the human "why", shown as the row's tooltip.
 /// </summary>
-public sealed record TriageVerdict(string Importance, bool IsSecret, bool IsCloudSync, string Reason)
+public sealed record PrescreenVerdict(string Importance, bool IsSecret, bool IsCloudSync, string Reason)
 {
-    /// <summary>No rule matched — the entry is unknown and should be sent to the AI.</summary>
-    public static readonly TriageVerdict Unknown = new("", false, false, "");
+    /// <summary>No rule matched. The entry is unknown and should be sent to the AI.</summary>
+    public static readonly PrescreenVerdict Unknown = new("", false, false, "");
 
     public bool IsKnown => Importance.Length > 0;
 }
 
 /// <summary>
 /// The data-driven "fast path": classify an entry from its METADATA ALONE (name, extension, path
-/// segments, size) so obvious files never cost an AI call. Pure — no I/O, never opens a file (the same
-/// privacy guarantee as <c>AiPayload</c>). Rules come from <c>triage/file-triage.yaml</c> (generic +
+/// segments, size) so obvious files never cost an AI call. Pure: no I/O, never opens a file (the same
+/// privacy guarantee as <c>AiPayload</c>). Rules come from <c>prescreen/file-prescreen.yaml</c> (generic +
 /// bilingual). Priority is forget-nothing: <b>secret &gt; keep &gt; review &gt; drop</b>, and anything
-/// unmatched stays <see cref="TriageVerdict.Unknown"/> (→ the AI decides). A tiny image is downgraded to
+/// unmatched stays <see cref="PrescreenVerdict.Unknown"/> (→ the AI decides). A tiny image is downgraded to
 /// "maybe" (likely an icon/thumbnail), never dropped on size alone.
 /// </summary>
-public sealed class FileTriage
+public sealed class FilePrescreener
 {
     private readonly HashSet<string> _keepExt;
     private readonly HashSet<string> _reviewExt;
@@ -37,7 +37,7 @@ public sealed class FileTriage
     private readonly IReadOnlyList<string> _keepNames;
     private readonly long _thumbnailMaxBytes;
 
-    public FileTriage(
+    public FilePrescreener(
         IEnumerable<string> keepExtensions,
         IEnumerable<string> reviewExtensions,
         IEnumerable<string> dropExtensions,
@@ -66,43 +66,43 @@ public sealed class FileTriage
     /// <summary>
     /// Decide one entry from its metadata. Files AND folder entries go through the same path-segment
     /// checks (an entry's own name is the last segment), so a "node_modules" folder or a file inside one
-    /// both resolve to drop. Returns <see cref="TriageVerdict.Unknown"/> when nothing matches.
+    /// both resolve to drop. Returns <see cref="PrescreenVerdict.Unknown"/> when nothing matches.
     /// </summary>
-    public TriageVerdict Classify(string name, bool isDirectory, long bytes, string fullPath)
+    public PrescreenVerdict Classify(string name, bool isDirectory, long bytes, string fullPath)
     {
         var lowerName = name.Trim().ToLowerInvariant();
         var ext = isDirectory ? "" : Extension(lowerName);
         var segments = fullPath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
 
-        // 1. SECRET wins over everything — a key/credential is never dropped and never exposed.
+        // 1. SECRET wins over everything. A key/credential is never dropped and never exposed.
         if (MatchesAny(lowerName, _secretNames) || (ext.Length > 0 && _secretExt.Contains(ext)))
         {
-            return new TriageVerdict("keep", IsSecret: true, false, "Looks like a key or credential — kept and flagged secret.");
+            return new PrescreenVerdict("keep", IsSecret: true, false, "Looks like a key or credential. Kept and flagged secret.");
         }
 
-        // 2. Inside a protected folder (game saves, backups…) → keep, even if the extension says otherwise.
+        // 2. Inside a protected folder (game saves, backups...) → keep, even if the extension says otherwise.
         if (segments.Any(_keepFolders.Contains))
         {
-            return new TriageVerdict("keep", false, false, "Inside a keep folder (game saves / backup).");
+            return new PrescreenVerdict("keep", false, false, "Inside a keep folder (game saves / backup).");
         }
 
-        // 3. Name looks like a personal document (CV, ID, invoice…) → keep.
+        // 3. Name looks like a personal document (CV, ID, invoice...) → keep.
         if (MatchesAny(lowerName, _keepNames))
         {
-            return new TriageVerdict("keep", false, false, "Name suggests a personal document.");
+            return new PrescreenVerdict("keep", false, false, "Name suggests a personal document.");
         }
 
         // 4. In a cloud-synced folder → drop, but remind the user to sync it first so nothing is lost.
         if (segments.Any(_cloudFolders.Contains))
         {
-            return new TriageVerdict("drop", false, IsCloudSync: true, "In a cloud-synced folder — make sure it's synced, then it's safe to drop.");
+            return new PrescreenVerdict("drop", false, IsCloudSync: true, "In a cloud-synced folder. Make sure it's synced, then it's safe to drop.");
         }
 
-        // 5. Inside a regenerable folder (node_modules, caches…) → drop; this beats a keep-extension asset
+        // 5. Inside a regenerable folder (node_modules, caches...) → drop; this beats a keep-extension asset
         //    (a .png inside node_modules is a package asset, not a memory).
         if (segments.Any(_dropFolders.Contains))
         {
-            return new TriageVerdict("drop", false, false, "Inside a regenerable folder (dependencies / cache).");
+            return new PrescreenVerdict("drop", false, false, "Inside a regenerable folder (dependencies / cache).");
         }
 
         if (ext.Length > 0)
@@ -112,27 +112,27 @@ public sealed class FileTriage
             {
                 if (_imageExt.Contains(ext) && _thumbnailMaxBytes > 0 && bytes > 0 && bytes < _thumbnailMaxBytes)
                 {
-                    return new TriageVerdict("maybe", false, false, "Tiny image — likely an icon or thumbnail, not a memory.");
+                    return new PrescreenVerdict("maybe", false, false, "Tiny image. Likely an icon or thumbnail, not a memory.");
                 }
 
-                return new TriageVerdict("keep", false, false, "Worth keeping (memory or user data).");
+                return new PrescreenVerdict("keep", false, false, "Worth keeping (memory or user data).");
             }
 
             // 7. Could hold anything (VM/disk image, archive, ebook) → review.
             if (_reviewExt.Contains(ext))
             {
-                return new TriageVerdict("maybe", false, false, "Could hold anything — worth a look.");
+                return new PrescreenVerdict("maybe", false, false, "Could hold anything. Worth a look.");
             }
 
             // 8. Cache / temp / log → drop.
             if (_dropExt.Contains(ext))
             {
-                return new TriageVerdict("drop", false, false, "Cache, temp or log — it gets regenerated.");
+                return new PrescreenVerdict("drop", false, false, "Cache, temp or log. It gets regenerated.");
             }
         }
 
         // 9. Nothing matched → let the AI judge it.
-        return TriageVerdict.Unknown;
+        return PrescreenVerdict.Unknown;
     }
 
     private static HashSet<string> Extensions(IEnumerable<string> values) =>
@@ -147,7 +147,7 @@ public sealed class FileTriage
     private static string Extension(string lowerName)
     {
         var dot = lowerName.LastIndexOf('.');
-        // A leading-dot name (".env", ".npmrc") has no real extension — it is matched by the secret NAME
+        // A leading-dot name (".env", ".npmrc") has no real extension. It is matched by the secret NAME
         // rules instead. A genuine extension has text on both sides of the last dot.
         return dot > 0 && dot < lowerName.Length - 1 ? lowerName[(dot + 1)..] : "";
     }

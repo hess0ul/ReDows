@@ -12,7 +12,7 @@
     <SolidColorBrush x:Key="App.Good" Color="#5DD5A8"/>
     <SolidColorBrush x:Key="App.Border" Color="#3A3A40"/>
 
-    <!-- Review colour triage: a blue→pink→purple gradient for IMPORTANCE (how much you'd miss a folder),
+    <!-- Review colour coding: a blue→pink→purple gradient for IMPORTANCE (how much you'd miss a folder),
          deliberately NOT red/green so it never reads as good-vs-bad. Keep=blue, maybe=pink, drop=purple. -->
     <SolidColorBrush x:Key="App.Level.Keep" Color="#4C8DFF"/>
     <SolidColorBrush x:Key="App.Level.Maybe" Color="#E86AC6"/>
@@ -39,8 +39,8 @@
         </Setter>
     </Style>
 
-    <!-- One nav entry (a RadioButton so the CURRENT screen stays lit): icon glyph in Tag, accent pill
-         on the left when selected, soft rounded hover — the Windows 11 navigation look, dependency-free. -->
+    <!-- One nav entry (a RadioButton so the current screen stays lit): icon glyph in Tag, accent pill
+         on the left when selected, soft rounded hover. The Windows 11 navigation look, dependency-free. -->
     <Style x:Key="NavItem" TargetType="RadioButton">
         <Setter Property="Foreground" Value="{StaticResource App.Text}"/>
         <Setter Property="FontSize" Value="14"/>

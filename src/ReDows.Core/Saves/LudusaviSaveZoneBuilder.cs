@@ -6,9 +6,9 @@ namespace ReDows.Core.Saves;
 /// <summary>
 /// Turns a parsed <see cref="LudusaviManifest"/> into save-capture zones for a concrete machine, PURELY
 /// (no I/O): for every "save"-tagged, Windows-applicable location it resolves ludusavi's placeholders
-/// (<c>&lt;winAppData&gt;</c>, <c>&lt;winDocuments&gt;</c>, <c>&lt;home&gt;</c>…) against each profile and
+/// (<c>&lt;winAppData&gt;</c>, <c>&lt;winDocuments&gt;</c>, <c>&lt;home&gt;</c>...) against each profile and
 /// emits an <see cref="AppDataZone"/> (verdict <c>capture:user</c>).
-/// <para>Why <see cref="AppDataZone"/>: it is ADDITIVE-only — the engine applies it AFTER the ruleset and
+/// <para>Why <see cref="AppDataZone"/>: it is ADDITIVE-only. The engine applies it AFTER the ruleset and
 /// ONLY over a REVIEW verdict, so a save location can only make a file MORE kept (review → capture), never
 /// less. A wrong manifest entry over-captures (benign) but can never lose or drop data. The scan runner
 /// then keeps only the zones whose folder actually exists on this PC.</para>
@@ -22,9 +22,9 @@ public static class LudusaviSaveZoneBuilder
     private static readonly char[] GlobChars = ['*', '?', '['];
 
     // Windows containers that hold MANY apps, not one game's saves: if a save path wildcards away the
-    // per-app segment (e.g. "<winLocalAppData>/Packages/&lt;storeGameId&gt;/…" → "…/Local/Packages"),
+    // per-app segment (e.g. "<winLocalAppData>/Packages/&lt;storeGameId&gt;/..." → ".../Local/Packages"),
     // the prefix truncates to the shared root and would sweep every Store app. Reject such a leaf.
-    // "My Games" is deliberately NOT here — it holds game saves only, so capturing it is on-target.
+    // "My Games" is deliberately NOT here. It holds game saves only, so capturing it is on-target.
     private static readonly HashSet<string> SharedContainers = new(StringComparer.OrdinalIgnoreCase) { "Packages" };
 
     public static IReadOnlyList<AppDataZone> Build(LudusaviManifest manifest, ScanContext context)
@@ -34,8 +34,8 @@ public static class LudusaviSaveZoneBuilder
         foreach (var profile in context.Profiles)
         {
             var vars = ResolvePlaceholders(profile, context);
-            // The resolved Known-Folder roots (AppData, Documents, home, LocalAppData, Public…). A zone must
-            // be a proper DESCENDANT of one of them — a game-specific subfolder — never the bare root: a path
+            // The resolved Known-Folder roots (AppData, Documents, home, LocalAppData, Public...). A zone must
+            // be a proper DESCENDANT of one of them (a game-specific subfolder), never the bare root: a path
             // like "<winAppData>/*" would otherwise capture the WHOLE Roaming folder (caught by a real smoke).
             var roots = vars.Values
                 .Where(v => v != "*")
@@ -58,7 +58,7 @@ public static class LudusaviSaveZoneBuilder
                 var substituted = Substitute(location.RawPath, vars);
                 if (substituted is null)
                 {
-                    continue; // an unresolvable placeholder (the game's install dir, an unmodelled store) — skip
+                    continue; // skip an unresolvable placeholder (the game's install dir, an unmodelled store)
                 }
 
                 var prefix = ConcretePrefix(substituted);
@@ -70,7 +70,7 @@ public static class LudusaviSaveZoneBuilder
                 var leaf = ScanPaths.Split(prefix)[^1];
                 if (SharedContainers.Contains(leaf))
                 {
-                    continue; // a multi-app system container (Packages…) — the per-game segment was wildcarded away
+                    continue; // a multi-app system container (Packages...). The per-game segment was wildcarded away
                 }
 
                 byPrefix.TryAdd(prefix, new AppDataZone("ludusavi:" + Sanitize(location.Game), prefix, Verdict.CaptureUser));
@@ -145,9 +145,9 @@ public static class LudusaviSaveZoneBuilder
 
     /// <summary>
     /// True when <paramref name="prefix"/> is at least one segment BELOW the deepest Known-Folder root it
-    /// sits under — i.e. a game-specific subfolder, not a bare root. A save path whose first segment after
+    /// sits under, i.e. a game-specific subfolder, not a bare root. A save path whose first segment after
     /// the placeholder is a wildcard truncates back to the root itself (e.g. "&lt;winAppData&gt;/*" →
-    /// "…/Roaming"); capturing that would sweep the whole folder, so it is rejected.
+    /// ".../Roaming"); capturing that would sweep the whole folder, so it is rejected.
     /// </summary>
     private static bool IsGameSpecificSubfolder(string prefix, IReadOnlyList<string> roots)
     {
@@ -169,7 +169,7 @@ public static class LudusaviSaveZoneBuilder
         && path.StartsWith(root, StringComparison.OrdinalIgnoreCase)
         && (path.Length == root.Length || path[root.Length] == '/');
 
-    /// <summary>The path down to (but excluding) the first wildcard segment — the concrete folder to capture.</summary>
+    /// <summary>The path down to (but excluding) the first wildcard segment: the concrete folder to capture.</summary>
     private static string? ConcretePrefix(string path)
     {
         var kept = new List<string>();

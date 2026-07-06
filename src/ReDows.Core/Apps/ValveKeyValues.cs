@@ -3,7 +3,7 @@ namespace ReDows.Core.Apps;
 /// <summary>
 /// Minimal parser for Valve's text KeyValues format (VDF/ACF: libraryfolders.vdf,
 /// appmanifest_*.acf): quoted keys, quoted string values or brace-nested blocks,
-/// backslash escapes. Pure — testable on fixtures.
+/// backslash escapes. Pure and testable on fixtures.
 /// </summary>
 public sealed class ValveKeyValues
 {
@@ -15,8 +15,6 @@ public sealed class ValveKeyValues
     public IReadOnlyDictionary<string, string> Values => _values;
 
     public string? GetValue(string key) => _values.GetValueOrDefault(key);
-
-    public ValveKeyValues? GetChild(string key) => _children.GetValueOrDefault(key);
 
     /// <summary>
     /// Recursion guard: real VDF/ACF files nest 3-4 levels; a pathological file
@@ -41,7 +39,7 @@ public sealed class ValveKeyValues
             }
         }
 
-        // Conventional single-root documents ("libraryfolders" { … }) unwrap to their content.
+        // Conventional single-root documents ("libraryfolders" { ... }) unwrap to their content.
         return root._values.Count == 0 && root._children.Count == 1
             ? root._children.Values.First()
             : root;
@@ -84,7 +82,7 @@ public sealed class ValveKeyValues
 
             if (isBlockOpen)
             {
-                continue; // stray '{' — tolerate
+                continue; // tolerate a stray '{'
             }
 
             if (!TryReadToken(text, ref position, out var value, out var valueIsOpen, out var valueIsClose))

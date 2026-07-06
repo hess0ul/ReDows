@@ -4,15 +4,15 @@ namespace ReDows.Core.Apps;
 
 /// <summary>
 /// Recognises a folder made by an INSTALLED application, by matching its name against the app inventory
-/// (each app's name and its publisher). So a "ShareX", "Adobe" or "Rockstar Games" folder — wherever it
-/// sits — is known to be the software's data, not something the user created, WITHOUT hand-listing every
+/// (each app's name and its publisher). So a "ShareX", "Adobe" or "Rockstar Games" folder (wherever it
+/// sits) is known to be the software's data, not something the user created, WITHOUT hand-listing every
 /// app. Pure and conservative: it matches the WHOLE normalised folder name against a whole app/publisher
 /// name (a light corporate-suffix strip aside), so a chance match stays rare, and callers colour such a
 /// folder "review" (forget-nothing), never keep or drop.
 /// </summary>
 public sealed class InstalledAppFolders
 {
-    // These are true corporate designators — safe to strip so "Adobe Inc." matches an "Adobe" folder.
+    // These are true corporate designators. Stripping them is safe so "Adobe Inc." matches an "Adobe" folder.
     // NOT "Games"/"Software"/"Studios"/"Entertainment": those are part of distinctive names (Rockstar Games).
     private static readonly HashSet<string> CorporateSuffixes = new(StringComparer.Ordinal)
     {

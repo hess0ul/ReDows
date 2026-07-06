@@ -25,7 +25,7 @@ public static partial class ArpEntryClassification
 
         if (systemComponent == 1)
         {
-            return (AppEntryKind.Component, "SystemComponent=1 (hidden from Add/Remove Programs; some real tools do this — review)");
+            return (AppEntryKind.Component, "SystemComponent=1 (hidden from Add/Remove Programs; some real tools do this, so review)");
         }
 
         if (!string.IsNullOrWhiteSpace(parentKeyName))

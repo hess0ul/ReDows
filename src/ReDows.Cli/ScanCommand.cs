@@ -15,9 +15,9 @@ using ReDows.Providers.Windows.Saves;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows scan' — walk the machine (read-only), classify every object and print
-/// the completeness report. Exit codes: 0 complete, 1 invalid ruleset, 2 usage,
-/// 3 interrupted (partial report, marked INVALID), 4 unexpected error.
+/// 'redows scan': walk the machine (read-only), classify every object and print
+/// the report. Exit codes: 0 complete, 1 invalid rules, 2 usage,
+/// 3 interrupted (partial report), 4 unexpected error.
 /// </summary>
 public static class ScanCommand
 {
@@ -104,7 +104,7 @@ public static class ScanCommand
         }
         catch (RulesetValidationException ex)
         {
-            Console.Error.WriteLine($"Ruleset INVALID — {ex.Errors.Count} error(s). Refusing to scan (fail-closed).");
+            Console.Error.WriteLine($"The rules have {ex.Errors.Count} error(s), so nothing was scanned.");
             foreach (var error in ex.Errors)
             {
                 Console.Error.WriteLine($"  - {error}");
@@ -113,10 +113,10 @@ public static class ScanCommand
             return 1;
         }
 
-        // Category modules (games, media…): user-selectable per-category verdicts,
-        // data-driven from modules/. Fail-safe if the directory is absent (no
-        // modules = no effect), fail-closed on a malformed file (a detector the user
-        // relies on must work or say why it can't).
+        // Category modules (games, media...): the user picks what to do per category,
+        // read from modules/. If the folder is absent there are simply no modules; a
+        // malformed file stops the scan (a detector the user relies on must work, or
+        // say why it can't).
         IReadOnlyList<ModuleDefinition> moduleDefinitions;
         try
         {
@@ -124,7 +124,7 @@ public static class ScanCommand
         }
         catch (ModuleValidationException ex)
         {
-            Console.Error.WriteLine($"Modules INVALID — {ex.Errors.Count} error(s). Refusing to scan (fail-closed).");
+            Console.Error.WriteLine($"The category modules have {ex.Errors.Count} error(s), so nothing was scanned.");
             foreach (var error in ex.Errors)
             {
                 Console.Error.WriteLine($"  - {error}");
@@ -169,18 +169,18 @@ public static class ScanCommand
         if (indexZones.Zones.Count > 0 || indexZones.Notes.Count > 0)
         {
             Console.Error.WriteLine(
-                $"App indexes: {indexZones.Zones.Count} claimed zone(s), {indexZones.Notes.Count} note(s).");
+                $"App indexes: {indexZones.Zones.Count} data location(s) elsewhere, {indexZones.Notes.Count} note(s).");
         }
 
-        // App inventory → reinstall zones (app-zones increment 3): a directory the
-        // inventory recognises as an installed app is re-acquirable, so its
-        // re-downloadable content is ignored where the ruleset would only REVIEW —
-        // never over a keep, never a data-named subtree. On unless --no-reinstall.
+        // App inventory to reinstall zones: a folder the inventory recognises as an
+        // installed app can be downloaded again, so its content is ignored where the
+        // ruleset would only review it. Never over a keep, never in a data-named
+        // folder. On unless --no-reinstall.
         IReadOnlyList<ReinstallZone> reinstallZones = [];
         IReadOnlyList<AppDataZone> appDataZones = [];
         if (noReinstall)
         {
-            Console.Error.WriteLine("App inventory: skipped (--no-reinstall); recognised install dirs and app data stay in REVIEW.");
+            Console.Error.WriteLine("App inventory: skipped (--no-reinstall). Installed-app folders and app data are left for review.");
         }
         else
         {
@@ -196,9 +196,9 @@ public static class ScanCommand
                 .ToList();
 
             Console.Error.WriteLine(
-                $"App inventory: {inventory.Entries.Count} app(s) → {reinstallZones.Count} reinstall zone(s) " +
-                $"+ {appDataZones.Count} app-data zone(s) (install dirs ignored where the ruleset would only review; " +
-                "each app's %AppData% kept, %LocalAppData% surfaced for review).");
+                $"App inventory: {inventory.Entries.Count} app(s), {reinstallZones.Count} reinstall zone(s) " +
+                $"and {appDataZones.Count} app-data zone(s) (re-downloadable install folders are skipped; " +
+                "each app's %AppData% is kept and %LocalAppData% is left for review).");
         }
 
         using var cancellation = new CancellationTokenSource();
@@ -216,13 +216,14 @@ public static class ScanCommand
         };
         Console.CancelKeyPress += onCancel;
 
-        // Optional ludusavi game-save catalog (--ludusavi): download (first use) / read from cache the
-        // per-game save locations, build capture zones and keep only the folders that exist here. Additive,
-        // so it only ever moves a save from REVIEW to CAPTURE. Its data is PCGamingWiki's (CC BY-NC-SA),
-        // never bundled — it is fetched onto this machine. Best-effort: a failure just adds no zones.
+        // Optional ludusavi game-save catalog (--ludusavi): download it on first use (then read from
+        // cache), build capture zones from the per-game save locations, and keep only the folders that
+        // exist here. Additive, so it only ever moves a save from review to capture. Its data is
+        // PCGamingWiki's (CC BY-NC-SA), never bundled; it is fetched onto this machine. Best-effort: a
+        // failure just adds no zones.
         if (useLudusavi)
         {
-            Console.Error.WriteLine("Game-save catalog (ludusavi): loading (download on first use, then cached)…");
+            Console.Error.WriteLine("Game-save catalog (ludusavi): loading (download on first use, then cached)...");
             try
             {
                 using var ludusavi = new WindowsLudusaviSource();
@@ -275,7 +276,7 @@ public static class ScanCommand
             var scanOptions = new ScanOptions(
                 Roots: root is null ? null : [Path.GetFullPath(root)],
                 ExcludedOutputPaths: excludedOutputs.Count > 0 ? excludedOutputs : null,
-                OnProgress: (items, path) => Console.Error.WriteLine($"  … {items:N0} items — {Sanitize(path)}"),
+                OnProgress: (items, path) => Console.Error.WriteLine($"  {items:N0} items   {Sanitize(path)}"),
                 ClaimedZones: indexZones.Zones,
                 OnCapture: onCapture,
                 ReinstallZones: reinstallZones,
@@ -283,8 +284,8 @@ public static class ScanCommand
                 CategoryModules: categoryModules);
 
             Console.Error.WriteLine(root is null
-                ? $"Scanning {windowsContext.Context.Volumes.Count} volume(s)…"
-                : $"Scanning subtree '{root}'…");
+                ? $"Scanning {windowsContext.Context.Volumes.Count} drive(s)..."
+                : $"Scanning folder '{root}'...");
 
             var report = ScanEngine.Run(
                 ruleset,
@@ -299,21 +300,21 @@ public static class ScanCommand
             if (fullOutputPath is not null)
             {
                 File.WriteAllText(fullOutputPath, rendered);
-                Console.Error.WriteLine($"Report written to '{fullOutputPath}'.");
+                Console.Error.WriteLine($"Saved the report to '{fullOutputPath}'.");
             }
 
             if (manifestWriter is not null)
             {
                 manifestWriter.Flush();
-                // Self-consistency, shown not asserted-on-trust: the manifest lists
-                // exactly the items the report counts as CAPTURE (the equation again).
+                // Show the check instead of asking to be trusted: the manifest holds
+                // exactly the items the report counts as CAPTURE.
                 var captureItems = report.ByVerdict.Where(v => v.Key.IsCapture()).Sum(v => v.Value.Items);
                 var balanced = manifestLines == captureItems;
                 Console.Error.WriteLine(
-                    $"Manifest: {manifestLines:N0} CAPTURE line(s) → '{fullManifestPath}' " +
+                    $"Manifest: {manifestLines:N0} capture line(s) in '{fullManifestPath}' " +
                     (balanced
-                        ? $"== {captureItems:N0} CAPTURE items in the report ✓"
-                        : $"≠ {captureItems:N0} CAPTURE items ✗ (manifest bug — counts must match)"));
+                        ? $"= {captureItems:N0} capture items in the report ✓"
+                        : $"vs {captureItems:N0} capture items ✗ (bug: the counts should match)"));
             }
 
             return report.Partial ? 3 : 0;
@@ -331,9 +332,9 @@ public static class ScanCommand
         ScanReport report, IndexZoneDiscovery indexZones,
         IReadOnlyList<ReinstallZone> reinstallZones, IReadOnlyList<AppDataZone> appDataZones,
         IReadOnlyList<CategoryModule> categoryModules) =>
-        // Envelope: the index-derived zones, their notes (volume-absent ALERTs…)
-        // and the app-inventory reinstall / app-data zones and category modules are
-        // scan inputs, not ScanReport fields — but they must survive into machine-readable output.
+        // Envelope: the index-derived zones, their notes (missing-drive alerts),
+        // the app-inventory reinstall / app-data zones and the category modules are
+        // scan inputs, not ScanReport fields, but they must survive into the JSON output.
         JsonSerializer.Serialize(
             new { Report = report, IndexClaimedZones = indexZones.Zones, IndexNotes = indexZones.Notes, ReinstallZones = reinstallZones, AppDataZones = appDataZones, CategoryModules = categoryModules },
             new JsonSerializerOptions
@@ -348,16 +349,16 @@ public static class ScanCommand
 
         text.AppendLine("== ReDows scan report ==");
         text.AppendLine(report.Partial
-            ? "status: PARTIAL — INVALID (interrupted before completion; figures cover only what was walked)"
-            : "status: COMPLETE");
+            ? "status: incomplete (stopped early; the numbers below cover only what was scanned)"
+            : "status: complete");
         text.AppendLine($"roots: {string.Join("  ", report.Roots)}");
         text.AppendLine(
-            $"items seen: {report.TotalItems:N0} ({report.TotalFiles:N0} files, {report.TotalDirectories:N0} directories, " +
-            $"{report.TotalUnknownSubtrees:N0} unknown subtrees)");
+            $"items seen: {report.TotalItems:N0} ({report.TotalFiles:N0} files, {report.TotalDirectories:N0} folders, " +
+            $"{report.TotalUnknownSubtrees:N0} unreadable folders)");
         text.AppendLine($"bytes seen: {Bytes(report.TotalBytes)} (logical file sizes)");
 
         text.AppendLine();
-        text.AppendLine("== Accounting by verdict ==");
+        text.AppendLine("== Totals by category ==");
         foreach (var verdict in Enum.GetValues<Verdict>())
         {
             var totals = report.ByVerdict.GetValueOrDefault(verdict, new VerdictTotals(0, 0));
@@ -365,14 +366,14 @@ public static class ScanCommand
         }
 
         var balanced = report.UnaccountedItems == 0;
-        text.AppendLine($"  equation: {report.AccountingEquation} → " +
-            (balanced ? "0 unaccounted ✓" : $"{report.UnaccountedItems:N0} UNACCOUNTED ✗ (engine bug — report invalid)"));
+        text.AppendLine($"  check: {report.AccountingEquation} " +
+            (balanced ? "(0 missed) ✓" : $"({report.UnaccountedItems:N0} missed) ✗ (bug: the report is off)"));
 
         var engineHits = report.RuleHits.Where(h => h.Stage == EngineRuleIds.Stage).ToList();
         if (engineHits.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== Engine items (counted, never silent) ==");
+            text.AppendLine("== Decided by the app ==");
             foreach (var hit in engineHits)
             {
                 text.AppendLine($"  {hit.RuleId,-24}: {hit.Items,10:N0} items  → {hit.Verdict.Format()}");
@@ -382,8 +383,8 @@ public static class ScanCommand
         if (report.PreResetAlerts.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== PRE-RESET ALERTS — DPAPI machine-bound: captured bytes will be UNREADABLE after the reset ==");
-            text.AppendLine("   Export or synchronize these BEFORE wiping (the application's own export feature).");
+            text.AppendLine("== Before you reset ==");
+            text.AppendLine("   These items are locked to this PC and won't open after a reset. Export them first.");
             foreach (var alert in report.PreResetAlerts)
             {
                 text.AppendLine($"  {alert.RuleId,-40} {alert.Items,8:N0} item(s)");
@@ -394,11 +395,11 @@ public static class ScanCommand
         if (volumeAbsentNotes.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== INDEX ALERTS — an app index references data on an ABSENT volume ==");
-            text.AppendLine("   That data is NOT in this inventory: plug the volume back and re-scan.");
+            text.AppendLine("== Missing drive ==");
+            text.AppendLine("   An app points to data on a drive that isn't connected. Reconnect it and scan again.");
             foreach (var note in volumeAbsentNotes)
             {
-                text.AppendLine($"  {Sanitize(note.Id)}: {Sanitize(note.TargetPath)} — {note.Message}");
+                text.AppendLine($"  {Sanitize(note.Id)}: {Sanitize(note.TargetPath)}   {note.Message}");
             }
         }
 
@@ -408,7 +409,7 @@ public static class ScanCommand
                 .Where(h => h.Stage == ScanEngine.ClaimedStage)
                 .ToDictionary(h => h.RuleId, StringComparer.Ordinal);
             text.AppendLine();
-            text.AppendLine("== Index-claimed zones (INDEX_EXTERNE — app configs pointing at data elsewhere) ==");
+            text.AppendLine("== App data stored elsewhere ==");
             foreach (var group in indexZones.Zones.GroupBy(z => z.Id, StringComparer.Ordinal))
             {
                 var hit = claimedHits.GetValueOrDefault(group.Key);
@@ -424,10 +425,10 @@ public static class ScanCommand
         if (otherIndexNotes.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== Index notes (counted, never silent) ==");
+            text.AppendLine("== Notes from app configs ==");
             foreach (var note in otherIndexNotes)
             {
-                text.AppendLine($"  {Sanitize(note.Id)}: {Sanitize(note.TargetPath)} — {note.Message}");
+                text.AppendLine($"  {Sanitize(note.Id)}: {Sanitize(note.TargetPath)}   {note.Message}");
             }
         }
 
@@ -435,20 +436,20 @@ public static class ScanCommand
         if (excludedVolumes.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== Volumes not scanned (engine.volume_unmounted) ==");
+            text.AppendLine("== Drives not scanned ==");
             foreach (var volume in excludedVolumes)
             {
-                text.AppendLine($"  {volume.GuidPath} — {volume.ExclusionReason}");
+                text.AppendLine($"  {volume.GuidPath}   {volume.ExclusionReason}");
             }
         }
 
         if (report.UninstantiatedRules.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== Rules not instantiated (degraded bindings, counted) ==");
+            text.AppendLine("== Rules that couldn't run ==");
             foreach (var rule in report.UninstantiatedRules)
             {
-                text.AppendLine($"  {rule.RuleId} for {Sanitize(rule.Binding)}: token '{rule.MissingToken}' unresolved");
+                text.AppendLine($"  {rule.RuleId} for {Sanitize(rule.Binding)}: couldn't resolve '{rule.MissingToken}'");
             }
         }
 
@@ -459,7 +460,7 @@ public static class ScanCommand
         if (captures.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== Top capture rules (by bytes) ==");
+            text.AppendLine("== Biggest items kept (by size) ==");
             foreach (var hit in captures)
             {
                 text.AppendLine($"  {hit.RuleId,-32} {hit.Verdict.Format(),-14} {hit.Items,10:N0} items  {Bytes(hit.Bytes),12}");
@@ -473,8 +474,8 @@ public static class ScanCommand
             var bytes = reinstallHits.Sum(h => h.Bytes);
             text.AppendLine();
             text.AppendLine(
-                $"== Re-installable (app inventory) — install dirs ignored as re-downloadable: {items:N0} items, {Bytes(bytes)} moved out of REVIEW ==");
-            text.AppendLine("   User data inside them (config/save/userdata… names, and any capture/carve-out) stayed in REVIEW/CAPTURE.");
+                $"== Re-installable apps (skipped: {items:N0} items, {Bytes(bytes)}) ==");
+            text.AppendLine("   User data inside them (config, saves, and anything already kept) was kept or left for review.");
             foreach (var hit in reinstallHits.Take(15))
             {
                 text.AppendLine($"  {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
@@ -488,9 +489,9 @@ public static class ScanCommand
             var surfaced = appDataHits.Where(h => h.Verdict == Verdict.Review).ToList();
             text.AppendLine();
             text.AppendLine(
-                $"== App data (app inventory) — {kept.Sum(h => h.Items):N0} items kept ({Bytes(kept.Sum(h => h.Bytes))}), " +
-                $"{surfaced.Sum(h => h.Items):N0} surfaced for review ==");
-            text.AppendLine("   Each recognised app's %AppData% is captured; its %LocalAppData% (mixed config/cache) stays in REVIEW.");
+                $"== App data ({kept.Sum(h => h.Items):N0} items kept ({Bytes(kept.Sum(h => h.Bytes))}), " +
+                $"{surfaced.Sum(h => h.Items):N0} left for review) ==");
+            text.AppendLine("   Each app's %AppData% is kept. Its %LocalAppData% (config mixed with cache) is left for review.");
             foreach (var hit in appDataHits.OrderByDescending(h => h.Bytes).Take(15))
             {
                 text.AppendLine($"  {hit.Verdict.Format(),-14} {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
@@ -504,9 +505,9 @@ public static class ScanCommand
             var dropped = moduleHits.Where(h => h.Verdict == Verdict.Ignore).ToList();
             text.AppendLine();
             text.AppendLine(
-                $"== Category modules (your choices) — {kept.Sum(h => h.Items):N0} items kept ({Bytes(kept.Sum(h => h.Bytes))}), " +
-                $"{dropped.Sum(h => h.Items):N0} ignored ({Bytes(dropped.Sum(h => h.Bytes))}) ==");
-            text.AppendLine("   Applied only where the ruleset would REVIEW; under 'ignore', save-named subtrees stayed in REVIEW.");
+                $"== Categories you chose ({kept.Sum(h => h.Items):N0} items kept ({Bytes(kept.Sum(h => h.Bytes))}), " +
+                $"{dropped.Sum(h => h.Items):N0} ignored ({Bytes(dropped.Sum(h => h.Bytes))})) ==");
+            text.AppendLine("   Applied only where the item was up for review. Under 'ignore', save folders were still left for review.");
             foreach (var hit in moduleHits.OrderByDescending(h => h.Bytes))
             {
                 text.AppendLine($"  {hit.Verdict.Format(),-14} {Bytes(hit.Bytes),12}  {hit.Items,10:N0} items   {Sanitize(hit.RuleId)}");
@@ -514,14 +515,14 @@ public static class ScanCommand
         }
 
         text.AppendLine();
-        text.AppendLine($"== REVIEW rollup — the human work queue (top {report.ReviewRollup.Count} head directories by bytes) ==");
+        text.AppendLine($"== To review (biggest folders first, top {report.ReviewRollup.Count}) ==");
         foreach (var bucket in report.ReviewRollup)
         {
             text.AppendLine($"  {Bytes(bucket.Bytes),12}  {bucket.Items,10:N0} items   {Sanitize(bucket.Directory)}");
         }
 
         text.AppendLine();
-        text.AppendLine("== Declared limits (V1) ==");
+        text.AppendLine("== Known limits ==");
         foreach (var limit in report.DeclaredLimits)
         {
             text.AppendLine($"  - {limit}");

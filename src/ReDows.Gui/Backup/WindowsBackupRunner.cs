@@ -27,7 +27,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
     {
         if (!File.Exists(request.ManifestPath))
         {
-            throw new InvalidOperationException("There is nothing to back up yet — run a scan first, then come back here.");
+            throw new InvalidOperationException("There is nothing to back up yet. Run a scan first, then come back here.");
         }
 
         var destination = Path.GetFullPath(request.Destination);
@@ -84,7 +84,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
         }
 
         // Record each copied file's checksum, so a later restore can verify end-to-end that what it puts
-        // back is byte-identical to the original — catching a backup medium that degraded in between.
+        // back is byte-identical to the original. That catches a backup medium that degraded in between.
         if (report.Hashes.Count > 0)
         {
             BackupHashManifest.Write(destination, report.Hashes);
@@ -124,7 +124,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
             cancellationToken.ThrowIfCancellationRequested();
             if (++hashed % 500 == 0)
             {
-                progress.Report(new BackupProgress(hashed, "looking for duplicate files to store once…"));
+                progress.Report(new BackupProgress(hashed, "looking for duplicate files to store once..."));
             }
         });
 
@@ -133,7 +133,7 @@ public sealed class WindowsBackupRunner : IBackupRunner
 
     private static readonly string SecretVerdict = Verdict.CaptureSecret.Format();
 
-    /// <summary>A file the copy writes in clear (not a directory, not a secret — secrets go to the vault).</summary>
+    /// <summary>A file the copy writes in clear (not a directory, not a secret; secrets go to the vault).</summary>
     private static bool IsPlainCopy(ManifestEntry entry) =>
         !entry.IsDirectory && !string.Equals(entry.Verdict, SecretVerdict, StringComparison.OrdinalIgnoreCase);
 
@@ -191,19 +191,19 @@ public sealed class WindowsBackupRunner : IBackupRunner
         {
             var verified = ZipVaultSink.Verify(vaultPath, vaultPassword);
             return verified == expected
-                ? $"vault OK — {verified:N0} secret(s) encrypted and verified ({Path.GetFileName(vaultPath)})"
-                : $"vault MISMATCH — verified {verified:N0} but vaulted {expected:N0}";
+                ? $"Vault OK. {verified:N0} secret(s) encrypted and verified ({Path.GetFileName(vaultPath)})"
+                : $"Vault mismatch: verified {verified:N0}, expected {expected:N0}.";
         }
         catch (Exception ex)
         {
-            return $"vault verify FAILED: {ex.GetType().Name}: {ex.Message}";
+            return $"Vault check failed: {ex.GetType().Name}: {ex.Message}";
         }
     }
 
     private static BackupResultView Shape(CopyReport report, string? vaultStatus, long? rescued)
     {
-        var equation = report.AccountingEquation + " → " +
-            (report.Unaccounted == 0 ? "0 unaccounted" : $"{report.Unaccounted:N0} UNACCOUNTED (bug)");
+        var equation = report.AccountingEquation +
+            (report.Unaccounted == 0 ? " (0 missed)" : $" ({report.Unaccounted:N0} missed)");
 
         return new BackupResultView(
             Balanced: report.Unaccounted == 0,

@@ -6,8 +6,8 @@ namespace ReDows.Providers.Windows.Apps;
 
 /// <summary>
 /// An INDEX_EXTERNE finding that needs human attention instead of (or besides) a
-/// claimed zone: target volume absent (pre-reset ALERT — that data would be
-/// forgotten), stale index entry, or an unreadable/unparsable index file.
+/// claimed zone: target volume absent (a pre-reset alert, since that data would
+/// be forgotten), stale index entry, or an unreadable/unparsable index file.
 /// </summary>
 public sealed record IndexZoneNote(string Id, string TargetPath, string Message, bool VolumeAbsent = false);
 
@@ -22,7 +22,7 @@ public sealed record IndexZoneDiscovery(IReadOnlyList<ClaimedZone> Zones, IReadO
 /// VirtualBox machine folders (VirtualBox.xml). Parsing is pure Core
 /// (<see cref="ReDows.Core.Apps"/>); this type only locates and reads the files.
 /// Safety direction: zones may only review/capture (ClaimedZone enforces it), so
-/// a wrong index over-captures — never loses. Failures become counted notes.
+/// a wrong index over-captures but never loses. Failures become counted notes.
 /// </summary>
 public static class IndexZoneProvider
 {
@@ -116,14 +116,14 @@ public static class IndexZoneProvider
         catch (System.Text.Json.JsonException ex)
         {
             notes.Add(new IndexZoneNote(id, indexPath,
-                $"index file unparsable ({ex.GetType().Name}) — its libraries cannot be claimed"));
+                $"index file unparsable ({ex.GetType().Name}), so its libraries were not added"));
             return;
         }
 
         foreach (var library in libraries)
         {
             AddZone(id, library, Verdict.CaptureUser,
-                "Calibre library (global.py.json) — every location ever used, not just the default.", zones, notes, seenTargets);
+                "Calibre library (global.py.json). Every location ever used, not just the default.", zones, notes, seenTargets);
         }
     }
 
@@ -147,7 +147,7 @@ public static class IndexZoneProvider
         catch (System.Xml.XmlException ex)
         {
             notes.Add(new IndexZoneNote(machineZoneId, indexPath,
-                $"index file unparsable ({ex.GetType().Name}) — its machines cannot be claimed"));
+                $"index file unparsable ({ex.GetType().Name}), so its machines were not added"));
             return;
         }
 
@@ -155,18 +155,18 @@ public static class IndexZoneProvider
         {
             if (path.EndsWith(".vbox", StringComparison.OrdinalIgnoreCase))
             {
-                // The machine FOLDER holds the disks (.vdi…) and snapshots, not
+                // The machine FOLDER holds the disks (.vdi files) and snapshots, not
                 // just the .vbox settings file: claim the whole parent.
                 var machineFolder = Path.GetDirectoryName(path);
                 if (string.IsNullOrEmpty(machineFolder))
                 {
                     notes.Add(new IndexZoneNote(machineZoneId, path,
-                        "machine entry has no parent directory — cannot be claimed"));
+                        "machine entry has no parent directory, so it was not added"));
                     continue;
                 }
 
                 AddZone(machineZoneId, machineFolder, Verdict.Review,
-                    "VirtualBox machine folder (registered MachineEntry): disks may be huge — human decides.", zones, notes, seenTargets);
+                    "VirtualBox machine folder (registered MachineEntry). Disks may be large, so this is left for review.", zones, notes, seenTargets);
             }
             else
             {
@@ -188,7 +188,7 @@ public static class IndexZoneProvider
     {
         if (!Path.IsPathRooted(target))
         {
-            notes.Add(new IndexZoneNote(id, target, "index target is not an absolute path — cannot be claimed"));
+            notes.Add(new IndexZoneNote(id, target, "index target is not an absolute path, so it was not added"));
             return;
         }
 
@@ -201,7 +201,7 @@ public static class IndexZoneProvider
         if (!Directory.Exists(volumeRoot))
         {
             notes.Add(new IndexZoneNote(id, target,
-                $"target volume '{volumeRoot}' is ABSENT — plug it back and re-scan, or this data will be missing from the inventory",
+                $"target volume '{volumeRoot}' is absent. Plug it back and scan again, or this data will be missing from the inventory.",
                 VolumeAbsent: true));
             return;
         }
@@ -209,7 +209,7 @@ public static class IndexZoneProvider
         if (!Directory.Exists(target))
         {
             notes.Add(new IndexZoneNote(id, target,
-                "target missing on a present volume (stale index entry?) — verify manually"));
+                "target missing on a present volume (possibly a stale index entry). Verify manually."));
         }
 
         zones.Add(new ClaimedZone(id, target, verdict, note));
@@ -224,7 +224,7 @@ public static class IndexZoneProvider
     /// <summary>
     /// Reads an index file. Absent file/dir = app not installed or no relocated
     /// profile: silent skip. Anything else (locked, oversized, other user's
-    /// profile without elevation…) is a counted note — never a silent gap (§0-5).
+    /// profile without elevation...) is a counted note, never a silent gap (§0-5).
     /// </summary>
     private static string? TryReadIndex(string path, string id, List<IndexZoneNote> notes)
     {
@@ -233,7 +233,7 @@ public static class IndexZoneProvider
             if (new FileInfo(path).Length > MaxIndexBytes)
             {
                 notes.Add(new IndexZoneNote(id, path,
-                    $"index file larger than {MaxIndexBytes / (1024 * 1024)} MB (corrupt?) — its targets cannot be claimed"));
+                    $"index file larger than {MaxIndexBytes / (1024 * 1024)} MB (possibly corrupt), so its targets were not added"));
                 return null;
             }
 
@@ -246,7 +246,7 @@ public static class IndexZoneProvider
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             notes.Add(new IndexZoneNote(id, path,
-                $"index file unreadable ({ex.GetType().Name}) — its targets cannot be claimed"));
+                $"index file unreadable ({ex.GetType().Name}), so its targets were not added"));
             return null;
         }
     }

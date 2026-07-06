@@ -5,9 +5,9 @@ namespace ReDows.Providers.Windows.Apps;
 
 /// <summary>
 /// Win32 apps from the Add/Remove-Programs registry (the inventory backbone):
-/// HKLM 64-bit view, HKLM 32-bit view, HKCU of the CURRENT user — enumerated via
+/// HKLM 64-bit view, HKLM 32-bit view, HKCU of the CURRENT user, enumerated via
 /// RegistryView, never literal WOW6432Node paths. Read-only; whitelisted fields
-/// only (UninstallString and license values are never copied — secrets).
+/// only (UninstallString and license values are never copied, since they are secrets).
 /// </summary>
 public static class ArpAppSource
 {

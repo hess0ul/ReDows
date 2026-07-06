@@ -8,7 +8,7 @@ namespace ReDows.Core.Settings;
 /// Renders a <see cref="SettingsProfile"/> to the two on-disk forms of the "settings half" of the
 /// ReDows → InDows profile: settings-profile.json (the source of truth) and settings-profile.md (a
 /// human-readable, module-grouped table). Pure and deterministic, so it is testable and shared by both
-/// the CLI ('redows settings --by-module' / 'redows profile') and the GUI Apps screen — no duplication.
+/// the CLI ('redows settings --by-module' / 'redows profile') and the GUI Apps screen, with no duplication.
 /// </summary>
 public static class SettingsProfileEmitter
 {
@@ -25,7 +25,7 @@ public static class SettingsProfileEmitter
         var text = new StringBuilder();
         text.AppendLine("# InDows settings profile (ReDows)");
         text.AppendLine();
-        text.AppendLine("The settings ReDows read on this PC, grouped by the InDows module that re-applies them — the \"settings\" half of the ReDows → InDows profile.");
+        text.AppendLine("The settings ReDows read on this PC, grouped by the InDows module that re-applies them. This is the \"settings\" half of the ReDows → InDows profile.");
 
         text.AppendLine();
         text.AppendLine("Comes back automatically (an existing module re-applies it):");
@@ -46,7 +46,7 @@ public static class SettingsProfileEmitter
         if (profile.ByBase.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"## Comes back via the InDows base install — not a module ({profile.ByBase.Count})");
+            text.AppendLine($"## Comes back via the InDows base install, not a module ({profile.ByBase.Count})");
             text.AppendLine();
             foreach (var reading in profile.ByBase)
             {
@@ -61,16 +61,16 @@ public static class SettingsProfileEmitter
             text.AppendLine();
             foreach (var module in profile.NewModules)
             {
-                text.AppendLine($"- **{Cell(module.Module)}** — {Cell(string.Join(", ", module.Settings.Select(s => s.Definition.Name)))}");
+                text.AppendLine($"- **{Cell(module.Module)}**: {Cell(string.Join(", ", module.Settings.Select(s => s.Definition.Name)))}");
             }
         }
 
-        if (profile.PersoOnly.Count > 0)
+        if (profile.PrivateOnly.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"## Private config only — the public InDows leaves the default ({profile.PersoOnly.Count})");
+            text.AppendLine($"## Private config only: the public InDows leaves the default ({profile.PrivateOnly.Count})");
             text.AppendLine();
-            foreach (var reading in profile.PersoOnly)
+            foreach (var reading in profile.PrivateOnly)
             {
                 text.AppendLine($"- {Cell(reading.Definition.Name)}: {Cell(Desired(reading))}");
             }
@@ -83,7 +83,7 @@ public static class SettingsProfileEmitter
             foreach (var module in profile.NotApplied)
             {
                 text.AppendLine();
-                text.AppendLine($"### {module.Module} — not applied yet ({module.Settings.Count})");
+                text.AppendLine($"### {module.Module}: not applied yet ({module.Settings.Count})");
                 text.AppendLine();
                 foreach (var reading in module.Settings)
                 {
@@ -95,7 +95,7 @@ public static class SettingsProfileEmitter
         if (profile.Manual.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"## Nothing restores this — redo by hand after reset ({profile.Manual.Count})");
+            text.AppendLine($"## Nothing restores this: redo by hand after reset ({profile.Manual.Count})");
             text.AppendLine();
             foreach (var reading in profile.Manual)
             {
@@ -106,7 +106,7 @@ public static class SettingsProfileEmitter
         if (profile.NotInLoop.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"## Read-only — no InDows module, capture only ({profile.NotInLoop.Count})");
+            text.AppendLine($"## Read-only: no InDows module, capture only ({profile.NotInLoop.Count})");
             text.AppendLine();
             foreach (var reading in profile.NotInLoop.OrderBy(r => r.Definition.Name, StringComparer.OrdinalIgnoreCase))
             {

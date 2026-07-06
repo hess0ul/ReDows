@@ -15,7 +15,7 @@ public sealed class SettingsCatalogException(IReadOnlyList<string> errors)
 /// <summary>
 /// Strict, fail-closed loader for the settings catalog (the data that drives the
 /// registry reader). Unknown/duplicate YAML keys, a newer schema version, a bad
-/// enum, a duplicate id, or a missing required field all abort loading — a typo
+/// enum, a duplicate id, or a missing required field all abort loading. A typo
 /// must never silently drop a setting from the read.
 /// </summary>
 public static partial class SettingsCatalogLoader
@@ -50,7 +50,7 @@ public static partial class SettingsCatalogLoader
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                errors.Add($"{relative}: file unreadable ({ex.GetType().Name}) — refusing to load a partial catalog");
+                errors.Add($"{relative}: file unreadable ({ex.GetType().Name}). The catalog was not loaded.");
             }
         }
 
@@ -88,7 +88,7 @@ public static partial class SettingsCatalogLoader
             }
             catch (YamlException ex)
             {
-                errors.Add($"{path}: YAML error — {ex.Message}");
+                errors.Add($"{path}: YAML error: {ex.Message}");
                 continue;
             }
 
@@ -104,7 +104,7 @@ public static partial class SettingsCatalogLoader
             }
             else if (version > SupportedSchemaVersion)
             {
-                errors.Add($"{path}: schema_version {version} is newer than supported {SupportedSchemaVersion} (fail-closed)");
+                errors.Add($"{path}: schema_version {version} is newer than supported {SupportedSchemaVersion}");
             }
             else
             {

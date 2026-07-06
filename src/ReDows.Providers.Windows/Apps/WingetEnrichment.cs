@@ -4,11 +4,11 @@ using ReDows.Core.Apps;
 namespace ReDows.Providers.Windows.Apps;
 
 /// <summary>
-/// OPT-IN winget enrichment (--enrich-winget) — an arbitrated read-only
+/// OPT-IN winget enrichment (--enrich-winget), an arbitrated read-only
 /// deviation: running winget can persist source-agreement acceptance, write
 /// state under the user profile and touch the network, so it NEVER runs by
 /// default and never elevated. `winget export` yields a corroboration list of
-/// reinstallable package ids (matched apps only, ids without names) — dynamic
+/// reinstallable package ids (matched apps only, ids without names). Dynamic
 /// sources are corroboration only; row-level id attachment via winget's own
 /// correlation engine (COM InstalledCatalog) is the planned next step.
 /// </summary>
@@ -29,7 +29,7 @@ public static class WingetEnrichment
         if (!File.Exists(alias))
         {
             return new WingetResult([], new InventoryDegradation(SourceName, "this machine",
-                "winget.exe not found (absent, or app execution aliases disabled) — no winget ids"), null);
+                "winget.exe not found (absent, or app execution aliases disabled), so no winget ids"), null);
         }
 
         var exportFile = Path.Combine(Path.GetTempPath(), $"redows-winget-export-{Guid.NewGuid():N}.json");
@@ -76,11 +76,11 @@ public static class WingetEnrichment
             }
 
             // Non-zero exit with a valid file is NORMAL: apps with no source
-            // match are warned about and omitted — partial success by design.
+            // match are warned about and omitted. This is partial success by design.
             var ids = WingetExport.Parse(File.ReadAllText(exportFile));
             var note = process.ExitCode == 0
                 ? $"winget export: {ids.Count} package id(s) matched"
-                : $"winget export: {ids.Count} package id(s) matched; some installed apps had no source match (exit 0x{process.ExitCode:X8}) — they stay reinstall:manual";
+                : $"winget export: {ids.Count} package id(s) matched; some installed apps had no source match (exit 0x{process.ExitCode:X8}), so they stay reinstall:manual";
             return new WingetResult(ids, null, note);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)

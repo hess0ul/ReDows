@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using ReDows.Core.Ai;
 using ReDows.Core.Apps;
 using ReDows.Core.Memory;
-using ReDows.Core.Triage;
+using ReDows.Core.Prescreening;
 using ReDows.Gui.Navigation;
 using ReDows.Gui.Reviewing;
 using ReDows.Gui.Scanning;
@@ -17,9 +17,9 @@ public enum ReviewSort
 }
 
 /// <summary>
-/// The review wizard, trash model: everything under review is KEPT by default (safe — nothing lost
+/// The review wizard, trash model: everything under review is KEPT by default (safe: nothing lost
 /// by forgetting). You walk the REVIEW folders one at a time (Folder X of N, Next), drill in
-/// (Open / Up), and DROP the junk — a dropped item leaves the list and goes to the trash, which you can
+/// (Open / Up), and DROP the junk. A dropped item leaves the list and goes to the trash, which you can
 /// open to restore. Folders are read on demand (read-only). The kept set (everything minus the trash)
 /// will feed the backup next.
 /// </summary>
@@ -32,10 +32,10 @@ public sealed class ReviewViewModel : ViewModelBase
     private IReadOnlyList<EntryRow> _current = [];
     private long _totalReviewBytes;
     private CancellationTokenSource? _cancellation;
-    private CancellationTokenSource? _filesCancellation; // per-file colour pass — its own Cancel
-    private readonly FileTriage? _triage; // fast-path rules: colour obvious entries without an AI call
+    private CancellationTokenSource? _filesCancellation; // per-file colour pass; its own Cancel
+    private readonly FilePrescreener? _prescreen; // fast-path rules: colour obvious entries without an AI call
     private readonly FolderMemory? _memory; // memory of known folders/apps: colour + a rich note, on browse
-    private readonly IInstalledAppsSource? _appsSource; // recogniser of app-made folders (ShareX, Adobe…)
+    private readonly IInstalledAppsSource? _appsSource; // recogniser of app-made folders (ShareX, Adobe...)
     private InstalledAppFolders? _appFolders; // loaded once, lazily, on first browse
     private bool _appsLoaded;
     private readonly Dictionary<string, (string Key, string Reason, bool FromAi)> _fileImportance = new(StringComparer.OrdinalIgnoreCase); // path → colour + why (+ from the AI?), this folder
@@ -51,16 +51,16 @@ public sealed class ReviewViewModel : ViewModelBase
     private bool _isLoading;
     private bool _isTrashOpen;
     private string? _error;
-    private string _location = "No scan yet — run a scan first, then come here.";
+    private string _location = "No scan yet. Run a scan first, then come here.";
     private string _stepText = "";
     private string _folderNote = "";
     private string _learnedNote = "";
 
-    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null, FileTriage? triage = null, FolderMemory? memory = null, IInstalledAppsSource? appsSource = null)
+    public ReviewViewModel(IFolderBrowser browser, AiAssistantViewModel? ai = null, FilePrescreener? prescreen = null, FolderMemory? memory = null, IInstalledAppsSource? appsSource = null)
     {
         _browser = browser;
         Ai = ai;
-        _triage = triage;
+        _prescreen = prescreen;
         _memory = memory;
         _appsSource = appsSource;
         if (ai is not null)
@@ -80,7 +80,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
         AnalyzeFolderCommand = new RelayCommand(_ => _ = AnalyzeCurrentFolderAsync(), _ => Ai is not null && HasFolder && !IsLoading);
         AnalyzeAllCommand = new RelayCommand(_ => _ = AnalyzeAllFoldersAsync(), _ => Ai is not null && HasRoots && !IsLoading);
-        AnalyzeFilesCommand = new RelayCommand(_ => _ = AnalyzeFilesHereAsync(), _ => (_triage is not null || Ai is not null) && HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
+        AnalyzeFilesCommand = new RelayCommand(_ => _ = AnalyzeFilesHereAsync(), _ => (_prescreen is not null || Ai is not null) && HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
         CancelFilesCommand = new RelayCommand(_ => _filesCancellation?.Cancel(), _ => IsAnalyzingFiles);
         OpenCommand = new RelayCommand(item => { if (item is EntryRow entry) _ = OpenAsync(entry); }, _ => !IsLoading);
         DropCommand = new RelayCommand(item => { if (item is EntryRow entry) DropEntry(entry); }, _ => !IsLoading);
@@ -97,7 +97,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public DropSelection Trash { get; } = new();
 
-    /// <summary>The optional AI assistant (null in tests that don't exercise it — its card stays hidden).</summary>
+    /// <summary>The optional AI assistant (null in tests that don't exercise it; its card stays hidden).</summary>
     public AiAssistantViewModel? Ai { get; }
 
     public RelayCommand AnalyzeFolderCommand { get; }
@@ -109,7 +109,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public RelayCommand CancelFilesCommand { get; }
 
-    /// <summary>True while the per-file colour pass runs — drives its progress row and Cancel.</summary>
+    /// <summary>True while the per-file colour pass runs; drives its progress row and Cancel.</summary>
     public bool IsAnalyzingFiles
     {
         get => _isAnalyzingFiles;
@@ -121,7 +121,7 @@ public sealed class ReviewViewModel : ViewModelBase
         }
     }
 
-    /// <summary>What the per-file pass is doing right now (folder X of N — name).</summary>
+    /// <summary>What the per-file pass is doing right now (folder X of N: name).</summary>
     public string FilesBusyText
     {
         get => _filesBusyText;
@@ -135,7 +135,7 @@ public sealed class ReviewViewModel : ViewModelBase
         private set => Set(ref _filesSummary, value);
     }
 
-    /// <summary>Set when a cloud-synced folder was met — reminds the user to sync before trusting the drop.</summary>
+    /// <summary>Set when a cloud-synced folder was met; reminds the user to sync before trusting the drop.</summary>
     public string CloudReminder
     {
         get => _cloudReminder;
@@ -150,7 +150,7 @@ public sealed class ReviewViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// The free colour for one entry: what ReDows already KNOWS about it — its memory (a recognised
+    /// The free colour for one entry: what ReDows already KNOWS about it: its memory (a recognised
     /// folder/app, with a rich note) first, then the fast-path rules (a short reason). Null when it
     /// recognises nothing (the entry is unknown and only the AI could judge it).
     /// </summary>
@@ -159,31 +159,31 @@ public sealed class ReviewViewModel : ViewModelBase
         if (_memory?.Describe(row.Name, row.FullPath) is { } known)
         {
             var key = known.Importance
-                ?? (_triage?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) is { IsKnown: true } t ? t.Importance : null)
+                ?? (_prescreen?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) is { IsKnown: true } t ? t.Importance : null)
                 ?? "maybe"; // recognised but no strong colour → "worth a look"
             return (key, known.Note);
         }
 
-        if (_triage?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) is { IsKnown: true } verdict)
+        if (_prescreen?.Classify(row.Name, row.IsDirectory, row.Bytes, row.FullPath) is { IsKnown: true } verdict)
         {
             return (verdict.Importance, verdict.Reason);
         }
 
-        // A FOLDER whose name is an installed app or its publisher (ShareX, Adobe…) → made by that app, not
-        // by the user. Review (never keep/drop — the match is best-effort): keep what you made inside, the
+        // A FOLDER whose name is an installed app or its publisher (ShareX, Adobe...) → made by that app, not
+        // by the user. Review (never keep/drop; the match is best-effort): keep what you made inside, the
         // app recreates the rest. Only for folders whose own name matches, so a chance hit stays rare.
         if (row.IsDirectory && _appFolders?.Match(row.Name) is { } app)
         {
-            return ("maybe", $"Looks like {app}'s data folder — made by the app, not by you. Keep what you exported or created inside; the app recreates the rest.");
+            return ("maybe", $"Looks like {app}'s data folder, made by the app, not by you. Keep what you exported or created inside; the app recreates the rest.");
         }
 
         return null;
     }
 
-    /// <summary>Raised when the user drops or restores something — the shell persists the decision on this signal.</summary>
+    /// <summary>Raised when the user drops or restores something. The shell persists the decision on this signal.</summary>
     public event Action? TrashChanged;
 
-    /// <summary>Re-apply a saved session's trash (path → size) without raising a change — resuming, not deciding.</summary>
+    /// <summary>Re-apply a saved session's trash (path → size) without raising a change; resuming, not deciding.</summary>
     public void RestoreTrash(IReadOnlyDictionary<string, long> trash)
     {
         foreach (var (path, bytes) in trash)
@@ -227,12 +227,12 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public bool HasNext => _folderIndex >= 0 && _folderIndex < _roots.Count - 1;
 
-    /// <summary>On a folder with no next one — the wizard's end, where "Next" becomes "Back up →".</summary>
+    /// <summary>On a folder with no next one: the wizard's end, where "Next" becomes "Back up →".</summary>
     public bool OnLastFolder => HasFolder && !HasNext;
 
     /// <summary>
     /// Whether to offer "Back up →" instead of "Next": at the end of the wizard, OR right after a scan
-    /// that flagged nothing to review (no folders to walk) — so the user is never stuck on a dead "Next".
+    /// that flagged nothing to review (no folders to walk), so the user is never stuck on a dead "Next".
     /// </summary>
     public bool ShowBackUp => OnLastFolder || (_scanned && !HasRoots);
 
@@ -273,11 +273,11 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public string KeptSummary => !HasRoots
         ? (_scanned
-            ? "Nothing to review — everything is either kept or safe to ignore. You're all set."
-            : "No scan yet — run a scan first, then come back to sort what needs a look.")
+            ? "Nothing to review. Everything is either kept or safe to ignore. You're all set."
+            : "No scan yet. Run a scan first, then come back to sort what needs a look.")
         : Trash.DroppedCount == 0
             ? $"Keeping everything under review (≈ {Format.Bytes(_totalReviewBytes)}). Drop what you don't need."
-            : $"Trash: {Trash.DroppedCount:N0} item(s) · {Format.Bytes(Trash.DroppedBytes)} — keeping ≈ {Format.Bytes(Math.Max(0, _totalReviewBytes - Trash.DroppedBytes))}";
+            : $"Trash: {Trash.DroppedCount:N0} item(s) · {Format.Bytes(Trash.DroppedBytes)}. Keeping ≈ {Format.Bytes(Math.Max(0, _totalReviewBytes - Trash.DroppedBytes))}";
 
     public bool IsLoading
     {
@@ -293,7 +293,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
     /// <summary>
     /// Feed the biggest REVIEW folders from the latest scan and start at the first one. <paramref name="scanned"/>
-    /// tells apart "no scan run yet" from "a scan ran but flagged nothing to review" — both give empty roots,
+    /// tells apart "no scan run yet" from "a scan ran but flagged nothing to review"; both give empty roots,
     /// but they need different messages (otherwise a clean scan wrongly reads as "no scan yet").
     /// </summary>
     public void SetRoots(IReadOnlyList<EntryRow> roots, bool scanned = false)
@@ -323,8 +323,8 @@ public sealed class ReviewViewModel : ViewModelBase
             StepText = "";
             FolderNote = "";
             Location = scanned
-                ? "Nothing to review — your scan sorted everything into keep or ignore. Nothing here needs a second look."
-                : "No scan yet — run a scan first, then come here.";
+                ? "Nothing to review. Your scan sorted everything into keep or ignore. Nothing here needs a second look."
+                : "No scan yet. Run a scan first, then come here.";
             RaiseSummary();
             RaiseNav();
             return;
@@ -372,7 +372,7 @@ public sealed class ReviewViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Ask the AI assistant about the CURRENT folder, from its already-listed rows — names and sizes
+    /// Ask the AI assistant about the CURRENT folder, from its already-listed rows: names and sizes
     /// only, exactly what is on screen (no extra disk read, no file content).
     /// </summary>
     public async Task AnalyzeCurrentFolderAsync()
@@ -388,7 +388,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
     /// <summary>
     /// "Analyze all": run the assistant over EVERY review folder in sequence (fresh read-only listings
-    /// via the browser), storing one suggestion per folder — the wizard shows each one as you land on
+    /// via the browser), storing one suggestion per folder. The wizard shows each one as you land on
     /// its folder, and a summary line counts them. Nothing is dropped without a per-folder Accept.
     /// </summary>
     public async Task AnalyzeAllFoldersAsync()
@@ -414,13 +414,13 @@ public sealed class ReviewViewModel : ViewModelBase
 
     /// <summary>
     /// Colour every entry in the CURRENT folder by importance: one AI call per entry, each given the
-    /// folder as context (its full listing — the "tree" — and, if we have it, the folder's own verdict).
+    /// folder as context (its full listing (the "tree") and, if we have it, the folder's own verdict).
     /// Bounded to the entries on screen (never the whole PC). Progress + Cancel; two failures in a row
-    /// stop the pass. Nothing is dropped — this only tints the rows to guide the eye.
+    /// stop the pass. Nothing is dropped; this only tints the rows to guide the eye.
     /// </summary>
     public async Task AnalyzeFilesHereAsync()
     {
-        if ((_triage is null && Ai is null) || !HasFolder || Entries.Count == 0 || IsAnalyzingFiles)
+        if ((_prescreen is null && Ai is null) || !HasFolder || Entries.Count == 0 || IsAnalyzingFiles)
         {
             return;
         }
@@ -444,7 +444,7 @@ public sealed class ReviewViewModel : ViewModelBase
                 token.ThrowIfCancellationRequested();
                 var row = targets[i];
 
-                // KNOWN already? Memory + fast-path coloured it for free on browse — count it, skip the AI.
+                // KNOWN already? Memory + fast-path coloured it for free on browse; count it, skip the AI.
                 if (_fileImportance.TryGetValue(row.FullPath, out var already))
                 {
                     if (!already.FromAi)
@@ -461,7 +461,7 @@ public sealed class ReviewViewModel : ViewModelBase
                     continue;
                 }
 
-                FilesBusyText = $"Asking the AI: {i + 1} of {targets.Count} — {row.Name}…";
+                FilesBusyText = $"Asking the AI: {i + 1} of {targets.Count} ({row.Name})...";
                 try
                 {
                     var file = AiPayload.BuildFileInContext(row.FullPath, row.Name, row.IsDirectory, row.Bytes, parent, parentContext);
@@ -472,7 +472,7 @@ public sealed class ReviewViewModel : ViewModelBase
                     }
 
                     var key = AiAssistantViewModel.ImportanceKeyOf(suggestion);
-                    var reason = AiReason(suggestion); // the model's OWN explanation, so the tooltip helps you decide — not just "AI"
+                    var reason = AiReason(suggestion); // the model's OWN explanation, so the tooltip helps you decide; not just "AI"
                     _fileImportance[row.FullPath] = (key, reason, FromAi: true);
                     aiCache[row.FullPath] = (key, reason); // cached: returning to this folder re-shows it (with its why), no new call
                     ColourRow(row.FullPath, key, reason);
@@ -487,7 +487,7 @@ public sealed class ReviewViewModel : ViewModelBase
                 {
                     if (++consecutiveFailures >= 2)
                     {
-                        Error = "The endpoint keeps failing — colouring stopped. Test the connection, then try again.";
+                        Error = "The endpoint keeps failing, so colouring stopped. Test the connection, then try again.";
                         break;
                     }
                 }
@@ -495,7 +495,7 @@ public sealed class ReviewViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
-            // cancelled — the colours computed so far are kept
+            // cancelled; the colours computed so far are kept
         }
         finally
         {
@@ -508,8 +508,8 @@ public sealed class ReviewViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Colour every entry ReDows already KNOWS — its memory (a recognised folder/app + a rich note) and
-    /// the fast-path rules — for FREE as the folder loads, so the tree lights up the moment you open it.
+    /// Colour every entry ReDows already KNOWS: its memory (a recognised folder/app + a rich note) and
+    /// the fast-path rules, for FREE as the folder loads, so the tree lights up the moment you open it.
     /// Also surfaces the cloud-sync reminder and the memory note for the folder you're standing in.
     /// Unknown entries stay uncoloured; the AI can judge them on demand.
     /// </summary>
@@ -531,14 +531,14 @@ public sealed class ReviewViewModel : ViewModelBase
                 _fileImportance[entry.FullPath] = (colour.Key, colour.Reason, FromAi: false);
             }
 
-            if (_triage?.Classify(entry.Name, entry.IsDirectory, entry.Bytes, entry.FullPath).IsCloudSync == true)
+            if (_prescreen?.Classify(entry.Name, entry.IsDirectory, entry.Bytes, entry.FullPath).IsCloudSync == true)
             {
                 cloud++;
             }
         }
 
-        // Re-show any AI colours (with their explanations) computed for this folder earlier this session —
-        // walking into a subfolder and back must not lose them, nor re-ask the model. Memory/rules win, so
+        // Re-show any AI colours (with their explanations) computed for this folder earlier this session.
+        // Walking into a subfolder and back must not lose them, nor re-ask the model. Memory/rules win, so
         // only entries they left blank.
         if (_aiByFolder.TryGetValue(folderPath, out var aiCache))
         {
@@ -554,10 +554,10 @@ public sealed class ReviewViewModel : ViewModelBase
         var coloured = _current.Count(e => _fileImportance.ContainsKey(e.FullPath));
         FilesSummary = coloured == 0
             ? ""
-            : $"{coloured} of {_current.Count} coloured automatically{(coloured < _current.Count ? " — “Colour these files” asks the AI about the rest." : ".")}";
+            : $"{coloured} of {_current.Count} coloured automatically{(coloured < _current.Count ? ". “Colour these files” asks the AI about the rest." : ".")}";
 
         CloudReminder = cloud > 0
-            ? $"{cloud} item(s) here are in a cloud-synced folder — make sure they're synced to your cloud before you drop them, so nothing is lost."
+            ? $"{cloud} item(s) here are in a cloud-synced folder. Make sure they're synced to your cloud before you drop them, so nothing is lost."
             : "";
 
         var trimmed = folderPath.TrimEnd('/', '\\');
@@ -579,14 +579,14 @@ public sealed class ReviewViewModel : ViewModelBase
 
     /// <summary>
     /// The tooltip for an AI-coloured row: the model's OWN explanation, prefixed "AI:" so you know the
-    /// source (a suggestion, not a verdict — it can be wrong). "AI" alone told you nothing; this is the why.
+    /// source (a suggestion, not a verdict; it can be wrong). "AI" alone told you nothing; this is the why.
     /// </summary>
     private static string AiReason(AiSuggestion suggestion) =>
         string.IsNullOrWhiteSpace(suggestion.Explanation)
             ? "AI suggestion (no explanation given)."
             : "AI: " + suggestion.Explanation.Trim();
 
-    /// <summary>Replace a visible row with a colour-tinted copy (record copy — no in-place mutation).</summary>
+    /// <summary>Replace a visible row with a colour-tinted copy (record copy; no in-place mutation).</summary>
     private void ColourRow(string fullPath, string key, string reason)
     {
         for (var i = 0; i < Entries.Count; i++)
@@ -615,7 +615,7 @@ public sealed class ReviewViewModel : ViewModelBase
             return;
         }
 
-        Ai?.ClearResult(); // the folder the suggestion was about is going to the trash — the card goes too
+        Ai?.ClearResult(); // the folder the suggestion was about is going to the trash; the card goes too
         var (path, bytes) = _trail[^1];
         Ai?.Forget(path);
         Trash.Drop(path, bytes);
@@ -631,7 +631,7 @@ public sealed class ReviewViewModel : ViewModelBase
         {
             Entries.Clear();
             _current = [];
-            FolderNote = "This folder is in the trash — click Next ▶, or open the trash to restore it.";
+            FolderNote = "This folder is in the trash. Click Next ▶, or open the trash to restore it.";
             RaiseSummary();
             RaiseNav();
         }
@@ -640,7 +640,7 @@ public sealed class ReviewViewModel : ViewModelBase
     public async Task RestoreAsync(TrashRow trashed)
     {
         Trash.Restore(trashed.FullPath);
-        Ai?.Unlearn(trashed.FullPath); // "I changed my mind" — the lesson is forgotten too
+        Ai?.Unlearn(trashed.FullPath); // "I changed my mind"; the lesson is forgotten too
         RefreshTrash();
         RaiseSummary();
         TrashChanged?.Invoke();
@@ -656,11 +656,11 @@ public sealed class ReviewViewModel : ViewModelBase
         Location = path;
         Error = null;
         FolderNote = "";
-        _filesCancellation?.Cancel();  // a per-file colour pass is about THIS folder — stop it on the move
+        _filesCancellation?.Cancel();  // a per-file colour pass is about THIS folder; stop it on the move
         _fileImportance.Clear();       // colours belong to the folder you were in; a new one starts fresh
         FilesSummary = "";
-        Ai?.ClearResult(); // a suggestion is about ONE folder — never survive navigation
-        Ai?.ShowStoredFor(path); // …but a REMEMBERED one (analyze-all) greets you on its folder
+        Ai?.ClearResult(); // a suggestion is about ONE folder; never survives navigation
+        Ai?.ShowStoredFor(path); // ...but a REMEMBERED one (analyze-all) greets you on its folder
         IsLoading = true;
         _cancellation = new CancellationTokenSource();
         try
@@ -723,7 +723,7 @@ public sealed class ReviewViewModel : ViewModelBase
 
     /// <summary>
     /// Pre-trash the folders whose "safe to drop" the user accepted in a PAST scan (the remembered
-    /// lessons) — visible and restorable in the trash, never silently ignored. Restoring unlearns.
+    /// lessons), visible and restorable in the trash, never silently ignored. Restoring unlearns.
     /// Only lessons that fall under this review's folders apply.
     /// </summary>
     private void ApplyLearnedDrops(IReadOnlyList<EntryRow> roots)
@@ -750,8 +750,8 @@ public sealed class ReviewViewModel : ViewModelBase
         {
             RefreshTrash(); // the pre-trashed lessons must show in the trash list right away
             RaiseSummary();
-            LearnedNote = $"{applied} folder(s) went straight to the trash from AI suggestions you accepted before — restore any to unlearn.";
-            TrashChanged?.Invoke(); // these decisions are in effect now — the session persists them
+            LearnedNote = $"{applied} folder(s) went straight to the trash from AI suggestions you accepted before. Restore any to unlearn.";
+            TrashChanged?.Invoke(); // these decisions are in effect now; the session persists them
         }
     }
 

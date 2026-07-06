@@ -6,13 +6,13 @@ namespace ReDows.Gui.Reviewing;
 public sealed record EntryRow(string Name, string FullPath, bool IsDirectory, long Bytes)
 {
     /// <summary>
-    /// Per-entry importance for the colour triage — "keep"/"maybe"/"drop", or "" when not classified.
-    /// Set with a record copy (<c>row with { ImportanceKey = … }</c>), so a fresh colour just replaces
+    /// Per-entry importance for the colour coding: "keep"/"maybe"/"drop", or "" when not classified.
+    /// Set with a record copy (<c>row with { ImportanceKey = ... }</c>), so a fresh colour just replaces
     /// the row in the list; the view maps it to the blue→pink→purple dot.
     /// </summary>
     public string ImportanceKey { get; init; } = "";
 
-    /// <summary>Why this row got its colour (a rule reason or "AI") — shown as the dot's tooltip.</summary>
+    /// <summary>Why this row got its colour (a rule reason or "AI"): shown as the dot's tooltip.</summary>
     public string ImportanceReason { get; init; } = "";
 
     public string SizeText => Format.Bytes(Bytes);
@@ -28,7 +28,7 @@ public sealed record EntryRow(string Name, string FullPath, bool IsDirectory, lo
 
             // Path.GetExtension treats a leading-dot name (".gitignore", ".lmstudio-home-pointer") as
             // one giant "extension". A dotfile has no real type, and a genuine extension is a short
-            // suffix — so a dotfile, or an absurdly long pseudo-extension, is just a file.
+            // suffix: so a dotfile, or an absurdly long pseudo-extension, is just a file.
             var extension = Path.GetExtension(Name).TrimStart('.');
             return !Name.StartsWith('.') && extension.Length is > 0 and <= 8
                 ? extension.ToUpperInvariant()
@@ -40,7 +40,7 @@ public sealed record EntryRow(string Name, string FullPath, bool IsDirectory, lo
 }
 
 /// <summary>
-/// Lists a folder's immediate children with sizes — READ-ONLY, on demand (the app never keeps the
+/// Lists a folder's immediate children with sizes: READ-ONLY, on demand (the app never keeps the
 /// whole tree in memory; it re-reads a folder when the user opens it). A seam so the review
 /// view-model is testable off a fake, without touching the disk.
 /// </summary>

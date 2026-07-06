@@ -1,7 +1,7 @@
 namespace ReDows.Providers.Windows.Backup;
 
 /// <summary>
-/// A set of volume shadow copies — frozen, point-in-time "photos" of a volume. Reading a
+/// A set of volume shadow copies: frozen, point-in-time "photos" of a volume. Reading a
 /// file from its volume's shadow bypasses a live lock, because the shadow is a read-only
 /// snapshot taken at one instant. Photos are created on demand (one per volume) and released
 /// when the set is disposed. READ-ONLY by nature: a shadow is never written to, so the
@@ -12,7 +12,7 @@ public interface IVolumeSnapshotSet : IDisposable
     /// <summary>
     /// The device root of a shadow for the volume that <paramref name="windowsPath"/> lives on,
     /// creating the shadow on first use for that volume and reusing it afterwards. Returns
-    /// <c>null</c> when a shadow cannot be made (e.g. not elevated, or a network path) — the
+    /// <c>null</c> when a shadow cannot be made (e.g. not elevated, or a network path). The
     /// caller then reports the file as a failure rather than skipping it silently.
     /// </summary>
     string? DeviceRootForVolumeOf(string windowsPath);

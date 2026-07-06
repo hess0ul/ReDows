@@ -3,7 +3,7 @@ namespace ReDows.Core.Scanning;
 /// <summary>
 /// Everything the classifier needs to instantiate rules on a concrete machine:
 /// machine environment, volumes, user profiles (with their own environment and
-/// Known Folders, resolved per profile — never from the calling session).
+/// Known Folders, resolved per profile and never from the calling session).
 /// On a real PC this is produced by ReDows.Providers.Windows; tests build it
 /// by hand around a simulated file system.
 /// </summary>
@@ -15,7 +15,7 @@ public sealed record ScanContext(
 {
     /// <summary>
     /// Directories under the profiles root that belong to no ProfileList entry
-    /// (deleted accounts with kept files, migrations) — user data off the radar,
+    /// (deleted accounts with kept files, migrations). This is user data off the radar,
     /// surfaced as high-priority REVIEW (deny-list §A.7/§C-21).
     /// </summary>
     public IReadOnlyList<string> Orphans => OrphanProfileDirectories ?? [];
@@ -34,7 +34,7 @@ public sealed record VolumeInfo(
 /// could not be read (other user, no elevation), <paramref name="HiveResolved"/>
 /// is false and Environment/KnownFolders only contain certain values: rules
 /// depending on missing tokens are then NOT instantiated for this profile
-/// (asymmetric policy — an ignore rule must never run on a guessed path) and the
+/// (asymmetric policy: an ignore rule must never run on a guessed path) and the
 /// profile's tree falls to counted REVIEW.
 /// </summary>
 public sealed record UserProfileInfo(
@@ -67,7 +67,7 @@ public static class ScanPaths
 
     /// <summary>
     /// Anchors a bare drive segment ("C:") to its root ("C:\"). On Windows a
-    /// bare drive path is drive-RELATIVE — it silently resolves to the process
+    /// bare drive path is drive-RELATIVE. It silently resolves to the process
     /// current directory, retargeting any API it is passed to.
     /// </summary>
     public static string AnchorDriveRoot(string path) =>

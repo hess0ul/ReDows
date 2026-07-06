@@ -4,11 +4,11 @@ using ReDows.Core.Scanning;
 namespace ReDows.Core.Apps;
 
 /// <summary>
-/// Turns the application inventory into engine-fed app-data zones (increment 4 —
-/// the mirror of <see cref="ReinstallZoneBuilder"/>): for each inventoried app and
-/// each user profile, the app's %AppData%\&lt;name&gt; is a CAPTURE zone (config —
-/// keep it) and its %LocalAppData%\&lt;name&gt; is a REVIEW zone (mixed config +
-/// cache — the human decides). Pure — names + resolved profile roots in, zones out,
+/// Turns the application inventory into engine-fed app-data zones (increment 4,
+/// mirroring <see cref="ReinstallZoneBuilder"/>): for each inventoried app and
+/// each user profile, the app's %AppData%\&lt;name&gt; is a CAPTURE zone (config to
+/// keep) and its %LocalAppData%\&lt;name&gt; is a REVIEW zone (mixed config plus
+/// cache, so the human decides). Pure. Names and resolved profile roots in, zones out,
 /// no I/O.
 ///
 /// The data folder is matched to the app Name (best-effort): an app whose folder is

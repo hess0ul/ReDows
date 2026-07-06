@@ -7,11 +7,11 @@ using ReDows.Providers.Windows.Secrets;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows secrets' — inspects the registry locations where some apps keep secrets/config
-/// that a file scan misses (PuTTY, WinSCP, Remote Desktop, MPC-HC, TightVNC). READ-ONLY,
-/// and NAMES only: a value classified as a secret is recorded by its location, never read.
-/// The headline output is the "export BEFORE the reset" alert list. Exit codes: 0 ok,
-/// 1 invalid catalog (fail-closed), 2 usage, 4 unexpected error.
+/// 'redows secrets': inspects the registry locations where some apps keep secrets/config
+/// that a file scan misses (PuTTY, WinSCP, Remote Desktop, MPC-HC, TightVNC). Read-only,
+/// and names only: a value classified as a secret is recorded by its location, never read.
+/// The headline output is the "export before the reset" alert list. Exit codes: 0 ok,
+/// 1 invalid catalog, 2 usage, 4 unexpected error.
 /// </summary>
 public static class SecretsCommand
 {
@@ -62,7 +62,7 @@ public static class SecretsCommand
         }
         catch (RegistrySecretsCatalogException ex)
         {
-            Console.Error.WriteLine($"Registry-secrets catalog INVALID — {ex.Errors.Count} error(s). Refusing to read (fail-closed).");
+            Console.Error.WriteLine($"The secrets catalog has {ex.Errors.Count} error(s), so nothing was read.");
             foreach (var error in ex.Errors)
             {
                 Console.Error.WriteLine($"  - {error}");
@@ -105,11 +105,11 @@ public static class SecretsCommand
         if (report.PreResetAlerts.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("== EXPORT BEFORE THE RESET — these secrets live only here ==");
+            text.AppendLine("== Export before the reset (these secrets live only here) ==");
             foreach (var finding in report.PreResetAlerts)
             {
                 var secrets = finding.Items.Count(i => i.Class == SecretClass.Secret);
-                text.AppendLine($"  • {Cell(finding.Target.App)} — {Cell(finding.Target.What)}");
+                text.AppendLine($"  • {Cell(finding.Target.App)}: {Cell(finding.Target.What)}");
                 text.AppendLine($"      {secrets} secret value(s); {Sensitivity(finding.Target.Sensitivity)}");
                 if (finding.Target.ExportHint is { } hint)
                 {
@@ -140,7 +140,7 @@ public static class SecretsCommand
 
             foreach (var item in finding.Items.Where(i => i.Class == SecretClass.Secret))
             {
-                text.AppendLine($"      {Cell(item.ValueName)} = (secret — present, not read)");
+                text.AppendLine($"      {Cell(item.ValueName)} = (secret, present, not read)");
             }
         }
 
@@ -148,7 +148,7 @@ public static class SecretsCommand
         if (review.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"== Unknown names in a secrets zone — REVIEW (presence only) ({review.Count}) ==");
+            text.AppendLine($"== Unknown names in a secrets zone: review (presence only) ({review.Count}) ==");
             foreach (var item in review)
             {
                 text.AppendLine($"  {Cell(item.Location)}");
@@ -169,8 +169,8 @@ public static class SecretsCommand
 
     private static string Sensitivity(SecretSensitivity sensitivity) => sensitivity switch
     {
-        SecretSensitivity.ReversibleSecret => "recoverable from the registry — export it, then wipe the disk",
-        SecretSensitivity.StrongSecret => "protected (DPAPI/master password) — UNREADABLE after a reset, export it first",
+        SecretSensitivity.ReversibleSecret => "recoverable from the registry; export it, then wipe the disk",
+        SecretSensitivity.StrongSecret => "protected (Windows or a master password); unreadable after a reset, so export it first",
         _ => "config only",
     };
 
@@ -191,7 +191,7 @@ public static class SecretsCommand
         Converters = { new JsonStringEnumConverter() },
     };
 
-    private static string Truncate(string value) => value.Length > 120 ? value[..117] + "…" : value;
+    private static string Truncate(string value) => value.Length > 120 ? value[..117] + "..." : value;
 
     private static string Cell(string? value) =>
         string.IsNullOrEmpty(value) ? "" : ConsoleText.Sanitize(value);

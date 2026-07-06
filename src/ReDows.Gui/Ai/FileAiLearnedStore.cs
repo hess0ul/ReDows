@@ -5,8 +5,8 @@ namespace ReDows.Gui.Ai;
 
 /// <summary>
 /// The real learned-drops store: ai-learned.json under %LocalAppData%\ReDows, next to the other
-/// ReDows files. Holds folder PATHS and sizes only (the user's accepted "safe to drop" lessons) —
-/// never file contents, never anything secret. Best-effort; path injectable for tests.
+/// ReDows files. Holds folder PATHS and sizes only (the user's accepted "safe to drop" lessons).
+/// Never file contents, never anything secret. Best-effort; path injectable for tests.
 /// </summary>
 public sealed class FileAiLearnedStore : IAiLearnedStore
 {
@@ -44,7 +44,7 @@ public sealed class FileAiLearnedStore : IAiLearnedStore
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Remembering is a convenience — never let a failed save break the app.
+            // Remembering is a convenience; never let a failed save break the app.
         }
     }
 }

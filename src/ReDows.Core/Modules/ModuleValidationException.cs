@@ -3,8 +3,8 @@ namespace ReDows.Core.Modules;
 /// <summary>
 /// A malformed module file is a corruption of a detector the user relies on, so the
 /// present-but-broken case is fail-closed: any error in any file aborts the load and
-/// all errors are reported at once. (A MISSING module directory is not an error — see
-/// <see cref="ModuleLoader.LoadDirectory"/> — it simply means "no modules".)
+/// all errors are reported at once. (A MISSING module directory is not an error. See
+/// <see cref="ModuleLoader.LoadDirectory"/>: it simply means "no modules".)
 /// </summary>
 public sealed class ModuleValidationException(IReadOnlyList<string> errors)
     : Exception(BuildMessage(errors))

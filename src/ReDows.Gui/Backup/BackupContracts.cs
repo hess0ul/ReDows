@@ -22,7 +22,7 @@ public sealed record BackupRequest(
 /// <summary>Live progress while a backup runs: how many manifest entries processed, and the current path.</summary>
 public sealed record BackupProgress(long Items, string CurrentPath);
 
-/// <summary>One manifest entry that could not be copied — surfaced, never silently dropped.</summary>
+/// <summary>One manifest entry that could not be copied: surfaced, never silently dropped.</summary>
 public sealed record BackupFailureRow(string Path, string Reason);
 
 /// <summary>

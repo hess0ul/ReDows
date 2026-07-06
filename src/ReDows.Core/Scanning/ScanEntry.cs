@@ -3,8 +3,8 @@ namespace ReDows.Core.Scanning;
 /// <summary>
 /// One file-system object seen by the walker, or a synthetic "unknown subtree"
 /// marker when a directory could not be enumerated (<see cref="Error"/> is then
-/// non-null and the directory's contents are absent from the stream — counted,
-/// never silently skipped).
+/// non-null and the directory's contents are absent from the stream; the marker is
+/// counted, never silently skipped).
 /// </summary>
 public sealed record ScanEntry(
     string Path,

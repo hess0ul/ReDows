@@ -14,11 +14,11 @@ to scan rather than scan wrong.
 ## Personal vs generic rules
 
 ReDows ships a **generic** ruleset. Machine- or user-specific rules (a particular
-game folder, a custom data drive, a niche app on one PC) belong in a `rules/perso/`
+game folder, a custom data drive, a niche app on one PC) belong in a `rules/private/`
 subfolder. The loader walks `rules/` recursively, so anything dropped in
-`rules/perso/` is picked up automatically — no wiring, same schema and validation.
+`rules/private/` is picked up automatically — no wiring, same schema and validation.
 
-`rules/perso/` is **kept out of the public release**: it is excluded when the
+`rules/private/` is **kept out of the public release**: it is excluded when the
 generic version is published, so personal rules stay in the private copy. This is
 the rule-set side of the project's generic-first split — the public catalogue
 stays universal, personal additions live beside it without leaking. (Non-`.yaml`

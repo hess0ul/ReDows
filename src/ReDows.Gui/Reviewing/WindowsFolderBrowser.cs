@@ -4,7 +4,7 @@ namespace ReDows.Gui.Reviewing;
 
 /// <summary>
 /// Reads a folder from the real disk, READ-ONLY: immediate children with sizes (folders are sized
-/// recursively). Skips inaccessible entries and does not follow reparse points (junctions/symlinks —
+/// recursively). Skips inaccessible entries and does not follow reparse points (junctions/symlinks:
 /// no cycles, no double counting), mirroring the scan engine's policy. Runs off the UI thread and
 /// honors cancellation, so opening a very large folder never freezes the window.
 /// </summary>

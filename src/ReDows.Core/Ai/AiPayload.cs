@@ -5,10 +5,10 @@ namespace ReDows.Core.Ai;
 
 /// <summary>
 /// The pure heart of the AI assistant, and its privacy proof. <see cref="Build"/> turns an
-/// already-listed directory into the whitelisted <see cref="FolderMetadata"/> (names and sizes only —
+/// already-listed directory into the whitelisted <see cref="FolderMetadata"/> (names and sizes only:
 /// it takes listing results as input and cannot read a file). <see cref="RenderPrompt"/> turns that
 /// metadata into the model prompt (so tests can assert exactly what would leave the machine).
-/// <see cref="ParseSuggestion"/> reads the model's reply defensively — a rambling or broken reply
+/// <see cref="ParseSuggestion"/> reads the model's reply defensively: a rambling or broken reply
 /// degrades to "unknown"/null, never to a crash or a fabricated verdict.
 /// </summary>
 public static class AiPayload
@@ -50,14 +50,14 @@ public static class AiPayload
     /// </summary>
     public const string SystemPrompt =
         "You help a user sort folders on a Windows PC before a factory reset. " +
-        "From FOLDER METADATA ONLY (folder path and the names/sizes of its entries — you never see file contents), " +
+        "From FOLDER METADATA ONLY (folder path and the names/sizes of its entries, never the file contents), " +
         "identify what the folder most likely is, and whether it holds USER DATA to keep or a re-downloadable " +
         "application bundle / cache that is safe to drop. " +
         "Answer with STRICT JSON only, no prose around it: " +
         "{\"classification\":\"keep|drop|mixed|unknown\",\"explanation\":\"one short paragraph, plain language\",\"confidence\":\"high|medium|low\"}. " +
         "keep = user-created or user-configured data. drop = re-obtainable program files, caches, bundles. " +
         "mixed = both are present (say where the user data likely lives). " +
-        "If you are not reasonably sure, use unknown with low confidence — never guess confidently.";
+        "If you are not reasonably sure, use unknown with low confidence. Never guess confidently.";
 
     /// <summary>Render the user message: the whitelisted metadata, nothing else.</summary>
     public static string RenderPrompt(FolderMetadata folder)
@@ -77,23 +77,23 @@ public static class AiPayload
     }
 
     /// <summary>
-    /// The system message for judging ONE entry in the context of its folder — same strict-JSON contract
+    /// The system message for judging ONE entry in the context of its folder: same strict-JSON contract
     /// as the folder one, but told to weigh the surrounding folder (the tree) when deciding.
     /// </summary>
     public const string FileSystemPrompt =
         "You help a user sort files on a Windows PC before a factory reset. You are given ONE entry (a file " +
         "or subfolder) and, as CONTEXT, the folder it lives in and that folder's other entries (names and " +
-        "sizes only — you never see file contents). Weigh the entry's name/type/size TOGETHER WITH its " +
+        "sizes only, never the file contents). Weigh the entry's name/type/size TOGETHER WITH its " +
         "surrounding folder to judge whether it is USER DATA worth keeping or a re-downloadable / regenerated " +
         "file safe to drop. Answer with STRICT JSON only, no prose around it: " +
         "{\"classification\":\"keep|drop|mixed|unknown\",\"explanation\":\"one short sentence, plain language\",\"confidence\":\"high|medium|low\"}. " +
         "keep = user-created/edited or user-configured data. drop = a re-obtainable program file, cache, log, " +
         "temp, or a file the app recreates. mixed = it depends on what's inside. " +
-        "If you are not reasonably sure, use unknown with low confidence — never guess confidently.";
+        "If you are not reasonably sure, use unknown with low confidence. Never guess confidently.";
 
     /// <summary>
     /// Build the whitelisted per-entry payload: the target entry plus its already-built parent
-    /// <see cref="FolderMetadata"/> (the folder tree) and an optional short context note. Pure — no I/O.
+    /// <see cref="FolderMetadata"/> (the folder tree) and an optional short context note. Pure, no I/O.
     /// The note is length-capped so a hostile prior verdict can't bloat the prompt.
     /// </summary>
     public static FileInContext BuildFileInContext(
@@ -102,7 +102,7 @@ public static class AiPayload
         var note = string.IsNullOrWhiteSpace(parentContext)
             ? null
             : parentContext.Trim() is { Length: > MaxExplanationLength } tooLong
-                ? tooLong[..MaxExplanationLength] + "…"
+                ? tooLong[..MaxExplanationLength] + "..."
                 : parentContext.Trim();
         return new FileInContext(entryPath, entryName, isDirectory, bytes, parent, note);
     }
@@ -137,7 +137,7 @@ public static class AiPayload
     /// <summary>
     /// Parse the model's reply into a suggestion. Robust to a "reasoning" model that thinks out loud
     /// before answering: strips &lt;think&gt; blocks, then scans every balanced {...} object from LAST to
-    /// first and returns the model's real verdict — so the schema example it echoes while thinking (which
+    /// first and returns the model's real verdict, so the schema example it echoes while thinking (which
     /// parses as "unknown") never wins over the actual answer that follows. Null when no JSON can be read;
     /// an unexpected classification or confidence degrades to "unknown"/"low" rather than inventing meaning.
     /// </summary>
@@ -196,7 +196,7 @@ public static class AiPayload
             var explanation = dto.Explanation?.Trim() ?? "";
             if (explanation.Length > MaxExplanationLength) // a hostile endpoint can't flood the UI
             {
-                explanation = explanation[..MaxExplanationLength] + "…";
+                explanation = explanation[..MaxExplanationLength] + "...";
             }
 
             return new AiSuggestion(classification, explanation, confidence);
@@ -207,7 +207,7 @@ public static class AiPayload
         }
     }
 
-    /// <summary>Remove &lt;think&gt;…&lt;/think&gt; / &lt;thinking&gt;…&lt;/thinking&gt; blocks a reasoning model inlines into its reply.</summary>
+    /// <summary>Remove &lt;think&gt;...&lt;/think&gt; / &lt;thinking&gt;...&lt;/thinking&gt; blocks a reasoning model inlines into its reply.</summary>
     private static string StripThinkBlocks(string text) =>
         System.Text.RegularExpressions.Regex.Replace(
             text,

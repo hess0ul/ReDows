@@ -4,8 +4,8 @@ namespace ReDows.Core.Modules;
 
 /// <summary>
 /// A category module as declared in a module file (modules/*.yaml): a named,
-/// data-driven detector for a whole class of items (games, media…) plus its default
-/// action. Adding a category is adding a file — no engine change. The resolved,
+/// data-driven detector for a whole class of items (games, media...) plus its default
+/// action. Adding a category is adding a file, with no engine change. The resolved,
 /// per-scan form the engine consumes is <see cref="CategoryModule"/>, produced by
 /// <see cref="ToCategoryModule"/> once the user's action is known.
 /// </summary>

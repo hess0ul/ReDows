@@ -25,7 +25,7 @@
       "items": {
         "$ref": "#/$defs/Template"
       },
-      "description": "Per-app templates (apps-ctt catalogue): a shared pattern (P-CHROM\u2026) declared once, instantiated by \u0027apps\u0027 entries. Template rules carry their own layer."
+      "description": "Per-app templates (apps-ctt catalogue): a shared pattern (P-CHROM...) declared once, instantiated by \u0027apps\u0027 entries. Template rules carry their own layer."
     },
     "apps": {
       "type": "array",
@@ -65,7 +65,7 @@
         },
         "prio": {
           "type": "string",
-          "description": "Reserved importance axis (orthogonal to the verdict): parsed and validated but NOT yet consumed by classification \u2014 reserved for future review ordering and manifest output, so setting it has no runtime effect today. Default: normal.",
+          "description": "Reserved importance axis (orthogonal to the verdict): parsed and validated but NOT yet consumed by classification. Reserved for future review ordering and manifest output, so setting it has no runtime effect today. Default: normal.",
           "pattern": "^(critical|high|normal|low)$"
         },
         "bare_name_class": {
@@ -97,7 +97,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Orthogonal flags (an axis, never encoded in the verdict). dpapi_machine_bound: the captured bytes are DPAPI-bound to this machine and unreadable after a reset \u2014 surfaced as a pre-reset alert (export/synchronize BEFORE)."
+          "description": "Orthogonal flags (an axis, never encoded in the verdict). dpapi_machine_bound: the captured bytes are DPAPI-bound to this machine and unreadable after a reset. Shown as a pre-reset alert (export/synchronize BEFORE)."
         }
       },
       "required": [
@@ -185,7 +185,7 @@
           "items": {
             "$ref": "#/$defs/Condition"
           },
-          "description": "True when none of the child conditions is true (logical NOT-any) \u2014 e.g. a marker is absent."
+          "description": "True when none of the child conditions is true (logical NOT-any). For example, a marker is absent."
         },
         "ancestor_marker": {
           "type": "array",

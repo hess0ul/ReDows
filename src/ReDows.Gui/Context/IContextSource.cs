@@ -11,7 +11,7 @@ public interface IContextSource
     WindowsContext Load();
 }
 
-/// <summary>Reads the real machine's context — READ-ONLY — via the same provider the CLI uses.</summary>
+/// <summary>Reads the real machine's context (READ-ONLY) via the same provider the CLI uses.</summary>
 public sealed class WindowsContextSource : IContextSource
 {
     public WindowsContext Load() => WindowsScanContextProvider.Build();

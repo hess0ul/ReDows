@@ -97,7 +97,7 @@
             </ItemsControl>
 
             <TextBlock Margin="0,16,0,0" Foreground="{StaticResource App.Muted}" FontSize="12">
-                <Run Text="{Binding NotesCount, Mode=OneWay}"/><Run Text=" discovery note(s) recorded during read-only detection."/>
+                <Run Text="{Binding NotesCount, Mode=OneWay}"/><Run Text=" note(s) recorded while reading your PC (read-only)."/>
             </TextBlock>
         </StackPanel>
     </ScrollViewer>

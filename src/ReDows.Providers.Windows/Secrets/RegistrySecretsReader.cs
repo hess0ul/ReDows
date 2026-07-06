@@ -8,9 +8,9 @@ namespace ReDows.Providers.Windows.Secrets;
 /// <summary>
 /// Reads one registry-secrets target from the LIVE registry (read-only).
 /// <para>
-/// HARD RULE (invariant #5 — secrets kept apart): a value is read with <c>GetValue</c>
+/// HARD RULE (invariant #5, secrets kept apart): a value is read with <c>GetValue</c>
 /// ONLY after its name is classified <see cref="SecretClass.Config"/>. A name classified
-/// secret (or unknown/review — which might be a secret) is recorded by NAME alone and its
+/// secret (or unknown/review, which might be a secret) is recorded by NAME alone and its
 /// value is never read. So config values (host, port, user) enrich the inventory while a
 /// secret value is never read into memory.
 /// </para>

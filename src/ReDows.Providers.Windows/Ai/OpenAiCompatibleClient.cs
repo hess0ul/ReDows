@@ -7,7 +7,7 @@ using ReDows.Core.Ai;
 namespace ReDows.Providers.Windows.Ai;
 
 /// <summary>
-/// Talks to any OpenAI-compatible chat endpoint — a LOCAL LM Studio (http://localhost:1234) or Ollama
+/// Talks to any OpenAI-compatible chat endpoint: a LOCAL LM Studio (http://localhost:1234) or Ollama
 /// (http://localhost:11434) by default, so nothing leaves the PC; the same client covers a cloud API or
 /// a user-run gateway later, since they all speak the same protocol (a base URL + an optional key).
 /// Sends ONLY the whitelisted <see cref="FolderMetadata"/> rendered by <see cref="AiPayload"/>.
@@ -31,7 +31,7 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
         _http = handler is null ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) : new HttpClient(handler);
         // NO wall-clock timeout on the HTTP client: a reasoning model on CPU can think for many minutes, and
         // any fixed cap would eventually cut a slow-but-working reply off mid-thought. The user stays in
-        // control instead — the Cancel button and navigation cancel the request through its token — and
+        // control instead: the Cancel button and navigation cancel the request through its token, and
         // TestConnection sets its own quick 10-second bound via a linked token, so it never hangs.
         _http.Timeout = Timeout.InfiniteTimeSpan;
         if (!string.IsNullOrEmpty(apiKey))
@@ -43,7 +43,7 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
     /// <summary>
     /// A bare host ("http://localhost:1234") gets the OpenAI-style "/v1" appended; a URL that already
     /// carries a path is kept as the user wrote it (some cloud services use their own base path, e.g.
-    /// a "/v1beta/openai" compatibility root — appending "/v1" there would break it).
+    /// a "/v1beta/openai" compatibility root, where appending "/v1" would break it).
     /// </summary>
     public static string NormalizeBaseUrl(string baseUrl)
     {
@@ -56,7 +56,7 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
     /// <summary>
     /// Prove the endpoint answers (and, with a key, that it accepts it): list its models. With an
     /// explicit model configured, that model is what analyses use and what is reported; otherwise the
-    /// first listed one is adopted — refreshed here, so swapping the loaded model mid-session recovers.
+    /// first listed one is adopted and refreshed here, so swapping the loaded model mid-session recovers.
     /// </summary>
     public async Task<string> TestConnectionAsync(CancellationToken cancellationToken)
     {
@@ -83,7 +83,7 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
         _model ??= await FirstModelAsync(cancellationToken)
             ?? throw new InvalidOperationException("No model is loaded on the endpoint.");
 
-        // Build the request with an OPTIONAL cap. A "reasoning" model (Qwen3, DeepSeek-R1…) thinks for
+        // Build the request with an OPTIONAL cap. A "reasoning" model (Qwen3, DeepSeek-R1...) thinks for
         // hundreds of tokens BEFORE its answer, so a tight cap truncated it mid-thought and left an empty
         // reply. Self-hosted → no cap at all (think as long as needed, it's your own machine); a paid
         // API/subscription → the user's chosen cap so a runaway reply can't rack up cost.
@@ -148,7 +148,7 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
             }
 
             // Normal case: the answer is in "content". A reasoning model may leave "content" empty and
-            // put everything (thinking + the JSON) in "reasoning_content" — fall back to that so its
+            // put everything (thinking + the JSON) in "reasoning_content". Fall back to that so its
             // reply is still readable (ParseSuggestion then digs the JSON out of the thinking text).
             if (message.TryGetProperty("content", out var content)
                 && content.GetString() is { } text && !string.IsNullOrWhiteSpace(text))

@@ -1,7 +1,7 @@
 namespace ReDows.Gui.Reviewing;
 
 /// <summary>
-/// The set of things the user DROPPED during review (default is: keep everything, drop the junk —
+/// The set of things the user DROPPED during review (default is: keep everything, drop the junk:
 /// safer, nothing is lost by forgetting to tick). Path-based: dropping a folder covers everything
 /// under it; dropping a folder removes any individual child drops it now covers (no double counting).
 /// Restore removes a drop. (File kept from the earlier keep-based model; it now holds the drop/trash model.)
@@ -14,7 +14,7 @@ public sealed class DropSelection
 
     public long DroppedBytes => _dropped.Values.Sum();
 
-    /// <summary>The drop "roots" (paths with no dropped ancestor) and their sizes — what the trash lists.</summary>
+    /// <summary>The drop "roots" (paths with no dropped ancestor) and their sizes: what the trash lists.</summary>
     public IReadOnlyDictionary<string, long> Items => _dropped;
 
     public void Drop(string path, long bytes)

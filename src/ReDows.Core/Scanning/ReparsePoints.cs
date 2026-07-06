@@ -3,7 +3,7 @@ namespace ReDows.Core.Scanning;
 /// <summary>
 /// The single reparse-point traversal policy, shared by the walker (recursion)
 /// and the engine (classification) so they can never disagree. Symlinks and
-/// junctions are never followed (cycles, double counting — the target volume is
+/// junctions are never followed (cycles and double counting; the target volume is
 /// covered by its own GUID root). Cloud placeholder directories ARE traversed:
 /// the OneDrive root is itself a reparse point, and enumerating a placeholder
 /// directory hydrates nothing (this block never reads file contents).
@@ -28,7 +28,7 @@ public static class ReparsePoints
     /// <summary>
     /// The cloud-files family used by OneDrive Files-On-Demand:
     /// IO_REPARSE_TAG_CLOUD (0x9000001A) through _F (0x9000F01A). Deliberately
-    /// NOT the whole 0x9000xxxx range — ProjFS (0x9000001C, VFS-for-Git) and
+    /// NOT the whole 0x9000xxxx range: ProjFS (0x9000001C, VFS-for-Git) and
     /// container isolation (WCI) live there too, and enumerating a ProjFS root
     /// drives its provider (can hang on a dead one, makes IT materialize
     /// placeholders). Unknown tags fall to the counted non-traversed path.
@@ -38,7 +38,7 @@ public static class ReparsePoints
     /// <summary>
     /// Name-surrogate tags (bit 0x20000000): the object stands in for another
     /// path (symlink, junction). A reparse-tagged FILE without this bit is real
-    /// data — WOF-compressed (compact.exe), deduplicated, cloud placeholder —
+    /// data (WOF-compressed via compact.exe, deduplicated, or a cloud placeholder)
     /// and must be classified by the ruleset, never downgraded to a "link".
     /// </summary>
     public static bool IsNameSurrogate(uint tag) => (tag & 0x2000_0000) != 0;

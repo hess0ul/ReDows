@@ -7,7 +7,7 @@ using ReDows.Providers.Windows.Apps;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows apps' — the installed-applications inventory (reinstall list).
+/// 'redows apps' is the installed-applications inventory (reinstall list).
 /// Writes apps.json (source of truth) and apps.md next to it when --out is
 /// given. Exit codes: 0 ok, 2 usage, 4 unexpected error.
 /// </summary>
@@ -54,7 +54,7 @@ public static class AppsCommand
         if (enrichWithWinget)
         {
             Console.Error.WriteLine(
-                "winget enrichment enabled (opt-in): winget will RUN on this machine — first run may persist source-agreement acceptance and write state in the user profile.");
+                "winget enrichment enabled (opt-in): winget will RUN on this machine. First run may persist source-agreement acceptance and write state in the user profile.");
         }
 
         var report = AppInventoryProvider.Build(enrichWithWinget);
@@ -104,7 +104,7 @@ public static class AppsCommand
         text.AppendLine();
         text.AppendLine(report.TotalUnaccounted == 0
             ? "Every enumerated entry is accounted for (apps + components + updates + errors). ✓"
-            : $"⚠️ {report.TotalUnaccounted} entries unaccounted — inventory invalid (engine bug).");
+            : $"⚠️ {report.TotalUnaccounted} entries unaccounted. Inventory invalid (engine bug).");
 
         foreach (var kind in (AppEntryKind[])[AppEntryKind.App, AppEntryKind.Component, AppEntryKind.Update])
         {
@@ -121,7 +121,7 @@ public static class AppsCommand
             text.AppendLine(kind switch
             {
                 AppEntryKind.App => $"## Applications to reinstall ({bucket.Count})",
-                AppEntryKind.Component => $"## Components bucket — review, not silently dropped ({bucket.Count})",
+                AppEntryKind.Component => $"## Components bucket: review, not silently dropped ({bucket.Count})",
                 _ => $"## Updates bucket ({bucket.Count})",
             });
             text.AppendLine();
@@ -140,7 +140,7 @@ public static class AppsCommand
         if (report.Degradations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine($"## Degradations — counted, never guessed ({report.Degradations.Count})");
+            text.AppendLine($"## Degradations: counted, never guessed ({report.Degradations.Count})");
             text.AppendLine();
             foreach (var degradation in report.Degradations)
             {

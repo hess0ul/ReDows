@@ -5,7 +5,7 @@ namespace ReDows.Core.Scanning;
 
 /// <summary>
 /// Rule ids reserved for the engine itself (rules/README.md): situations decided
-/// by code, not by the ruleset, but still part of the total accounting — every
+/// by code, not by the ruleset, but still part of the total accounting. Every
 /// one of them is a counted, visible verdict, never a silent skip.
 /// </summary>
 public static class EngineRuleIds
@@ -21,7 +21,7 @@ public static class EngineRuleIds
     /// <summary>
     /// A non-surrogate reparse DIRECTORY that is not traversed (ProjFS/WCI root,
     /// unknown or unreadable tag): unlike a link, its contents are unique and
-    /// were never walked — a blind spot, verdict REVIEW (forget-nothing).
+    /// were never walked. This is a blind spot, verdict REVIEW (forget-nothing).
     /// </summary>
     public const string UnknownReparse = "engine.unknown_reparse";
 
@@ -35,8 +35,8 @@ public static class EngineRuleIds
 /// <summary>
 /// A dynamic zone claimed at scan time by an index parser (INDEX_EXTERNE §D-15):
 /// a config file pointed at this subtree (relocated mail store, Calibre library,
-/// VM folder…). Safety direction is structural: a claimed zone may only ADD
-/// review/capture — never ignore — so a wrong index can over-capture (benign)
+/// VM folder...). Safety direction is structural: a claimed zone may only ADD
+/// review/capture (never ignore), so a wrong index can over-capture (benign)
 /// but never lose data. Evaluated before the ruleset stages (normative order:
 /// errors → claimed → carve_out → deny → capture → default).
 /// </summary>
@@ -53,7 +53,7 @@ public sealed record ClaimedZone
         if (string.IsNullOrEmpty(id) || !id.Contains(':'))
         {
             throw new ArgumentException(
-                "claimed zone ids must carry a ':' namespace (e.g. 'index:app:target@user') — ':' cannot appear " +
+                "claimed zone ids must carry a ':' namespace (e.g. 'index:app:target@user'). ':' cannot appear " +
                 "in rule or engine ids, so report attribution can never collide", nameof(id));
         }
 
@@ -76,10 +76,10 @@ public sealed record ClaimedZone
 /// A dynamic zone fed at scan time from the application inventory: a directory the
 /// inventory identified as an installed app's location (ARP InstallLocation, a game
 /// library, a package-manager folder). The app is re-acquirable, so its
-/// re-downloadable content is IGNORE — but ONLY where the ruleset would otherwise
+/// re-downloadable content is IGNORE, but ONLY where the ruleset would otherwise
 /// REVIEW it (never over a keep: a carve-out / capture survives), and never inside a
-/// data-named subtree (config/save/userdata… stay REVIEW, see <see cref="AppDataFolders"/>).
-/// Evaluated AFTER the ruleset, so the forget-nothing stages always win — this is the
+/// data-named subtree (config/save/userdata... stay REVIEW, see <see cref="AppDataFolders"/>).
+/// Evaluated AFTER the ruleset, so the forget-nothing stages always win. This is the
 /// one engine-fed zone that may ignore, and it is deliberately the last word.
 /// </summary>
 public sealed record ReinstallZone
@@ -89,7 +89,7 @@ public sealed record ReinstallZone
         if (string.IsNullOrEmpty(id) || !id.Contains(':'))
         {
             throw new ArgumentException(
-                "reinstall zone ids must carry a ':' namespace (e.g. 'app:arp:Notepad++') — ':' cannot appear " +
+                "reinstall zone ids must carry a ':' namespace (e.g. 'app:arp:Notepad++'). ':' cannot appear " +
                 "in rule or engine ids, so report attribution can never collide", nameof(id));
         }
 
@@ -105,7 +105,7 @@ public sealed record ReinstallZone
 /// <summary>
 /// A dynamic zone fed at scan time from the application inventory: a directory
 /// where an installed app keeps its DATA (its %AppData% / %LocalAppData% folder).
-/// The mirror of <see cref="ReinstallZone"/> — increment 3 ignores the program,
+/// The mirror of <see cref="ReinstallZone"/>: increment 3 ignores the program,
 /// this keeps the data. Additive-only (review/capture, never ignore, like
 /// <see cref="ClaimedZone"/>): a wrong name-guess over-captures (benign) but never
 /// loses data. Evaluated AFTER the ruleset and ONLY over a REVIEW verdict, so an
@@ -145,17 +145,17 @@ public sealed record PreResetAlert(string RuleId, long Items);
 /// <summary>
 /// Scan parameters. <paramref name="Roots"/> walks the given roots instead of the
 /// context's volume roots (subtree scan); <paramref name="ExcludedOutputPaths"/>
-/// lists paths produced by ReDows itself (report file…), classified engine.self_output;
+/// lists paths produced by ReDows itself (report file...), classified engine.self_output;
 /// <paramref name="ClaimedZones"/> are index-derived dynamic zones.
 /// </summary>
 /// <param name="OnCapture">
 /// Called once for every CAPTURE-verdict item, in scan order, before the report is
-/// built — the per-item manifest sink. Invoked in lockstep with the CAPTURE verdict
+/// built. This is the per-item manifest sink. Invoked in lockstep with the CAPTURE verdict
 /// tally, so a sink that writes one line per call emits exactly as many lines as the
 /// report counts CAPTURE items (the manifest's self-consistency guarantee).
 /// </param>
 /// <param name="OnReview">
-/// Called once for every REVIEW-verdict item, in scan order — the per-item sink for the
+/// Called once for every REVIEW-verdict item, in scan order. This is the per-item sink for the
 /// "human decides" pile. Optional: the CLI leaves it null (its manifest lists only CAPTURE),
 /// while the GUI uses it to record the full backup-candidate set (CAPTURE + REVIEW) so the
 /// user's kept-minus-trash selection can be copied. Verdicts are preserved, so a secret stays
@@ -165,7 +165,7 @@ public sealed record PreResetAlert(string RuleId, long Items);
 /// Optional recogniser for the end-of-scan "recognized places" briefing: given a DIRECTORY's own name,
 /// its full path and the verdict it received, it returns what that place is (a <see cref="RecognizedZoneInfo"/>)
 /// or null when it recognises nothing. Called once per directory (never a file); the engine de-duplicates
-/// by key and keeps a bounded, sorted summary. Read-only and metadata-only — it never opens anything.
+/// by key and keeps a bounded, sorted summary. Read-only and metadata-only. It never opens anything.
 /// </param>
 public sealed record ScanOptions(
     IReadOnlyList<string>? Roots = null,
@@ -191,12 +191,12 @@ public sealed record ReviewBucket(string Directory, long Items, long Bytes);
 /// What a zone RECOGNISER makes of one directory: a stable <see cref="Key"/> to group identical places
 /// by (so twelve node_modules collapse to one line), a friendly <see cref="Label"/>, the human
 /// <see cref="Note"/> (2-3 sentences), and an importance (keep/maybe/drop) for its colour. Metadata-only
-/// by construction — the recogniser is handed a name and a path, never a file's content.
+/// by construction. The recogniser is handed a name and a path, never a file's content.
 /// </summary>
 public sealed record RecognizedZoneInfo(string Key, string Label, string Note, string Importance);
 
 /// <summary>
-/// One well-known place the scan recognised (AppData, .ssh, Steam, node_modules, a game/app folder…),
+/// One well-known place the scan recognised (AppData, .ssh, Steam, node_modules, a game/app folder...),
 /// aggregated across the whole walk: <see cref="Count"/> is how many folders matched this same zone and
 /// <see cref="SamplePath"/> the shallowest example. Bounded and de-duplicated, so the end-of-scan
 /// "recognized places" briefing stays short even on a 1.4M-item PC.
@@ -206,7 +206,7 @@ public sealed record RecognizedZone(string Key, string Label, string Note, strin
 /// <summary>
 /// The complete result of a scan. Total-accounting invariant, verifiable from the
 /// data itself: every walked item received exactly one verdict, so
-/// <see cref="UnaccountedItems"/> must be 0 — the report displays that equation
+/// <see cref="UnaccountedItems"/> must be 0. The report displays that equation
 /// instead of asking to be trusted.
 /// </summary>
 public sealed record ScanReport(
@@ -231,14 +231,14 @@ public sealed record ScanReport(
     public long UnaccountedItems => TotalItems - AccountedItems;
 
     /// <summary>
-    /// The accounting equation as text — the per-verdict item counts summed and checked against the total
+    /// The accounting equation as text: the per-verdict item counts summed and checked against the total
     /// ("a + b + c = N accounted vs M seen"). Shared by both front-ends so they can never print a different
     /// accounting for the same scan; each appends its own "✓" / "UNACCOUNTED" verdict suffix.
     /// </summary>
     public string AccountingEquation =>
         string.Join(" + ", Enum.GetValues<Verdict>()
             .Select(v => ByVerdict.GetValueOrDefault(v, new VerdictTotals(0, 0)).Items))
-        + $" = {AccountedItems:N0} accounted vs {TotalItems:N0} seen";
+        + $" = {AccountedItems:N0} of {TotalItems:N0} items";
 
     /// <summary>
     /// V1 limits, stated rather than hidden (deny-list §0-5: a known deviation is
@@ -246,13 +246,13 @@ public sealed record ScanReport(
     /// </summary>
     public static readonly IReadOnlyList<string> V1Limits =
     [
-        "Hard links are counted once per path: a file with N names contributes its size N times.",
-        "Bytes are logical file sizes, not disk usage (NTFS compression, sparse ranges and alternate data streams are not measured).",
-        "A directory that could not be enumerated is one 'unknown subtree' item: its contents are absent from every figure. 'Zero gaps' therefore means zero KNOWN gaps.",
-        "Cloud placeholders (OneDrive Files-On-Demand…) are counted at their logical size; no content is downloaded.",
-        "A reparse-point directory with an unknown or unreadable tag is not traversed: it is one counted REVIEW item (engine.unknown_reparse) and its contents are absent from every figure.",
-        "Dynamic deny-list sources (FilesNotToBackup…) are a later block.",
-        "The application inventory feeds two kinds of zones (unless --no-reinstall): install dirs whose re-downloadable content is IGNORED where the ruleset would only REVIEW (never over a keep, never a data-named subtree), and each app's data folders — its %AppData% is CAPTURED and its %LocalAppData% surfaced for REVIEW, again only where the ruleset would otherwise REVIEW. App-data folder names are matched to the app name (best-effort), so an app whose data folder is named differently is not linked.",
-        "User-selectable category modules (modules/, e.g. games) apply only where the ruleset would REVIEW: KEEP captures a whole category, IGNORE drops its re-acquirable bulk — never over a keep/secret, and under IGNORE a save-named subtree stays REVIEW. A module has no effect unless its action is set (default REVIEW). Detection is by folder name/extension (best-effort), so a game folder at a volume root with no games-named ancestor is not matched.",
+        "A file with several names (hard links) is counted once per name, so its size is added once per name.",
+        "Sizes are the file's logical size, not the space it uses on disk (compression, sparse files and alternate data streams are not measured).",
+        "A folder that can't be read counts as one item, and its contents are not in any figure. So 'nothing missed' means nothing missed that could be read.",
+        "Files kept online-only in the cloud (OneDrive Files On-Demand) are counted at their full size; nothing is downloaded.",
+        "A folder with an unknown or unreadable reparse tag is not opened. It counts as one item to review, and its contents are not in any figure.",
+        "Some Windows skip lists (such as FilesNotToBackup) are not used yet.",
+        "The app inventory does two things (unless --no-reinstall). It skips the re-downloadable content of installed apps, but only where the item would just be reviewed, never over something kept and never inside a data folder. And it keeps each app's %AppData% while leaving its %LocalAppData% for review, again only where the item would be reviewed. App data folders are matched to the app by name (best effort), so an app whose data folder is named differently is not linked.",
+        "Category settings (from modules/, such as Games) apply only where the item would be reviewed. Keep saves a whole category; ignore drops the parts you can get again, but never something kept and never a save folder. A category does nothing unless you set it (the default is review). Detection is by folder name or file type (best effort).",
     ];
 }

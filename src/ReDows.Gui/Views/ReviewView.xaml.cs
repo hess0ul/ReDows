@@ -5,8 +5,8 @@ namespace ReDows.Gui.Views;
 
 /// <summary>
 /// The review explorer. All logic lives in ReviewViewModel; clicks go through its commands. The one
-/// piece of code-behind hands the AI PasswordBox's value to the view-model for THIS session only —
-/// the key stays in memory and is never persisted or logged (invariant #5).
+/// piece of code-behind hands the AI PasswordBox's value to the view-model for THIS session only.
+/// The key stays in memory and is never persisted or logged (invariant #5).
 /// </summary>
 public partial class ReviewView : UserControl
 {

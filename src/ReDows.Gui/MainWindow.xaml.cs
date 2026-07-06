@@ -14,7 +14,7 @@ public partial class MainWindow : Window
     /// <summary>DWM attribute id: the system backdrop behind the window (Windows 11 22H2+).</summary>
     private const int DwmwaSystemBackdropType = 38;
 
-    /// <summary>Backdrop kind: Mica — the soft, desktop-tinted material of Windows 11 apps.</summary>
+    /// <summary>Backdrop kind: Mica (the soft, desktop-tinted material of Windows 11 apps).</summary>
     private const int BackdropMica = 2;
 
     [DllImport("dwmapi.dll")]
@@ -40,7 +40,7 @@ public partial class MainWindow : Window
         base.OnSourceInitialized(e);
 
         // Match the app's dark theme: ask DWM to paint the native title bar dark instead of the default
-        // light bar. Best-effort — on a Windows build without this attribute the call is a harmless
+        // light bar. Best-effort: on a Windows build without this attribute the call is a harmless
         // no-op and the light bar simply stays. Never throws.
         var handle = new WindowInteropHelper(this).Handle;
         var enabled = 1;
@@ -48,7 +48,7 @@ public partial class MainWindow : Window
 
         // Mica backdrop (Windows 11 22H2+), still dependency-free: extend the frame, ask for Mica, and
         // ONLY then let it show through by clearing the window background. On any failure (older
-        // Windows), nothing is changed and the solid dark background stays — a safe no-op.
+        // Windows), nothing is changed and the solid dark background stays. A safe no-op.
         var margins = new DwmMargins { Left = -1, Right = -1, Top = -1, Bottom = -1 };
         if (DwmExtendFrameIntoClientArea(handle, ref margins) == 0)
         {

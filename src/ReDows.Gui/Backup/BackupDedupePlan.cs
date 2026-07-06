@@ -7,7 +7,7 @@ namespace ReDows.Gui.Backup;
 /// One line of the restore map (redows-restore-map.json): a single stored copy and every original place
 /// its content belongs. <see cref="StoredAt"/> is the destination-relative path the one copy was written
 /// to (the most-recent "truth"); <see cref="BelongsAt"/> lists all the original source paths that held
-/// the identical content — so a later restore can put it back to one, some, or all of them.
+/// the identical content. A later restore can then put it back to one, some, or all of them.
 /// </summary>
 public sealed record RestoreMapEntry(string StoredAt, IReadOnlyList<string> BelongsAt);
 

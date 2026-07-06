@@ -6,7 +6,7 @@ namespace ReDows.Providers.Windows.Apps;
 
 /// <summary>
 /// Store/MSIX packages of the CURRENT user via the supported WinRT API
-/// (PackageManager.FindPackagesForUser("") — no elevation needed). Framework,
+/// (PackageManager.FindPackagesForUser(""), no elevation needed). Framework,
 /// resource and OS-signed packages go to the visible components bucket; the
 /// stable identity is the PackageFamilyName. Per-package property reads are
 /// guarded: staged or damaged packages throw on individual properties (CsWinRT
@@ -30,7 +30,7 @@ public static class MsixAppSource
                 [],
                 new SourceAccounting(SourceName, 0, 0, 0, 0, 0),
                 new InventoryDegradation(SourceName, "this machine",
-                    "Windows build < 19041 — MSIX enumeration unavailable, Store apps not inventoried"));
+                    "Windows build is older than 19041, so Store apps could not be listed"));
         }
 
         var entries = new List<AppEntry>();
@@ -40,7 +40,7 @@ public static class MsixAppSource
         // Source-level guard: PackageManager activation or the lazy enumeration
         // itself can fail (AppX service unavailable, COM error mid-stream). The
         // partial inventory is kept and the failure becomes a counted
-        // degradation — never a crash that loses every other source.
+        // degradation, not a crash that loses every other source.
         try
         {
             var packageManager = new PackageManager();
@@ -95,8 +95,8 @@ public static class MsixAppSource
                         {
                             PackageSignatureKind.Store => null,
                             PackageSignatureKind.System => "OS-signed package",
-                            PackageSignatureKind.Developer or PackageSignatureKind.None => "sideloaded — manual reinstall",
-                            PackageSignatureKind.Enterprise => "enterprise-signed — redeployed by the organization",
+                            PackageSignatureKind.Developer or PackageSignatureKind.None => "sideloaded, reinstall manually",
+                            PackageSignatureKind.Enterprise => "enterprise-signed, redeployed by the organization",
                             _ => null,
                         }));
 
@@ -123,7 +123,7 @@ public static class MsixAppSource
             // neither entry nor bucket: align the equation as a counted error.
             errors = enumerated - apps - components;
             degradation = new InventoryDegradation(SourceName, "this machine",
-                $"MSIX enumeration failed ({ex.GetType().Name}: {ex.Message}) — Store inventory incomplete ({apps + components} package(s) kept)");
+                $"listing Store apps failed ({ex.GetType().Name}: {ex.Message}), so the Store inventory is incomplete ({apps + components} package(s) kept)");
         }
 
         return new MsixResult(

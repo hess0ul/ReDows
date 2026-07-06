@@ -6,7 +6,7 @@ namespace ReDows.Gui.Scanning;
 /// <summary>
 /// Remembers the user's per-category keep / review / ignore choices between launches, so the Scan screen
 /// starts with what they last picked instead of every category back on "review". A seam: the real
-/// implementation is a small JSON file; a test swaps a fake. Best-effort — a missing or broken file just
+/// implementation is a small JSON file; a test swaps a fake. Best-effort: a missing or broken file just
 /// means the defaults, and a failed save never breaks the scan.
 /// </summary>
 public interface IModuleSettingsStore
@@ -20,7 +20,7 @@ public interface IModuleSettingsStore
 /// <summary>
 /// The real store: module-settings.json under %LocalAppData%\ReDows, next to the session and AI files.
 /// Best-effort like <see cref="ReDows.Gui.Ai.FileAiSettingsStore"/>. The path is injectable so it can be
-/// unit-tested against a temp file. Only the plain keep/review/ignore choice is stored — nothing secret.
+/// unit-tested against a temp file. Only the plain keep/review/ignore choice is stored; nothing secret.
 /// </summary>
 public sealed class WindowsModuleSettingsStore : IModuleSettingsStore
 {
@@ -58,7 +58,7 @@ public sealed class WindowsModuleSettingsStore : IModuleSettingsStore
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Persistence is a convenience — never let a failed save break the app.
+            // Persistence is a convenience; never let a failed save break the app.
         }
     }
 }

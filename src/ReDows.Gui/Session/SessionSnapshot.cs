@@ -3,8 +3,8 @@ using ReDows.Gui.Scanning;
 namespace ReDows.Gui.Session;
 
 /// <summary>
-/// Pure conversions between a live scan result + the review trash and the persisted <see cref="SessionFile"/>
-/// — so the "save my session" and "resume from my session" mapping is unit-tested without any I/O.
+/// Pure conversions between a live scan result + the review trash and the persisted <see cref="SessionFile"/>:
+/// so the "save my session" and "resume from my session" mapping is unit-tested without any I/O.
 /// </summary>
 public static class SessionSnapshot
 {

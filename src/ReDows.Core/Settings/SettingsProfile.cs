@@ -8,12 +8,12 @@ public sealed record ModuleSettings(string Module, IReadOnlyList<SettingReading>
 /// it comes back after a reset, so the profile is honest about what restores automatically
 /// versus what the user must redo:
 /// <list type="bullet">
-///   <item><see cref="ExistingModules"/> — an existing InDows module re-applies it (automatic).</item>
-///   <item><see cref="NewModules"/> — a module still to build (<c>NEW:</c> prefix).</item>
-///   <item><see cref="ByBase"/> — the InDows base install applies it, not a module (automatic).</item>
-///   <item><see cref="PersoOnly"/> — only the private config applies it; the public InDows leaves the default.</item>
-///   <item><see cref="NotApplied"/> — a module is the intended home but its line is off today (needs wiring).</item>
-///   <item><see cref="Manual"/> — nothing applies it; redo by hand after reset.</item>
+///   <item><see cref="ExistingModules"/>: an existing InDows module re-applies it (automatic).</item>
+///   <item><see cref="NewModules"/>: a module still to build (<c>NEW:</c> prefix).</item>
+///   <item><see cref="ByBase"/>: the InDows base install applies it, not a module (automatic).</item>
+///   <item><see cref="PrivateOnly"/>: only the private config applies it; the public InDows leaves the default.</item>
+///   <item><see cref="NotApplied"/>: a module is the intended home but its line is off today (needs wiring).</item>
+///   <item><see cref="Manual"/>: nothing applies it; redo by hand after reset.</item>
 /// </list>
 /// plus <see cref="NotInLoop"/> (capture-only, no module) and <see cref="Unreadable"/>.
 /// </summary>
@@ -21,7 +21,7 @@ public sealed record SettingsProfile(
     IReadOnlyList<ModuleSettings> ExistingModules,
     IReadOnlyList<ModuleSettings> NewModules,
     IReadOnlyList<SettingReading> ByBase,
-    IReadOnlyList<SettingReading> PersoOnly,
+    IReadOnlyList<SettingReading> PrivateOnly,
     IReadOnlyList<ModuleSettings> NotApplied,
     IReadOnlyList<SettingReading> Manual,
     IReadOnlyList<SettingReading> NotInLoop,
@@ -34,7 +34,7 @@ public static class SettingsProfileBuilder
 
     // Sentinel indows_module values: the setting comes back from somewhere other than a module.
     private const string BaseSentinel = "base";
-    private const string PersoSentinel = "perso";
+    private const string PrivateSentinel = "private";
     private const string NoneSentinel = "none";
 
     public static SettingsProfile Build(SettingsReport report)
@@ -46,10 +46,10 @@ public static class SettingsProfileBuilder
         var inLoop = readable.Where(r => r.Definition.InLoop).ToList();
 
         var byBase = Sorted(inLoop.Where(r => IsSentinel(r, BaseSentinel)));
-        var persoOnly = Sorted(inLoop.Where(r => IsSentinel(r, PersoSentinel)));
+        var privateOnly = Sorted(inLoop.Where(r => IsSentinel(r, PrivateSentinel)));
         var manual = Sorted(inLoop.Where(r => IsSentinel(r, NoneSentinel)));
 
-        // Whatever a real (or NEW:) module owns — split applied vs not-yet-applied.
+        // Whatever a real (or NEW:) module owns is split into applied vs not-yet-applied.
         var module = inLoop.Where(r => !IsAnySentinel(r)).ToList();
         var notApplied = GroupByModule(module.Where(r => !r.Definition.Applied));
         var applied = module.Where(r => r.Definition.Applied).ToList();
@@ -57,14 +57,14 @@ public static class SettingsProfileBuilder
         var existing = GroupByModule(applied.Where(r => !IsNew(r)));
         var pending = GroupByModule(applied.Where(IsNew));
 
-        return new SettingsProfile(existing, pending, byBase, persoOnly, notApplied, manual, notInLoop, unreadable);
+        return new SettingsProfile(existing, pending, byBase, privateOnly, notApplied, manual, notInLoop, unreadable);
     }
 
     private static bool IsSentinel(SettingReading reading, string sentinel) =>
         string.Equals(reading.Definition.IndowsModule, sentinel, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsAnySentinel(SettingReading reading) =>
-        IsSentinel(reading, BaseSentinel) || IsSentinel(reading, PersoSentinel) || IsSentinel(reading, NoneSentinel);
+        IsSentinel(reading, BaseSentinel) || IsSentinel(reading, PrivateSentinel) || IsSentinel(reading, NoneSentinel);
 
     private static bool IsNew(SettingReading reading) =>
         reading.Definition.IndowsModule?.StartsWith(NewPrefix, StringComparison.OrdinalIgnoreCase) ?? false;

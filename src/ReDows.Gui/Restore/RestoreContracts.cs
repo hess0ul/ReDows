@@ -1,7 +1,7 @@
 namespace ReDows.Gui.Restore;
 
 /// <summary>
-/// A restore to run — the inverse of a backup. <see cref="BackupFolder"/> is a folder produced by the
+/// A restore to run: the inverse of a backup. <see cref="BackupFolder"/> is a folder produced by the
 /// Backup screen (self-describing: the file tree + redows-restore-map.json + secrets-vault.zip).
 /// <see cref="ToOriginalLocations"/> true = put files back where they came from; false = reconstruct the
 /// tree under <see cref="TargetFolder"/> instead (safe, you move things yourself). <see cref="VaultPassword"/>
@@ -13,7 +13,7 @@ public sealed record RestoreRequest(string BackupFolder, bool ToOriginalLocation
 /// <summary>Live progress while a restore runs: how many backup files processed, and the current one.</summary>
 public sealed record RestoreProgress(long Items, string CurrentPath);
 
-/// <summary>One target that could not be written — surfaced, never silently dropped.</summary>
+/// <summary>One target that could not be written: surfaced, never silently dropped.</summary>
 public sealed record RestoreFailureRow(string Path, string Reason);
 
 /// <summary>

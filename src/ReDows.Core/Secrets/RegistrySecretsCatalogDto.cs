@@ -52,7 +52,7 @@ public sealed class RegistrySecretTargetDto
     public List<string>? ConfigValues { get; set; }
 
     [Pattern("^(config|review)$")]
-    [Description("How to treat a value NAME not in either list: 'config' (this key's names are inherently config, e.g. host keys / MRU) or 'review' (default — unknown name surfaced, never dropped).")]
+    [Description("How to treat a value NAME not in either list: 'config' (this key's names are inherently config, e.g. host keys / MRU) or 'review' (default: an unknown name is surfaced, never dropped).")]
     public string? Unmatched { get; set; }
 
     [Pattern("^(config_only|reversible_secret|strong_secret)$")]

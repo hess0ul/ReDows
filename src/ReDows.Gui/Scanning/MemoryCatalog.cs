@@ -5,9 +5,9 @@ using ReDows.Core.Memory;
 namespace ReDows.Gui.Scanning;
 
 /// <summary>
-/// Source of ReDows' folder memory — the known-folder/app notes the Review screen shows. A seam: the
+/// Source of ReDows' folder memory: the known-folder/app notes the Review screen shows. A seam: the
 /// real implementation reads memory/ shipped next to the app; a test swaps a fake. Absence is not an
-/// error — no memory just means nothing is recognised and the tree colours only from the rules/AI.
+/// error: no memory just means nothing is recognised and the tree colours only from the rules/AI.
 /// </summary>
 public interface IMemoryCatalog
 {
@@ -16,7 +16,7 @@ public interface IMemoryCatalog
 
 /// <summary>
 /// Loads the shipped folder memory (memory/ next to the executable, falling back to the working directory
-/// in dev — mirroring how the rules, modules and triage are resolved). A malformed memory folder is
+/// in dev: mirroring how the rules, modules and prescreen are resolved). A malformed memory folder is
 /// swallowed to <c>null</c> rather than crashing the window: the memory is an overlay, so a broken file
 /// simply disables it (Review still works, colouring from the rules and the AI).
 /// </summary>

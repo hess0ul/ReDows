@@ -10,10 +10,10 @@ public enum LocationTokenKind
     /// <summary>%X% resolved from each profile's own environment (e.g. %APPDATA%).</summary>
     ProfileEnvironment,
 
-    /// <summary>&lt;UserProfile&gt; — the resolved root of each profile.</summary>
+    /// <summary>&lt;UserProfile&gt;: the resolved root of each profile.</summary>
     UserProfileRoot,
 
-    /// <summary>FOLDERID_X — a Known Folder resolved per profile by GUID, never by localized name.</summary>
+    /// <summary>FOLDERID_X: a Known Folder resolved per profile by GUID, never by localized name.</summary>
     KnownFolder,
 }
 
@@ -22,7 +22,7 @@ public sealed record LocationToken(LocationTokenKind Kind, string Name);
 /// <summary>
 /// The closed set of location tokens accepted in rule patterns (locale-independence
 /// invariant: a pattern never hardcodes an absolute or localized path). Unknown
-/// tokens are a validation error — fail-closed, a typo must never become a no-match.
+/// tokens are a validation error. A typo must never become a no-match.
 /// </summary>
 public static class LocationTokens
 {

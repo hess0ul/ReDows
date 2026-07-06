@@ -18,7 +18,7 @@ public enum EntryShape
 }
 
 /// <summary>
-/// How recoverable a target's secret is — drives the pre-reset alert wording.
+/// How recoverable a target's secret is. Drives the pre-reset alert wording.
 /// </summary>
 public enum SecretSensitivity
 {
@@ -28,13 +28,13 @@ public enum SecretSensitivity
     /// <summary>The stored secret is recoverable from the registry alone (WinSCP obfuscation, VNC hash).</summary>
     ReversibleSecret,
 
-    /// <summary>Protected (DPAPI / master password): unreadable after a reset — export it beforehand.</summary>
+    /// <summary>Protected (DPAPI / master password): unreadable after a reset. Export it beforehand.</summary>
     StrongSecret,
 }
 
 /// <summary>
 /// One app location ReDows inspects for registry-resident secrets/config. The reader
-/// is READ-ONLY and works on value NAMES only — a value classified <see cref="SecretClass.Secret"/>
+/// is READ-ONLY and works on value NAMES only. A value classified <see cref="SecretClass.Secret"/>
 /// is recorded by its location, never read (invariant: secrets kept apart, never in clear).
 /// </summary>
 public sealed record RegistrySecretTarget(

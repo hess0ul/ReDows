@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 namespace ReDows.Core.Rules.Loading;
 
 /// <summary>
-/// Generates rules/ruleset.schema.json from the loader DTOs by reflection — the C#
+/// Generates rules/ruleset.schema.json from the loader DTOs by reflection. The C#
 /// types and their attributes are the single source of truth, the schema is a build
 /// artifact for editor support (yaml-language-server: autocompletion, hover docs,
 /// live validation). Recursive DTOs (conditions, nested exceptions) are emitted as

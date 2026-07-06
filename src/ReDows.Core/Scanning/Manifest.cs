@@ -7,11 +7,11 @@ namespace ReDows.Core.Scanning;
 using Classification = ReDows.Core.Classification.Classification;
 
 /// <summary>
-/// One line of the capture manifest: a single CAPTURE item named in full — its path
+/// One line of the capture manifest. It names a single CAPTURE item in full: its path
 /// (the engine's normalized, '/'-separated form), the verdict, the rule that decided
 /// it, the rule's stage, its logical size, whether it is a directory, and any flags.
 /// <para>
-/// The manifest records a captured object's <em>location</em>, never its content — a
+/// The manifest records a captured object's <em>location</em>, never its content. A
 /// secret file's path is listed (so the copy step knows it exists and where), but its
 /// value is never read here (invariant: secrets kept apart, never in clear).
 /// </para>

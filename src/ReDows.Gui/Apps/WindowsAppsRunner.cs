@@ -20,13 +20,13 @@ public sealed class WindowsAppsRunner : IAppsRunner
     private static AppsLoadResult Load(bool enrichWithWinget, IProgress<string> progress, CancellationToken cancellationToken)
     {
         progress.Report(enrichWithWinget
-            ? "Reading installed apps and matching them to winget (a few seconds)…"
-            : "Reading installed apps…");
+            ? "Reading installed apps and matching them to winget (a few seconds)..."
+            : "Reading installed apps...");
 
         var report = AppInventoryProvider.Build(enrichWithWinget);
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Only real applications — the inventory's Component/Update rows (frameworks, KB patches…) are noise here.
+        // Only real applications. The inventory's Component/Update rows (frameworks, KB patches...) are noise here.
         var apps = report.Entries.Where(e => e.Kind == AppEntryKind.App).ToList();
         var auto = apps.Count(e => e.Reinstall is not null);
         var summary = $"{apps.Count:N0} apps · {auto:N0} reinstall automatically · {apps.Count - auto:N0} manual"
@@ -39,7 +39,7 @@ public sealed class WindowsAppsRunner : IAppsRunner
         Task.Run(() => ExportProfile(selectedApps, folder, progress, cancellationToken), cancellationToken);
 
     /// <summary>
-    /// Write the full InDows profile folder — the same four files 'redows profile' produces, reusing the
+    /// Write the full InDows profile folder: the same four files 'redows profile' produces, reusing the
     /// same pure Core builders: configuration.dsc.yaml (apps), settings-profile.json/.md (settings), README.md.
     /// Reads the live settings (registry + a few PowerShell queries) read-only; never reads a secret value.
     /// </summary>
@@ -48,25 +48,25 @@ public sealed class WindowsAppsRunner : IAppsRunner
         var destination = Path.GetFullPath(folder);
         Directory.CreateDirectory(destination);
 
-        // Apps half — the winget DSC catalog InDows reinstalls from.
-        progress.Report("Building the apps catalog…");
+        // Apps half: the winget DSC catalog InDows reinstalls from.
+        progress.Report("Building the apps catalog...");
         var catalog = InDowsCatalogEmitter.Emit(selectedApps);
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Settings half — load the catalog (fail-closed) and read the live machine (read-only, non-secret).
-        progress.Report("Reading your Windows settings (a few seconds)…");
+        // Settings half: load the catalog (fail-closed) and read the live machine (read-only, non-secret).
+        progress.Report("Reading your Windows settings (a few seconds)...");
         var settingsCatalog = SettingsCatalogLoader.LoadDirectory(ResolveSettingsDirectory());
         var report = WindowsSettingsReader.Read(settingsCatalog);
         cancellationToken.ThrowIfCancellationRequested();
         var profile = SettingsProfileBuilder.Build(report);
 
-        progress.Report("Writing the InDows profile…");
+        progress.Report("Writing the InDows profile...");
         File.WriteAllText(Path.Combine(destination, "configuration.dsc.yaml"), catalog.Yaml);
         File.WriteAllText(Path.Combine(destination, "settings-profile.json"), SettingsProfileEmitter.RenderJson(profile));
         File.WriteAllText(Path.Combine(destination, "settings-profile.md"), SettingsProfileEmitter.RenderMarkdown(profile));
         File.WriteAllText(Path.Combine(destination, "README.md"), InDowsProfileReadme.Render(catalog, profile));
 
-        var settingsManual = profile.Manual.Count + profile.PersoOnly.Count + profile.NotApplied.Sum(m => m.Settings.Count);
+        var settingsManual = profile.Manual.Count + profile.PrivateOnly.Count + profile.NotApplied.Sum(m => m.Settings.Count);
         return new AppsExportResult(
             destination,
             catalog.ActiveCount,

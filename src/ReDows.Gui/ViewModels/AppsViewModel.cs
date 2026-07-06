@@ -9,7 +9,7 @@ namespace ReDows.Gui.ViewModels;
 /// The Apps screen's brain. It loads this PC's installed apps off the UI thread (winget-enriched, so as
 /// many as possible can reinstall automatically), lists them with a tick each (all on by default), and
 /// writes the chosen ones plus this PC's Windows settings into a FULL InDows profile (apps + settings +
-/// README) — the complete ReDows → InDows hand-off. Both operations run in the background with progress and
+/// README): the complete ReDows → InDows hand-off. Both operations run in the background with progress and
 /// Cancel. All state is plain and testable off a fake <see cref="IAppsRunner"/>.
 /// </summary>
 public sealed class AppsViewModel : ViewModelBase
@@ -37,17 +37,17 @@ public sealed class AppsViewModel : ViewModelBase
     /// <summary>The installed apps, each with a tick for "reinstall after the reset".</summary>
     public ObservableCollection<AppRowViewModel> Apps { get; } = [];
 
-    /// <summary>Raised when the user changes which apps are ticked — the shell persists the choice on this signal.</summary>
+    /// <summary>Raised when the user changes which apps are ticked. The shell persists the choice on this signal.</summary>
     public event Action? SelectionChanged;
 
-    /// <summary>The keys of the apps the user unticked (a deny-list — everything else reinstalls by default).</summary>
+    /// <summary>The keys of the apps the user unticked (a deny-list; everything else reinstalls by default).</summary>
     public IReadOnlyList<string> DeselectedKeys =>
         Apps.Where(app => !app.IsSelected).Select(app => app.Entry.Key).ToList();
 
     /// <summary>
     /// Re-apply a saved session's app choices: untick exactly the given keys, everything else stays ticked
     /// (so an app installed since the last session is kept by default). Applied now if loaded, otherwise the
-    /// moment the inventory finishes loading. Does not raise <see cref="SelectionChanged"/> — resuming, not deciding.
+    /// moment the inventory finishes loading. Does not raise <see cref="SelectionChanged"/>; resuming, not deciding.
     /// </summary>
     public void RestoreSelection(IReadOnlyList<string> deselectedKeys)
     {
@@ -64,7 +64,7 @@ public sealed class AppsViewModel : ViewModelBase
 
     public RelayCommand CancelCommand { get; }
 
-    /// <summary>Loading the inventory or writing the profile — either way, busy (progress + Cancel shown).</summary>
+    /// <summary>Loading the inventory or writing the profile. Either way, busy (progress + Cancel shown).</summary>
     public bool IsBusy
     {
         get => _isBusy;
@@ -109,7 +109,7 @@ public sealed class AppsViewModel : ViewModelBase
 
         Error = null;
         ExportResult = null;
-        ProgressText = "Starting…";
+        ProgressText = "Starting...";
         IsBusy = true;
         _cancellation = new CancellationTokenSource();
         var progress = new Progress<string>(text => ProgressText = text);
@@ -162,7 +162,7 @@ public sealed class AppsViewModel : ViewModelBase
 
         Error = null;
         ExportResult = null;
-        ProgressText = "Starting export…";
+        ProgressText = "Starting export...";
         IsBusy = true;
         _cancellation = new CancellationTokenSource();
         var progress = new Progress<string>(text => ProgressText = text);
@@ -180,7 +180,7 @@ public sealed class AppsViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
-            ProgressText = "Export cancelled — a partial profile may be in the folder.";
+            ProgressText = "Export cancelled. A partial profile may be in the folder.";
         }
         catch (Exception ex)
         {
@@ -197,7 +197,7 @@ public sealed class AppsViewModel : ViewModelBase
 
     public void Cancel()
     {
-        ProgressText = "Cancelling…";
+        ProgressText = "Cancelling...";
         _cancellation?.Cancel();
     }
 

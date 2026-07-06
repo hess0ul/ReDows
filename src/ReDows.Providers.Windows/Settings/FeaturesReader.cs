@@ -16,7 +16,7 @@ public sealed record FeatureState(
 /// Reads optional-feature / capability / appx settings. Windows is queried ONCE per
 /// kind (read-only PowerShell), then each catalog entry is resolved against the cache.
 /// A query that fails (e.g. needs elevation) marks its settings unreadable with the
-/// reason — never guessed (degraded gracefully, the ReDows invariant).
+/// reason, never guessed (degraded gracefully, the ReDows invariant).
 /// Optional features use the WMI Win32_OptionalFeature class, which is queryable
 /// WITHOUT elevation (Get-WindowsOptionalFeature is not); InstallState 1=Enabled,
 /// 2=Disabled, 3=Absent. Capabilities have no non-elevated path → elevation required.

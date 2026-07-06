@@ -30,7 +30,7 @@ public enum RuleLayer
 /// <summary>Where a rule pattern is anchored and instantiated.</summary>
 public enum RuleScope
 {
-    /// <summary>Anchored at a machine location token (%SystemRoot%, %ProgramData%…).</summary>
+    /// <summary>Anchored at a machine location token (%SystemRoot%, %ProgramData%...).</summary>
     Machine,
 
     /// <summary>Instantiated once per user profile (ProfileList), anchored at a per-profile token.</summary>
@@ -47,11 +47,11 @@ public enum RuleScope
 /// Reserved importance axis (orthogonal to the verdict, like <see cref="RuleFlag"/>):
 /// how irreplaceable a rule's data is, independent of keep/review/ignore. It is
 /// parsed, validated and stored on every <see cref="Rule"/>/<see cref="RuleException"/>,
-/// and many rules already annotate it — but it is NOT yet consumed: the classifier
+/// and many rules already annotate it. It is NOT yet consumed: the classifier
 /// drops it when it compiles a rule, and no report or manifest reads it. Reserved for
-/// a future feature (order the REVIEW queue by importance×size; emit a prio column in
-/// the manifest); it is the twin of <see cref="RuleFlag"/>, which IS wired (the DPAPI
-/// pre-reset alert). Until it is wired, setting prio has no runtime effect — it only
+/// a future feature (order the REVIEW queue by importance and size; emit a prio column
+/// in the manifest); it is the twin of <see cref="RuleFlag"/>, which IS wired (the DPAPI
+/// pre-reset alert). Until it is wired, setting prio has no runtime effect. It only
 /// records intent for later. Keep this in mind before "using" it: it needs threading
 /// through the classifier output first.
 /// </summary>
@@ -64,11 +64,11 @@ public enum RulePriority
 }
 
 /// <summary>
-/// Orthogonal rule flags (an axis, never encoded in the verdict — bloc 1
-/// decision). V1 ships one flag: DPAPI machine-bound data is capturable but
-/// UNREADABLE after a reset, so capturing it without alerting would be a false
-/// sense of safety — the report surfaces it as a pre-reset alert
-/// ("export/synchronize BEFORE the reset"). Deny-list §D-14.
+/// Orthogonal rule flags (an axis, never encoded in the verdict). V1 ships one
+/// flag: DPAPI machine-bound data is capturable but UNREADABLE after a reset.
+/// Capturing it without alerting would be a false sense of safety, so the report
+/// shows it as a pre-reset alert ("export/synchronize BEFORE the reset").
+/// Deny-list §D-14.
 /// </summary>
 public enum RuleFlag
 {
@@ -77,8 +77,8 @@ public enum RuleFlag
 
 /// <summary>
 /// Self-declared collision class of a floating bare-name ignore pattern (deny-list §0-8).
-/// Collision-prone names (build, dist, Cache…) must carry a context condition;
-/// distinctive names (node_modules, __pycache__…) may stand alone.
+/// Collision-prone names (build, dist, Cache...) must carry a context condition;
+/// distinctive names (node_modules, __pycache__...) may stand alone.
 /// </summary>
 public enum BareNameClass
 {

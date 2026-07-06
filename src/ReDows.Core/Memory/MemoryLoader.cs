@@ -4,7 +4,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace ReDows.Core.Memory;
 
-/// <summary>Raised when a present memory file is malformed — the memory fails CLOSED, never silently wrong.</summary>
+/// <summary>Raised when a present memory file is malformed. The memory fails CLOSED, never silently wrong.</summary>
 public sealed class MemoryValidationException(IReadOnlyList<string> errors)
     : Exception("Invalid folder-memory:\n  " + string.Join("\n  ", errors))
 {
@@ -14,7 +14,7 @@ public sealed class MemoryValidationException(IReadOnlyList<string> errors)
 /// <summary>
 /// Loads ReDows' folder memory from a directory of memory files (memory/*.yaml), merging their entries
 /// into one <see cref="FolderMemory"/>.
-/// <para>Fail-SAFE on absence: a missing/empty directory yields <c>null</c> — no memory, so nothing is
+/// <para>Fail-SAFE on absence: a missing/empty directory yields <c>null</c>. No memory, so nothing is
 /// recognised and the scan behaves as before. The memory is an overlay, so its absence is never an error.</para>
 /// <para>Fail-CLOSED on corruption: a present but malformed file (bad YAML, wrong schema version, an
 /// entry missing its match or note, an invalid importance) aborts the load.</para>

@@ -5,7 +5,7 @@ using ReDows.Providers.Windows;
 namespace ReDows.Cli;
 
 /// <summary>
-/// 'redows duplicates' — walk the machine (read-only) and report byte-identical files so the user can
+/// 'redows duplicates': walk the machine (read-only) and report byte-identical files so the user can
 /// reclaim space by keeping a single copy. It PROPOSES: it never deletes or modifies anything. Exit
 /// codes: 0 ok, 2 usage, 4 unexpected error.
 /// </summary>
@@ -65,14 +65,14 @@ public static class DuplicatesCommand
             : [Path.GetFullPath(root)];
 
         Console.Error.WriteLine(root is null
-            ? $"Scanning {roots.Count} volume(s) for duplicate files (read-only)…"
-            : $"Scanning '{root}' for duplicate files (read-only)…");
+            ? $"Scanning {roots.Count} volume(s) for duplicate files (read-only)..."
+            : $"Scanning '{root}' for duplicate files (read-only)...");
 
         var walker = new WindowsFileSystemWalker();
 
         // Stream the walk straight into the finder instead of materialising a List<FileRef> for the
         // whole machine: each file is bucketed by size and then becomes garbage, so we no longer hold
-        // one live record per file across the (long) hashing phase — peak memory drops on big trees.
+        // one live record per file across the (long) hashing phase, so peak memory drops on big trees.
         // The finder enumerates this sequence exactly once (locked by a test), so the walk runs once.
         long fileCount = 0;
 
@@ -85,7 +85,7 @@ public static class DuplicatesCommand
                 {
                     if (++seen % 100_000 == 0)
                     {
-                        Console.Error.WriteLine($"  … {seen:N0} items seen");
+                        Console.Error.WriteLine($"  ... {seen:N0} items seen");
                     }
 
                     if (entry.Error is null && !entry.IsDirectory)
@@ -98,7 +98,7 @@ public static class DuplicatesCommand
 
             // Runs when the finder has pulled the last file (walk done, hashing about to begin): the
             // same message and timing the eager version printed between collecting and hashing.
-            Console.Error.WriteLine($"{fileCount:N0} files collected — hashing same-size candidates…");
+            Console.Error.WriteLine($"{fileCount:N0} files collected. Hashing same-size candidates...");
         }
 
         long hashed = 0;
@@ -106,7 +106,7 @@ public static class DuplicatesCommand
         {
             if (++hashed % 2_000 == 0)
             {
-                Console.Error.WriteLine($"  … {hashed:N0} files hashed");
+                Console.Error.WriteLine($"  ... {hashed:N0} files hashed");
             }
         });
 

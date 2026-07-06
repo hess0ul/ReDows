@@ -7,7 +7,7 @@ namespace ReDows.Providers.Windows.Apps;
 /// Assembles the installed-applications inventory from the real machine
 /// (increment 1: ARP + MSIX + optional winget enrichment). Other users'
 /// per-user sources are unreadable without elevation: one counted degradation
-/// per (profile × source), consistent with the asymmetric policy — never guessed.
+/// per (profile × source), consistent with the asymmetric policy, never guessed.
 /// </summary>
 public static class AppInventoryProvider
 {
@@ -128,15 +128,15 @@ public static class AppInventoryProvider
                 }
 
                 degradations.Add(new InventoryDegradation("arp:hkcu", $"profile:{profile.UserName}",
-                    "another user's hive is unreadable without elevation — per-user installs not inventoried"));
+                    "another user's registry needs administrator rights to read, so their installed apps are not listed"));
                 degradations.Add(new InventoryDegradation("msix", $"profile:{profile.UserName}",
-                    "another user's packages require elevation — Store apps not inventoried"));
+                    "another user's packages need administrator rights, so their Store apps are not listed"));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidOperationException)
         {
             degradations.Add(new InventoryDegradation("profiles", "ProfileList",
-                $"profile discovery failed ({ex.GetType().Name}) — other-user coverage unknown"));
+                $"profile discovery failed ({ex.GetType().Name}), so coverage of other users is unknown"));
         }
     }
 }

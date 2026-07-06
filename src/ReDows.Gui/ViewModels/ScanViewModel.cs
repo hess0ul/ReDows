@@ -9,7 +9,7 @@ namespace ReDows.Gui.ViewModels;
 /// <summary>
 /// The Scan screen's brain. It runs the scan off the UI thread (so the window never freezes),
 /// streams progress, and lets the user Cancel (the engine then returns a partial result). All
-/// state — running / done / partial / error — is plain and testable off a fake <see cref="IScanRunner"/>.
+/// state (running / done / partial / error) is plain and testable off a fake <see cref="IScanRunner"/>.
 /// </summary>
 public sealed class ScanViewModel : ViewModelBase
 {
@@ -64,7 +64,7 @@ public sealed class ScanViewModel : ViewModelBase
         }
     }
 
-    /// <summary>The category modules (games, media…) the user can set to keep / review / ignore before scanning.</summary>
+    /// <summary>The category modules (games, media...) the user can set to keep / review / ignore before scanning.</summary>
     public ObservableCollection<ModuleRowViewModel> Modules { get; }
 
     public RelayCommand RunCommand { get; }
@@ -86,7 +86,7 @@ public sealed class ScanViewModel : ViewModelBase
     /// <summary>
     /// Recognize this PC's installed apps (on by default, like the CLI): their install folders become
     /// re-downloadable (ignored where the scan would only review) and their settings are kept. Off =
-    /// the CLI's --no-reinstall — everything stays in review.
+    /// the CLI's --no-reinstall; everything stays in review.
     /// </summary>
     public bool RecognizeInstalledApps
     {
@@ -139,11 +139,11 @@ public sealed class ScanViewModel : ViewModelBase
 
     /// <summary>
     /// True when the last scan flagged something to review. When false after a scan, there is nothing to
-    /// sort by hand — the "Review these" button becomes "Back up what I'm keeping" and skips Review.
+    /// sort by hand. The "Review these" button becomes "Back up what I'm keeping" and skips Review.
     /// </summary>
     public bool HasReview => Result?.TopReview.Count > 0;
 
-    /// <summary>Raised after a scan finishes successfully — the shell persists the session on this signal.</summary>
+    /// <summary>Raised after a scan finishes successfully. The shell persists the session on this signal.</summary>
     public event Action? Scanned;
 
     /// <summary>Put a result back without scanning (resuming a saved session): drives Review + Backup.</summary>
@@ -184,10 +184,10 @@ public sealed class ScanViewModel : ViewModelBase
 
         Error = null;
         Result = null;
-        ProgressText = "Starting…";
+        ProgressText = "Starting...";
         IsRunning = true;
         _cancellation = new CancellationTokenSource();
-        var progress = new Progress<ScanProgress>(p => ProgressText = $"{p.Items:N0} items — {p.CurrentPath}");
+        var progress = new Progress<ScanProgress>(p => ProgressText = $"{p.Items:N0} items: {p.CurrentPath}");
         try
         {
             var request = new ScanRequest(
@@ -197,7 +197,7 @@ public sealed class ScanViewModel : ViewModelBase
                 RecognizeInstalledApps,
                 UseGameSaveCatalog);
             Result = await _runner.RunAsync(request, progress, _cancellation.Token);
-            ProgressText = Result.Partial ? "Interrupted — partial figures below." : "Done.";
+            ProgressText = Result.Partial ? "Interrupted. Partial figures below." : "Done.";
             Scanned?.Invoke(); // let the shell persist the session (scan summary + manifest to back up)
         }
         catch (OperationCanceledException)
@@ -219,7 +219,7 @@ public sealed class ScanViewModel : ViewModelBase
 
     public void Cancel()
     {
-        ProgressText = "Cancelling…";
+        ProgressText = "Cancelling...";
         _cancellation?.Cancel();
     }
 

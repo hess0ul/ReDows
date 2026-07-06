@@ -5,7 +5,7 @@ namespace ReDows.Gui.Session;
 
 /// <summary>
 /// The real session store: a JSON file (session.json) under %LocalAppData%\ReDows, next to the scan
-/// manifest. Best-effort — a missing or unreadable file just means "no session yet" (Load returns null),
+/// manifest. Best-effort: a missing or unreadable file just means "no session yet" (Load returns null),
 /// and a save that fails is swallowed (persistence is a convenience, never allowed to break the app).
 /// The path is injectable so it can be unit-tested against a temp file.
 /// </summary>
@@ -43,7 +43,7 @@ public sealed class FileSessionStore : ISessionStore
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Persistence is a convenience — never let a failed save break the app.
+            // Persistence is a convenience; never let a failed save break the app.
         }
     }
 

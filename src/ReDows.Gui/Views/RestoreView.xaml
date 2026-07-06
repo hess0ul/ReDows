@@ -4,7 +4,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="26,22" MaxWidth="920" HorizontalAlignment="Left">
             <TextBlock Text="Restore" FontSize="18" FontWeight="SemiBold"/>
-            <TextBlock Text="Put a backup back — the reverse of Backup. Nothing is overwritten or deleted: files that already exist are kept."
+            <TextBlock Text="Put a backup back. This is the reverse of Backup. Nothing is overwritten or deleted: files that already exist are kept."
                        Foreground="{StaticResource App.Muted}" Margin="0,4,0,16"/>
 
             <!-- Backup folder -->
@@ -18,7 +18,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding BackupFolder, UpdateSourceTrigger=PropertyChanged}"/>
-                        <Button Grid.Column="1" Content="Browse…" Style="{StaticResource GhostButton}"
+                        <Button Grid.Column="1" Content="Browse..." Style="{StaticResource GhostButton}"
                                 Margin="8,0,0,0" Click="BrowseBackup_Click"/>
                     </Grid>
                 </StackPanel>
@@ -31,7 +31,7 @@
                     <TextBlock Text="Where to restore" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal">
                         <RadioButton GroupName="dest" Content="Original locations" IsChecked="{Binding ToOriginalLocations, Mode=TwoWay}"/>
-                        <RadioButton GroupName="dest" Content="A folder…"
+                        <RadioButton GroupName="dest" Content="A folder..."
                                      IsChecked="{Binding ToOriginalLocations, Converter={StaticResource Not}, Mode=TwoWay}"/>
                     </StackPanel>
                     <TextBlock Margin="0,6,0,0" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"
@@ -42,7 +42,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding TargetFolder, UpdateSourceTrigger=PropertyChanged}"/>
-                        <Button Grid.Column="1" Content="Browse…" Style="{StaticResource GhostButton}"
+                        <Button Grid.Column="1" Content="Browse..." Style="{StaticResource GhostButton}"
                                 Margin="8,0,0,0" Click="BrowseTarget_Click"/>
                     </Grid>
                 </StackPanel>
@@ -54,7 +54,7 @@
                 <StackPanel>
                     <TextBlock Text="Secrets vault password (optional)" FontWeight="SemiBold" Margin="0,0,0,6"/>
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8"
-                               Text="If this backup has a secrets vault (secrets-vault.zip), enter its password to restore your passwords and keys back to their places. Leave empty to skip them — you can always open the vault yourself with 7-Zip or WinRAR."/>
+                               Text="If this backup has a secrets vault (secrets-vault.zip), enter its password to restore your passwords and keys back to their places. Leave empty to skip them. You can always open the vault yourself with 7-Zip or WinRAR."/>
                     <PasswordBox x:Name="VaultPassword" Width="280" HorizontalAlignment="Left" Padding="8,6"
                                  Background="{StaticResource App.Surface}" Foreground="White"
                                  BorderBrush="{StaticResource App.Border}" CaretBrush="White"/>

@@ -4,8 +4,8 @@ namespace ReDows.Cli;
 /// The single sanitizer for every on-disk-derived string printed to a terminal
 /// (paths, file names, user names, volume labels, registry values). NTFS allows
 /// control characters in names and a VT-capable terminal interprets C0, DEL, C1
-/// (0x9B is a one-byte CSI introducer) — escape-sequence injection — while the
-/// Unicode bidi controls can visually reorder a path (spoofing).
+/// (0x9B is a one-byte CSI introducer) as escape-sequence injection. The Unicode
+/// bidi controls can visually reorder a path (spoofing).
 /// </summary>
 public static class ConsoleText
 {

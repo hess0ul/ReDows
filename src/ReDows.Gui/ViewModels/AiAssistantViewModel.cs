@@ -6,17 +6,17 @@ namespace ReDows.Gui.ViewModels;
 
 /// <summary>
 /// The optional AI assistant of the Review screen. OFF by default; points at a LOCAL endpoint
-/// (LM Studio) unless the user changes the URL — so by default nothing ever leaves the PC.
+/// (LM Studio) unless the user changes the URL, so by default nothing ever leaves the PC.
 /// It sends ONLY the whitelisted folder metadata (names/sizes, built by <see cref="AiPayload"/>),
-/// and the reply is a SUGGESTION the user accepts or dismisses — the assistant never decides.
+/// and the reply is a SUGGESTION the user accepts or dismisses. The assistant never decides.
 /// All state is plain and testable off a fake <see cref="IAiAnalyzer"/>.
 /// </summary>
 public sealed class AiAssistantViewModel : ViewModelBase
 {
-    /// <summary>LM Studio's local server — the default endpoint, on this PC (Ollama: port 11434).</summary>
+    /// <summary>LM Studio's local server: the default endpoint, on this PC (Ollama: port 11434).</summary>
     public const string DefaultBaseUrl = "http://localhost:1234";
 
-    /// <summary>The pre-filled reply cap for a paid API/subscription (self-hosted ignores it — unlimited).</summary>
+    /// <summary>The pre-filled reply cap for a paid API/subscription (self-hosted ignores it; unlimited).</summary>
     public const int DefaultMaxTokens = 4000;
 
     private readonly IAiAnalyzer _analyzer;
@@ -24,13 +24,13 @@ public sealed class AiAssistantViewModel : ViewModelBase
     private readonly IAiLearnedStore? _learnedStore;
     private List<LearnedDrop>? _learned; // lazy-loaded lessons (accepted drops remembered across scans)
     private readonly Dictionary<string, AiSuggestion> _byFolder = new(StringComparer.OrdinalIgnoreCase);
-    private CancellationTokenSource? _cancellation;      // one folder's analysis — cancelled by navigation
-    private CancellationTokenSource? _batchCancellation; // "analyze all" — survives navigation, Cancel stops it
+    private CancellationTokenSource? _cancellation;      // one folder's analysis; cancelled by navigation
+    private CancellationTokenSource? _batchCancellation; // "analyze all"; survives navigation, Cancel stops it
 
     private bool _isEnabled;
     private string _baseUrl = DefaultBaseUrl;
     private string _model = "";
-    private string? _apiKey; // IN MEMORY ONLY — never persisted (invariant #5); re-entered after a restart
+    private string? _apiKey; // IN MEMORY ONLY, never persisted (invariant #5); re-entered after a restart
     private bool _isExternal;              // false = self-hosted (local); true = an external service
     private string _externalKind = "api";  // when external: "api" (own key) or "proxy" (a subscription bridge)
     private int _maxTokens = DefaultMaxTokens; // the reply cap applied to an external service (self-hosted = uncapped)
@@ -66,7 +66,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     /// <summary>
     /// Raised when the user accepts a "safe to drop" suggestion, carrying the PATH the suggestion was
-    /// computed for — Review only acts if that folder is still the one on screen (a slow analysis must
+    /// computed for. Review only acts if that folder is still the one on screen (a slow analysis must
     /// never drop a folder the model didn't look at).
     /// </summary>
     public event Action<string>? DropRequested;
@@ -92,7 +92,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Optional explicit model id — required for a cloud service (they list hundreds); a local server
+    /// Optional explicit model id. Required for a cloud service (they list hundreds); a local server
     /// just uses its loaded model when left empty. Persisted (it is not a secret).
     /// </summary>
     public string Model
@@ -103,7 +103,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     /// <summary>
     /// Take the API key from the view's PasswordBox, for THIS session only: it lives in memory, goes
-    /// into the request's auth header, and is never written to disk (invariant #5 — like the vault
+    /// into the request's auth header, and is never written to disk (invariant #5; like the vault
     /// password, it is re-entered after a restart).
     /// </summary>
     public void SetApiKey(string? key) => _apiKey = string.IsNullOrWhiteSpace(key) ? null : key;
@@ -112,7 +112,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     // Radio 1: self-hosted (local AI on this PC) vs an external service.
     // Radio 2 (external only): "api" = your own paid key · "proxy" = a bridge to a subscription you have.
 
-    /// <summary>The endpoint is a local AI on THIS PC (LM Studio / Ollama) — needs no key, no model id.</summary>
+    /// <summary>The endpoint is a local AI on this PC (LM Studio / Ollama); needs no key, no model id.</summary>
     public bool IsSelfHosted
     {
         get => !_isExternal;
@@ -126,7 +126,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         set { if (value) SetExternal(true); }
     }
 
-    /// <summary>External service billed per token with your OWN API key (OpenAI, Anthropic, Gemini…).</summary>
+    /// <summary>External service billed per token with your OWN API key (OpenAI, Anthropic, Gemini...).</summary>
     public bool IsExternalApi
     {
         get => _isExternal && _externalKind == "api";
@@ -142,7 +142,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     /// <summary>
     /// The reply cap for a paid API/subscription (a pre-filled default the user can change). Self-hosted
-    /// ignores it — a local model runs uncapped. A non-positive value falls back to the default so a
+    /// ignores it. A local model runs uncapped. A non-positive value falls back to the default so a
     /// cleared box can never send a zero cap.
     /// </summary>
     public int MaxTokens
@@ -168,15 +168,15 @@ public sealed class AiAssistantViewModel : ViewModelBase
 
     /// <summary>Privacy line that changes with the mode: local = nothing leaves; external = names/sizes do.</summary>
     public string PrivacyNote => _isExternal
-        ? "This is a REMOTE service: the folder and file names and their sizes are sent to it — never file contents."
-        : "The endpoint runs on THIS PC, so nothing leaves your machine — not even the names.";
+        ? "This is a remote service: it receives the folder and file names and their sizes, never file contents."
+        : "The endpoint runs on this PC, so nothing leaves your machine, not even the names.";
 
     /// <summary>A hint under the endpoint box, matching the chosen mode (what URL to put there).</summary>
     public string EndpointHint => (_isExternal, _externalKind) switch
     {
-        (false, _) => "A local AI server on this PC — LM Studio (http://localhost:1234) or Ollama (http://localhost:11434).",
-        (true, "proxy") => "The local address of the bridge you host toward your subscription — for example http://localhost:8080.",
-        _ => "The service's OpenAI-compatible base URL — for example https://api.openai.com/v1.",
+        (false, _) => "A local AI server on this PC: LM Studio (http://localhost:1234) or Ollama (http://localhost:11434).",
+        (true, "proxy") => "The local address of the bridge you host toward your subscription, for example http://localhost:8080.",
+        _ => "The service's OpenAI-compatible base URL, for example https://api.openai.com/v1.",
     };
 
     private void SetExternal(bool external)
@@ -221,7 +221,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     /// <summary>Which connection kind to persist: "local" self-hosted, or the external sub-kind.</summary>
     private string ConnectionValue => _isExternal ? _externalKind : "local";
 
-    // The key and the model are sent ONLY where they apply — never a stale key from a mode you left.
+    // The key and the model are sent ONLY where they apply; never a stale key from a mode you left.
     // The token cap applies to an external service only; self-hosted sends none (null = uncapped).
     private AiEndpoint Endpoint => new(
         BaseUrl,
@@ -279,13 +279,13 @@ public sealed class AiAssistantViewModel : ViewModelBase
     public bool HasResult => Result is not null;
 
     /// <summary>
-    /// The current suggestion mapped to a 3-level importance for the Review colour triage — how much
+    /// The current suggestion mapped to a 3-level importance for the Review colour coding: how much
     /// you'd miss this folder, NOT good-vs-bad: "keep" = worth keeping, "maybe" = not sure,
     /// "drop" = probably not needed, "" = not analysed yet. mixed and unknown both fall under "maybe".
     /// </summary>
     public string ImportanceKey => ImportanceKeyOf(Result);
 
-    /// <summary>Map a suggestion to the 3-level colour key ("keep"/"maybe"/"drop", "" = none) — shared by
+    /// <summary>Map a suggestion to the 3-level colour key ("keep"/"maybe"/"drop", "" = none); shared by
     /// the folder pill and the per-file row colours so both read the gradient the same way.</summary>
     public static string ImportanceKeyOf(AiSuggestion? suggestion) => suggestion?.Classification switch
     {
@@ -295,11 +295,11 @@ public sealed class AiAssistantViewModel : ViewModelBase
         _ => "maybe", // mixed / unknown → "not sure"
     };
 
-    /// <summary>The colour-triage label shown on the folder's pill (empty when not analysed).</summary>
+    /// <summary>The colour-coding label shown on the folder's pill (empty when not analysed).</summary>
     public string ImportanceLabel => ImportanceKey switch
     {
         "keep" => "Worth keeping",
-        "maybe" => "Maybe — not sure",
+        "maybe" => "Not sure",
         "drop" => "Probably not needed",
         _ => "",
     };
@@ -313,11 +313,11 @@ public sealed class AiAssistantViewModel : ViewModelBase
         null => "",
         { Classification: AiSuggestion.Drop } r => $"Suggestion: safe to drop · confidence: {r.Confidence}",
         { Classification: AiSuggestion.Keep } r => $"Suggestion: keep (user data) · confidence: {r.Confidence}",
-        { Classification: AiSuggestion.Mixed } r => $"Suggestion: mixed — look inside · confidence: {r.Confidence}",
+        { Classification: AiSuggestion.Mixed } r => $"Suggestion: mixed (look inside) · confidence: {r.Confidence}",
         var r => $"Suggestion: unknown · confidence: {r.Confidence}",
     };
 
-    /// <summary>Only a "safe to drop" suggestion is actionable — keep is already the default.</summary>
+    /// <summary>Only a "safe to drop" suggestion is actionable; keep is already the default.</summary>
     public bool CanAcceptDrop => Result?.Classification == AiSuggestion.Drop;
 
     public string? Error
@@ -331,7 +331,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     /// <summary>
     /// Analyze one folder from its ALREADY-LISTED children (Review's rows): builds the whitelisted
     /// metadata and asks the endpoint. Errors surface as a message, never a crash. The OFF state is
-    /// enforced HERE, not just by a hidden button — a disabled assistant never talks to anything.
+    /// enforced HERE, not just by a hidden button. A disabled assistant never talks to anything.
     /// A result that lands after the user navigated away (its run was cancelled) is discarded.
     /// </summary>
     public async Task AnalyzeAsync(string folderPath, IReadOnlyList<(string Name, bool IsDirectory, long Bytes)> children)
@@ -344,7 +344,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         Error = null;
         Result = null;
         _resultFolderPath = null;
-        BusyText = "Asking the AI about this folder…";
+        BusyText = "Asking the AI about this folder...";
         IsBusy = true;
         var run = new CancellationTokenSource();
         _cancellation = run;
@@ -354,18 +354,18 @@ public sealed class AiAssistantViewModel : ViewModelBase
             var suggestion = await _analyzer.AnalyzeAsync(Endpoint, metadata, run.Token);
             if (!run.IsCancellationRequested) // navigation cleared this run while in flight → stale, discard
             {
-                _byFolder[folderPath] = suggestion; // remembered — navigating back re-shows it
+                _byFolder[folderPath] = suggestion; // remembered; navigating back re-shows it
                 _resultFolderPath = folderPath;
                 Result = suggestion;
             }
         }
         catch (OperationCanceledException) when (run.IsCancellationRequested)
         {
-            // cancelled (user, or navigation) — no result, no error
+            // cancelled (user, or navigation); no result, no error
         }
         catch (Exception ex)
         {
-            // includes the HTTP timeout (a cancellation NOT ours) — surfaced, not silently swallowed
+            // includes the HTTP timeout (a cancellation NOT ours); surfaced, not silently swallowed
             Error = ex is OperationCanceledException ? "The endpoint took too long to answer (timed out)." : ex.Message;
         }
         finally
@@ -381,7 +381,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Forget the DISPLAYED suggestion and cancel a single analysis still in flight — called on
+    /// Forget the DISPLAYED suggestion and cancel a single analysis still in flight, called on
     /// navigation, so a slow reply can never show up (or act) over a folder it wasn't computed for.
     /// Stored batch suggestions and a running batch are NOT touched (the batch survives navigation).
     /// </summary>
@@ -394,7 +394,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Analyze EVERY review folder in sequence — the "analyze all" batch. Each suggestion is stored by
+    /// Analyze EVERY review folder in sequence: the "analyze all" batch. Each suggestion is stored by
     /// folder path (the wizard shows it when you land on that folder); nothing is ever acted on without
     /// the user's per-folder Accept. One bad folder is counted and skipped; two consecutive failures
     /// stop the batch (the endpoint is probably down). Cancel keeps what was already analyzed.
@@ -421,7 +421,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
             {
                 run.Token.ThrowIfCancellationRequested();
                 var (path, name) = folders[i];
-                BusyText = $"Analyzing folder {i + 1} of {folders.Count} — {name}…";
+                BusyText = $"Analyzing folder {i + 1} of {folders.Count}: {name}...";
                 try
                 {
                     var children = await listChildren(path, run.Token);
@@ -438,7 +438,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
                     failed++;
                     if (++consecutiveFailures >= 2)
                     {
-                        Error = "The endpoint keeps failing — the batch stopped. Test the connection, then try again.";
+                        Error = "The endpoint keeps failing, so the batch stopped. Test the connection, then try again.";
                         break;
                     }
                 }
@@ -446,7 +446,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
-            // cancelled — everything analyzed so far is kept
+            // cancelled; everything analyzed so far is kept
         }
         finally
         {
@@ -462,9 +462,9 @@ public sealed class AiAssistantViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Analyze ONE entry in the context of its folder (per-file colour triage). Gated on the OFF state
+    /// Analyze ONE entry in the context of its folder (per-file colour coding). Gated on the OFF state
     /// like every other call; returns null when disabled. The caller (Review) owns the loop, progress and
-    /// cancellation — this is a thin pass-through to the endpoint with the whitelisted file payload.
+    /// cancellation. This is a thin pass-through to the endpoint with the whitelisted file payload.
     /// </summary>
     public async Task<AiSuggestion?> AnalyzeFileAsync(FileInContext file, CancellationToken cancellationToken)
     {
@@ -476,7 +476,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         return await _analyzer.AnalyzeFileAsync(Endpoint, file, cancellationToken);
     }
 
-    /// <summary>The stored folder-level verdict's explanation, if any — used as context for its files.</summary>
+    /// <summary>The stored folder-level verdict's explanation, if any; used as context for its files.</summary>
     public string? StoredExplanationFor(string folderPath) =>
         _byFolder.TryGetValue(folderPath, out var suggestion) ? suggestion.Explanation : null;
 
@@ -505,7 +505,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     public IReadOnlyList<LearnedDrop> LearnedDrops => Lessons;
 
     /// <summary>
-    /// Remember an ACCEPTED "safe to drop" — the next scan pre-trashes this folder (restorable).
+    /// Remember an ACCEPTED "safe to drop". The next scan pre-trashes this folder (restorable).
     /// Only ever called on the user's Accept gesture; the model itself can't learn anything.
     /// </summary>
     public void Learn(string folderPath, long bytes)
@@ -516,7 +516,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         _learnedStore?.Save(lessons);
     }
 
-    /// <summary>Forget a lesson — the user restored the folder from the trash ("I changed my mind").</summary>
+    /// <summary>Forget a lesson: the user restored the folder from the trash ("I changed my mind").</summary>
     public void Unlearn(string folderPath)
     {
         var lessons = Lessons;
@@ -542,7 +542,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
             }
         }
 
-        return $"Analyzed {_byFolder.Count} folder(s) — {drop} safe to drop · {keep} keep · {mixed} mixed · {unknown} unknown"
+        return $"Analyzed {_byFolder.Count} folder(s): {drop} safe to drop · {keep} keep · {mixed} mixed · {unknown} unknown"
             + (failed > 0 ? $" · {failed} failed" : "");
     }
 
@@ -554,14 +554,14 @@ public sealed class AiAssistantViewModel : ViewModelBase
             return;
         }
 
-        ConnectionStatus = "Testing…";
+        ConnectionStatus = "Testing...";
         IsBusy = true;
         var run = new CancellationTokenSource();
         _cancellation = run;
         try
         {
             var model = await _analyzer.TestAsync(Endpoint, run.Token);
-            ConnectionStatus = $"OK — model: {model}";
+            ConnectionStatus = $"OK. Model: {model}";
         }
         catch (OperationCanceledException) when (run.IsCancellationRequested)
         {
@@ -569,7 +569,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            // includes the connection timeout (a cancellation NOT ours) — reported as a failure
+            // includes the connection timeout (a cancellation NOT ours); reported as a failure
             ConnectionStatus = ex is OperationCanceledException ? "Failed: no answer (timed out)." : $"Failed: {ex.Message}";
         }
         finally
@@ -588,7 +588,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     {
         if (CanAcceptDrop && _resultFolderPath is { } analyzedFolder)
         {
-            Forget(analyzedFolder); // consumed — must not re-appear when landing on it again
+            Forget(analyzedFolder); // consumed; must not re-appear when landing on it again
             DropRequested?.Invoke(analyzedFolder);
         }
 
@@ -599,7 +599,7 @@ public sealed class AiAssistantViewModel : ViewModelBase
     {
         if (_resultFolderPath is { } shownFolder)
         {
-            Forget(shownFolder); // dismissed — must not re-appear when landing on it again
+            Forget(shownFolder); // dismissed; must not re-appear when landing on it again
         }
 
         ClearResult();

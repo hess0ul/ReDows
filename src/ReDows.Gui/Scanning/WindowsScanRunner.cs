@@ -16,7 +16,7 @@ namespace ReDows.Gui.Scanning;
 
 /// <summary>
 /// The real scan: loads the ruleset (shipped next to the app), builds this PC's read-only context,
-/// and runs the same <see cref="ScanEngine"/> the CLI uses — on a background thread, honoring the
+/// and runs the same <see cref="ScanEngine"/> the CLI uses, on a background thread, honoring the
 /// cancellation token (Cancel → the engine returns a PARTIAL report) and forwarding progress.
 /// </summary>
 public sealed class WindowsScanRunner : IScanRunner
@@ -49,7 +49,7 @@ public sealed class WindowsScanRunner : IScanRunner
         // inventory recognises as an installed app is re-acquirable, so its re-downloadable content is
         // ignored where the ruleset would only REVIEW; each app's %AppData% is kept and %LocalAppData%
         // surfaced. Acts ONLY over a review verdict, never a keep/secret. Fail-safe: if the inventory
-        // cannot be built for any reason, the scan still runs — just without this recognition.
+        // cannot be built for any reason, the scan still runs, just without this recognition.
         IReadOnlyList<ReinstallZone> reinstallZones = [];
         IReadOnlyList<AppDataZone> appDataZones = [];
         var appCount = 0;
@@ -88,21 +88,21 @@ public sealed class WindowsScanRunner : IScanRunner
         }
 
         // The shipped folder memory (memory/ next to the app): the source of the recognized-places notes.
-        // Best-effort — a missing/broken memory just means fewer recognised places (never a scan failure).
+        // Best-effort: a missing/broken memory just means fewer recognised places (never a scan failure).
         var memory = new WindowsMemoryCatalog().Load();
         var recognizeZone = BuildZoneRecognizer(memory, appFolders);
 
         // Optional ludusavi game-save catalog: download (first use) or read from cache the per-game save
-        // locations, build capture zones and keep only the folders that actually exist on THIS PC. Additive
+        // locations, build capture zones and keep only the folders that actually exist on this PC. Additive
         // like the app-data zones (review -> capture, never a loss). Its data is PCGamingWiki's (CC BY-NC-SA),
-        // never bundled — it is fetched onto this machine. Best-effort: a failure just adds no zones.
+        // never bundled; it is fetched onto this machine. Best-effort: a failure just adds no zones.
         IReadOnlyList<AppDataZone> saveZones = [];
         GameSavesImpact? gameSaves = null;
         if (request.UseGameSaveCatalog)
         {
             try
             {
-                progress.Report(new ScanProgress(0, "Downloading the game-save catalog (ludusavi)…"));
+                progress.Report(new ScanProgress(0, "Downloading the game-save catalog (ludusavi)..."));
                 var load = new WindowsLudusaviSource().LoadAsync(forceRefresh: false, cancellationToken).GetAwaiter().GetResult();
                 saveZones = LudusaviSaveZoneBuilder.Build(load.Manifest, windowsContext.Context)
                     .Where(z => Directory.Exists(z.PathPrefix))
@@ -111,7 +111,7 @@ public sealed class WindowsScanRunner : IScanRunner
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                throw; // the user cancelled during the download — let the scan report "Cancelled"
+                throw; // the user cancelled during the download; let the scan report "Cancelled"
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
@@ -120,11 +120,11 @@ public sealed class WindowsScanRunner : IScanRunner
             }
         }
 
-        // Write the backup-candidate items to an app-managed manifest as they are classified — the seed
+        // Write the backup-candidate items to an app-managed manifest as they are classified: the seed
         // of the "scan + decisions" session file, and the input the Backup screen copies. Both CAPTURE
         // (auto-kept: config / user / secret) and REVIEW (the "human decides" pile) are recorded, with
         // their verdicts, so the backup can copy the user's kept-minus-trash selection while a secret
-        // still routes to the vault. If it cannot be written, the scan still runs — there is simply no
+        // still routes to the vault. If it cannot be written, the scan still runs; there is simply no
         // manifest to back up (best-effort).
         var manifestPath = ResolveManifestPath();
         StreamWriter? manifestWriter = TryOpenManifest(manifestPath);
@@ -170,7 +170,7 @@ public sealed class WindowsScanRunner : IScanRunner
         }
 
         // Optional second pass: hunt byte-identical files. Read-only. If it is cancelled, the
-        // classification result above is still returned — just without a duplicates section.
+        // classification result above is still returned, just without a duplicates section.
         if (request.Duplicates is { Enabled: true } duplicateScan)
         {
             var duplicateRoots = request.FolderRoot is null
@@ -221,7 +221,7 @@ public sealed class WindowsScanRunner : IScanRunner
             cancellationToken.ThrowIfCancellationRequested();
             if (++hashed % 500 == 0)
             {
-                progress.Report(new ScanProgress(hashed, "comparing possible duplicate files…"));
+                progress.Report(new ScanProgress(hashed, "comparing possible duplicate files..."));
             }
         });
 
@@ -284,8 +284,8 @@ public sealed class WindowsScanRunner : IScanRunner
 
     /// <summary>
     /// Compose the end-of-scan recogniser from the two knowledge sources: the shipped folder memory
-    /// (AppData, .ssh, Steam, node_modules…) first, then this PC's installed apps (a folder named like an
-    /// app or its publisher — ShareX, Adobe…). Returns null when neither loaded, so the scan simply skips
+    /// (AppData, .ssh, Steam, node_modules...) first, then this PC's installed apps (a folder named like an
+    /// app or its publisher, such as ShareX or Adobe). Returns null when neither loaded, so the scan simply skips
     /// the briefing. Metadata-only: the recogniser is handed a directory NAME and PATH, never a file.
     /// </summary>
     private static Func<string, string, Verdict, RecognizedZoneInfo?>? BuildZoneRecognizer(
@@ -312,7 +312,7 @@ public sealed class WindowsScanRunner : IScanRunner
                 return new RecognizedZoneInfo(
                     "app:" + app.ToLowerInvariant(),
                     app,
-                    $"Looks like {app}'s data folder — made by the app, not by you. Keep what you exported or created inside; the app recreates the rest.",
+                    $"Looks like {app}'s data folder, made by the app, not by you. Keep what you exported or created inside; the app recreates the rest.",
                     "maybe");
             }
 
@@ -367,7 +367,7 @@ public sealed class WindowsScanRunner : IScanRunner
         var keepBytes = Bytes(Verdict.CaptureConfig) + Bytes(Verdict.CaptureUser) + Bytes(Verdict.CaptureSecret);
 
         var equationText = report.AccountingEquation +
-            (report.UnaccountedItems == 0 ? " → 0 unaccounted" : $" → {report.UnaccountedItems:N0} UNACCOUNTED (bug)");
+            (report.UnaccountedItems == 0 ? " (0 missed)" : $" ({report.UnaccountedItems:N0} missed)");
 
         var alerts = report.PreResetAlerts
             .Select(a => new AlertRow(a.RuleId, $"{a.Items:N0} item(s)"))

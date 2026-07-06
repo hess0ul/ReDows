@@ -10,7 +10,7 @@ public sealed record ProfileState(
 
 /// <summary>
 /// Resolves a profile's environment and Known Folders from ITS OWN hive
-/// (User Shell Folders read raw — DoNotExpandEnvironmentNames — then re-anchored
+/// (User Shell Folders read raw with DoNotExpandEnvironmentNames, then re-anchored
 /// on the target profile root: the classic pitfall is letting the registry API
 /// substitute the CALLING user's %USERPROFILE%). When the hive is not readable
 /// (other user, no elevation), only certain values are returned and the profile
@@ -33,7 +33,7 @@ public static class ProfileStateResolver
             using var hive = Registry.Users.OpenSubKey(profile.Sid);
             if (hive is null)
             {
-                return Unresolved(profile, "hive not mounted (user not logged in) — offline NTUSER.DAT parsing arrives with the elevated mode block");
+                return Unresolved(profile, "hive not mounted (user not logged in). Offline NTUSER.DAT parsing arrives with the elevated mode block");
             }
 
             return ResolveFromHive(profile, hive, machineEnvironment);
@@ -98,7 +98,7 @@ public static class ProfileStateResolver
 
             if (path.Contains('%'))
             {
-                notes.Add($"Known Folder '{spec.CanonicalName}' has unresolvable tokens ('{raw}') — left unresolved");
+                notes.Add($"Known Folder '{spec.CanonicalName}' has unresolvable tokens ('{raw}'), left unresolved");
             }
             else
             {
@@ -140,7 +140,7 @@ public static class ProfileStateResolver
         var environment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["UserProfile"] = profile.RootPath,
-            // AppData/LocalAppData are Known Folders too — resolved, not guessed.
+            // AppData/LocalAppData are Known Folders too, so they are resolved, not guessed.
             ["AppData"] = knownFolders.TryGetValue("AppData", out var roaming)
                 ? roaming
                 : Path.Combine(profile.RootPath, @"AppData\Roaming"),

@@ -6,7 +6,7 @@ namespace ReDows.Providers.Windows.Apps;
 /// <summary>
 /// Steam: root from the registry, then EVERY library in libraryfolders.vdf
 /// (games often live on other volumes). A library on an absent volume is a
-/// counted degradation with an alert — never a silent gap.
+/// counted degradation with an alert, not a silent gap.
 /// </summary>
 public static class SteamAppSource
 {
@@ -35,7 +35,7 @@ public static class SteamAppSource
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     degradations.Add(new InventoryDegradation("steam", steamApps,
-                        $"library not enumerable ({ex.GetType().Name}) — its games are not inventoried"));
+                        $"library could not be read ({ex.GetType().Name}), so its games are not listed"));
                     continue;
                 }
 
@@ -115,7 +115,7 @@ public static class SteamAppSource
                         var root = Path.GetPathRoot(path);
                         degradations.Add(new InventoryDegradation("steam", path,
                             string.IsNullOrEmpty(root) || Directory.Exists(root)
-                                ? "library path missing — stale libraryfolders entry?"
+                                ? "library path missing (possibly a stale libraryfolders entry)"
                                 : InstallLocationCheck.VolumeAbsentAlert));
                     }
                 }
@@ -124,7 +124,7 @@ public static class SteamAppSource
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             degradations.Add(new InventoryDegradation("steam", vdf,
-                $"libraryfolders.vdf unreadable ({ex.GetType().Name}) — extra libraries unknown"));
+                $"libraryfolders.vdf could not be read ({ex.GetType().Name}), so extra libraries are unknown"));
         }
 
         return libraries.DistinctBy(p => p.TrimEnd('\\', '/'), StringComparer.OrdinalIgnoreCase).ToList();

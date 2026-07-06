@@ -4,9 +4,9 @@ namespace ReDows.Core.Apps;
 
 /// <summary>
 /// Pure parser for `winget export` output (packages.schema.2.0.json):
-/// { "Sources": [ { "SourceDetails": { "Name": … }, "Packages": [ { "PackageIdentifier": …, "Version"? } ] } ] }.
-/// The export contains ONLY packages winget could match to a source — names and
-/// unmatched apps are absent — so this is a corroboration list of reinstallable
+/// { "Sources": [ { "SourceDetails": { "Name": ... }, "Packages": [ { "PackageIdentifier": ..., "Version"? } ] } ] }.
+/// The export contains ONLY packages winget could match to a source. Names and
+/// unmatched apps are absent, so this is a corroboration list of reinstallable
 /// ids, never the inventory and never a row-level attachment by itself
 /// (dynamic sources are corroboration only).
 /// </summary>

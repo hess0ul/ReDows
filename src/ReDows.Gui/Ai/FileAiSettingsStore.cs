@@ -42,7 +42,7 @@ public sealed class FileAiSettingsStore : IAiSettingsStore
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Persistence is a convenience — never let a failed save break the app.
+            // Persistence is a convenience; never let a failed save break the app.
         }
     }
 }

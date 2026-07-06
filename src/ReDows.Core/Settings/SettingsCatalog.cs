@@ -29,7 +29,7 @@ public sealed record RegistryLocation(SettingHive Hive, string Key, string Value
 /// <remarks>
 /// <see cref="IndowsModule"/> names how the setting comes back after a reset: an existing module,
 /// a <c>NEW:</c>-prefixed module to build, or one of the sentinels <c>base</c> (the InDows base
-/// install applies it), <c>perso</c> (only the private config does), <c>none</c> (nothing does —
+/// install applies it), <c>private</c> (only the private config does), <c>none</c> (nothing does;
 /// redo by hand). <see cref="Applied"/> is false when a real module is the intended home but the
 /// line is commented/planned and not applied yet.
 /// </remarks>
@@ -75,14 +75,14 @@ public sealed record SettingsReport(
     [
         "Only the current user's HKCU and the machine HKLM (64-bit view) are read; other users' hives (offline NTUSER.DAT) and the 32-bit view arrive with later blocks.",
         "Settings with no registry mechanism (default browser, custom power plan, Storage Sense action, Paint/Photos actions) are out of scope of this registry reader.",
-        "A value read 'at its default' means the registry value is absent — some settings only materialize once the user changes them.",
+        "A value read 'at its default' means the registry value is absent. Some settings only materialize once the user changes them.",
     ];
 }
 
 /// <summary>
 /// Pure mapping of a read raw value (already normalized to a string by the provider,
 /// or null when absent) to a <see cref="SettingReading"/>: applies the catalog's
-/// decode map and default. No registry access — testable on fixtures.
+/// decode map and default. No registry access, so it is testable on fixtures.
 /// </summary>
 public static class SettingDecoder
 {
@@ -98,7 +98,7 @@ public static class SettingDecoder
             // Absent registry value = the Windows default.
             var meaning = definition.Default is not null
                 ? $"{Lookup(definition, definition.Default)} (absent → default)"
-                : "(absent — no documented default)";
+                : "(absent, no documented default)";
             return new SettingReading(definition, Present: false, RawValue: null, meaning, IsDefault: definition.Default is not null, Error: null);
         }
 

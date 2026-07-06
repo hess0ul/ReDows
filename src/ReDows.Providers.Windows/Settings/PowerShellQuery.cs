@@ -40,7 +40,7 @@ internal static class PowerShellQuery
                 }
                 catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
                 {
-                    // The timed-out process may have exited on its own — best effort.
+                    // The timed-out process may have exited on its own; best effort.
                 }
 
                 return (null, "query timed out");
@@ -60,8 +60,8 @@ internal static class PowerShellQuery
     /// <summary>
     /// Pin the child to the Windows PowerShell (5.1) module path. When ReDows runs under a
     /// PowerShell 7 host, the inherited PSModulePath lists the PS7 module directories first,
-    /// so powershell.exe finds the PS7 copy of a system module — e.g. Microsoft.PowerShell.Security,
-    /// which owns Get-ExecutionPolicy — and fails to load it ("the module could not be loaded").
+    /// so powershell.exe finds the PS7 copy of a system module (e.g. Microsoft.PowerShell.Security,
+    /// which owns Get-ExecutionPolicy) and fails to load it ("the module could not be loaded").
     /// Pinning the 5.1 path makes every query resolve its native modules, regardless of launcher.
     /// </summary>
     private static void PinWindowsPowerShellModulePath(ProcessStartInfo startInfo)

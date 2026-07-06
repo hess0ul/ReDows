@@ -5,7 +5,7 @@ namespace ReDows.Providers.Windows.Backup;
 
 /// <summary>
 /// The encrypted secrets vault: a password-protected ZIP with WinZip AES-256 entries,
-/// openable by any standard tool (7-Zip, WinRAR…) on any machine with the passphrase — so
+/// openable by any standard tool (7-Zip, WinRAR...) on any machine with the passphrase, so
 /// the secrets are recoverable after the reset even without ReDows. Secret files are streamed
 /// straight in; they are never written in clear to the destination (invariant #5).
 /// </summary>
@@ -23,7 +23,7 @@ public sealed class ZipVaultSink : IVaultSink
 
     public void Add(string relativePath, Stream content)
     {
-        var entry = new ZipEntry(relativePath) { AESKeySize = 256, DateTime = DateTime.Now };
+        var entry = new ZipEntry(relativePath) { AESKeySize = 256, DateTime = DateTime.UtcNow };
         _zip.PutNextEntry(entry);
         content.CopyTo(_zip);
         _zip.CloseEntry();

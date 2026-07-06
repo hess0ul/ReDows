@@ -13,7 +13,7 @@ namespace ReDows.Gui.ViewModels;
 /// <summary>
 /// The window shell: owns the screens and the current one. Nav buttons bind to the Show* commands;
 /// the content area binds to <see cref="CurrentViewModel"/> (a DataTemplate maps each view-model to
-/// its view). It also remembers the last session — after a scan (and whenever the review trash changes)
+/// its view). It also remembers the last session: after a scan (and whenever the review trash changes)
 /// it persists a session; on start-up, if one exists, Home offers to resume it (scan + decisions).
 /// </summary>
 public sealed class ShellViewModel : ViewModelBase
@@ -27,12 +27,12 @@ public sealed class ShellViewModel : ViewModelBase
     private string _sessionSummary = "";
     private string? _scannedUtc;
 
-    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore, IAiAnalyzer aiAnalyzer, IAiSettingsStore aiSettingsStore, IAiLearnedStore aiLearnedStore, ITriageCatalog triageCatalog, IMemoryCatalog memoryCatalog, IInstalledAppsSource installedAppsSource, IModuleSettingsStore? moduleSettings = null)
+    public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore, IAiAnalyzer aiAnalyzer, IAiSettingsStore aiSettingsStore, IAiLearnedStore aiLearnedStore, IPrescreenCatalog prescreenCatalog, IMemoryCatalog memoryCatalog, IInstalledAppsSource installedAppsSource, IModuleSettingsStore? moduleSettings = null)
     {
         _sessionStore = sessionStore;
         Home = new HomeViewModel(contextSource);
         Scan = new ScanViewModel(scanRunner, moduleCatalog, moduleSettings);
-        Review = new ReviewViewModel(folderBrowser, new AiAssistantViewModel(aiAnalyzer, aiSettingsStore, aiLearnedStore), triageCatalog.Load(), memoryCatalog.Load(), installedAppsSource);
+        Review = new ReviewViewModel(folderBrowser, new AiAssistantViewModel(aiAnalyzer, aiSettingsStore, aiLearnedStore), prescreenCatalog.Load(), memoryCatalog.Load(), installedAppsSource);
         Backup = new BackupViewModel(backupRunner);
         Restore = new RestoreViewModel(restoreRunner);
         Apps = new AppsViewModel(appsRunner);
@@ -106,7 +106,7 @@ public sealed class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Which screen is showing ("home", "scan", …) — drives the nav's selected highlight. The setter is
+    /// Which screen is showing ("home", "scan", ...). Drives the nav's selected highlight. The setter is
     /// public only because the nav's TwoWay bindings require a writable target; their ConvertBack does
     /// nothing, so navigation state is still only ever changed by the Show* commands.
     /// </summary>
@@ -116,7 +116,7 @@ public sealed class ShellViewModel : ViewModelBase
         set => Set(ref _currentScreen, value);
     }
 
-    /// <summary>True when a previous session was found on start-up — Home shows the "welcome back" card.</summary>
+    /// <summary>True when a previous session was found on start-up. Home shows the "welcome back" card.</summary>
     public bool HasPendingSession
     {
         get => _hasPendingSession;
@@ -197,7 +197,7 @@ public sealed class ShellViewModel : ViewModelBase
             when = utc.ToLocalTime().ToString("g");
         }
 
-        return $"Your last scan ({when}) — keeping {session.KeepText} · {session.Trash.Count:N0} item(s) you trashed.";
+        return $"Your last scan ({when}). Keeping {session.KeepText} · {session.Trash.Count:N0} item(s) you trashed.";
     }
 
     /// <summary>The latest scan's REVIEW head directories, as explorer roots (backslash-normalized).</summary>

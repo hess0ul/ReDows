@@ -5,8 +5,8 @@ namespace ReDows.Providers.Windows;
 
 /// <summary>
 /// The Known Folders ReDows resolves per profile, keyed by the canonical names of
-/// the ruleset's FOLDERID_* tokens. Resolution is always by GUID — never by
-/// (localized) name — per the locale-independence invariant. Each entry knows its
+/// the ruleset's FOLDERID_* tokens. Resolution is always by GUID, never by
+/// (localized) name, per the locale-independence invariant. Each entry knows its
 /// 'User Shell Folders' registry value names (GUID string for post-Vista folders,
 /// legacy name otherwise) and its default path relative to the profile root.
 /// </summary>

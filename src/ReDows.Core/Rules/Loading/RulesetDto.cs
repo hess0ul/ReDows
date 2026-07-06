@@ -21,7 +21,7 @@ public sealed class RulesetFileDto
     [Description("The classification rules of this file.")]
     public List<RuleDto>? Rules { get; set; }
 
-    [Description("Per-app templates (apps-ctt catalogue): a shared pattern (P-CHROM…) declared once, instantiated by 'apps' entries. Template rules carry their own layer.")]
+    [Description("Per-app templates (apps-ctt catalogue): a shared pattern (P-CHROM...) declared once, instantiated by 'apps' entries. Template rules carry their own layer.")]
     public List<TemplateDto>? Templates { get; set; }
 
     [Description("Template instantiations: each app expands its template into ordinary rules with ids 'app.<name>.<suffix>'.")]
@@ -153,7 +153,7 @@ public sealed class RuleDto
     public string? Verdict { get; set; }
 
     [Pattern("^(critical|high|normal|low)$")]
-    [Description("Reserved importance axis (orthogonal to the verdict): parsed and validated but NOT yet consumed by classification — reserved for future review ordering and manifest output, so setting it has no runtime effect today. Default: normal.")]
+    [Description("Reserved importance axis (orthogonal to the verdict): parsed and validated but NOT yet consumed by classification. Reserved for future review ordering and manifest output, so setting it has no runtime effect today. Default: normal.")]
     public string? Prio { get; set; }
 
     [Pattern("^(distinctive|collision_prone)$")]
@@ -172,7 +172,7 @@ public sealed class RuleDto
     [Description("Free-form rationale for human readers.")]
     public string? Note { get; set; }
 
-    [Description("Orthogonal flags (an axis, never encoded in the verdict). dpapi_machine_bound: the captured bytes are DPAPI-bound to this machine and unreadable after a reset — surfaced as a pre-reset alert (export/synchronize BEFORE).")]
+    [Description("Orthogonal flags (an axis, never encoded in the verdict). dpapi_machine_bound: the captured bytes are DPAPI-bound to this machine and unreadable after a reset. Shown as a pre-reset alert (export/synchronize BEFORE).")]
     public List<string>? Flags { get; set; }
 }
 
@@ -219,7 +219,7 @@ public sealed class ConditionDto
     [Description("True when at least one child condition is true.")]
     public List<ConditionDto>? Any { get; set; }
 
-    [Description("True when none of the child conditions is true (logical NOT-any) — e.g. a marker is absent.")]
+    [Description("True when none of the child conditions is true (logical NOT-any). For example, a marker is absent.")]
     public List<ConditionDto>? None { get; set; }
 
     [Description("True when an ancestor directory of the item (up to the volume root) contains an entry matching one of these name globs (e.g. package.json, *.sln, .git).")]

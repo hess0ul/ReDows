@@ -4,7 +4,7 @@ using ReDows.Providers.Windows;
 
 namespace ReDows.Cli;
 
-/// <summary>'redows context show' — display the real machine's resolved ScanContext for human validation.</summary>
+/// <summary>'redows context show': display the real machine's resolved ScanContext for human validation.</summary>
 public static class ContextCommand
 {
     public static int Show(bool asJson)
@@ -49,7 +49,7 @@ public static class ContextCommand
             var mounts = volume.MountPaths.Count > 0 ? S(string.Join(", ", volume.MountPaths)) : "(no mount point)";
             var size = volume.TotalBytes is { } bytes ? Format.Gigabytes(bytes) : "?";
             var status = volume.Scannable ? "scan" : $"excluded: {volume.ExclusionReason}";
-            Console.WriteLine($"  [{status}] {mounts} — {volume.DriveKind}, {volume.FileSystemFormat ?? "?"}, {size}, label '{S(volume.Label ?? "")}'");
+            Console.WriteLine($"  [{status}] {mounts}: {volume.DriveKind}, {volume.FileSystemFormat ?? "?"}, {size}, label '{S(volume.Label ?? "")}'");
             Console.WriteLine($"         {volume.GuidPath}");
         }
 
@@ -57,7 +57,7 @@ public static class ContextCommand
         Console.WriteLine($"== Profiles ({context.Profiles.Count} from ProfileList) ==");
         foreach (var profile in context.Profiles)
         {
-            var hive = profile.HiveResolved ? "hive resolved" : "HIVE UNREAD — degraded (counted)";
+            var hive = profile.HiveResolved ? "hive resolved" : "hive unread, counted but degraded";
             Console.WriteLine($"  {S(profile.UserName)}  ({profile.Sid})  [{hive}]");
             Console.WriteLine($"    root: {S(profile.RootPath)}");
             foreach (var (name, value) in profile.Environment.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
@@ -78,7 +78,7 @@ public static class ContextCommand
         Console.WriteLine($"== Orphan profile directories ({context.Orphans.Count}) ==");
         foreach (var orphan in context.Orphans)
         {
-            Console.WriteLine($"  {S(orphan)}   << user data outside ProfileList — high-priority REVIEW at scan time");
+            Console.WriteLine($"  {S(orphan)}   << user data outside ProfileList, reviewed first at scan time");
         }
 
         if (windowsContext.Notes.Count > 0)

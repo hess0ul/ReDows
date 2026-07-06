@@ -4,8 +4,8 @@ using ReDows.Core.Scanning;
 namespace ReDows.Gui.ViewModels;
 
 /// <summary>
-/// One category row on the Scan screen: a module (games, photos…) and the user's chosen action. The
-/// three <c>Is*</c> booleans back a row of radio buttons (keep / review / ignore) without a converter —
+/// One category row on the Scan screen: a module (games, photos...) and the user's chosen action. The
+/// three <c>Is*</c> booleans back a row of radio buttons (keep / review / ignore) without a converter:
 /// setting one to true moves <see cref="Action"/>, and <see cref="Action"/> re-raises all three so the
 /// buttons stay in sync. <see cref="ToCategoryModule"/> binds the choice to the engine input.
 /// </summary>
@@ -37,7 +37,7 @@ public sealed class ModuleRowViewModel : ViewModelBase
 
     /// <summary>
     /// Human list of what this category matches, shown in the "?" tooltip: the file extensions
-    /// (".jpg, .png, …") for an extension module, or the folder names for a folder module (games).
+    /// (".jpg, .png, ...") for an extension module, or the folder names for a folder module (games).
     /// </summary>
     public string Detects =>
         _definition.Extensions.Count > 0
