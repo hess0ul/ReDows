@@ -18,7 +18,7 @@ public enum ReviewSort
 
 /// <summary>
 /// The review wizard, trash model: everything under review is KEPT by default (safe: nothing lost
-/// by forgetting). You walk the REVIEW folders one at a time (Folder X of N, Next), drill in
+/// by forgetting). You walk the REVIEW folders one at a time (Folder X of N, Previous/Next), drill in
 /// (Open / Up), and DROP the junk. A dropped item leaves the list and goes to the trash, which you can
 /// open to restore. Folders are read on demand (read-only). The kept set (everything minus the trash)
 /// will feed the backup next.
@@ -87,6 +87,7 @@ public sealed class ReviewViewModel : ViewModelBase
         RestoreCommand = new RelayCommand(item => { if (item is TrashRow trashed) _ = RestoreAsync(trashed); });
         UpCommand = new RelayCommand(_ => _ = UpAsync(), _ => !AtFolderRoot && !IsLoading);
         CancelCommand = new RelayCommand(_ => _cancellation?.Cancel(), _ => IsLoading);
+        PreviousCommand = new RelayCommand(_ => _ = PreviousAsync(), _ => HasPrevious && !IsLoading);
         NextCommand = new RelayCommand(_ => _ = NextAsync(), _ => HasNext && !IsLoading);
         DropFolderCommand = new RelayCommand(_ => _ = DropCurrentFolderAsync(), _ => HasFolder && !IsLoading);
         ToggleTrashCommand = new RelayCommand(_ => IsTrashOpen = !IsTrashOpen);
@@ -209,6 +210,8 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public RelayCommand CancelCommand { get; }
 
+    public RelayCommand PreviousCommand { get; }
+
     public RelayCommand NextCommand { get; }
 
     public RelayCommand DropFolderCommand { get; }
@@ -224,6 +227,8 @@ public sealed class ReviewViewModel : ViewModelBase
     public bool HasRoots => _roots.Count > 0;
 
     public bool HasFolder => _folderIndex >= 0 && _folderIndex < _roots.Count;
+
+    public bool HasPrevious => _folderIndex > 0;
 
     public bool HasNext => _folderIndex >= 0 && _folderIndex < _roots.Count - 1;
 
@@ -346,6 +351,8 @@ public sealed class ReviewViewModel : ViewModelBase
         StepText = $"Folder {index + 1} of {_roots.Count}";
         await LoadCurrentAsync();
     }
+
+    public Task PreviousAsync() => HasPrevious ? GoToFolderAsync(_folderIndex - 1) : Task.CompletedTask;
 
     public Task NextAsync() => HasNext ? GoToFolderAsync(_folderIndex + 1) : Task.CompletedTask;
 
@@ -775,12 +782,14 @@ public sealed class ReviewViewModel : ViewModelBase
     private void RaiseNav()
     {
         Raise(nameof(HasFolder));
+        Raise(nameof(HasPrevious));
         Raise(nameof(HasNext));
         Raise(nameof(OnLastFolder));
         Raise(nameof(ShowBackUp));
         Raise(nameof(AtFolderRoot));
         UpCommand.RaiseCanExecuteChanged();
         CancelCommand.RaiseCanExecuteChanged();
+        PreviousCommand.RaiseCanExecuteChanged();
         NextCommand.RaiseCanExecuteChanged();
         DropFolderCommand.RaiseCanExecuteChanged();
         AnalyzeFolderCommand.RaiseCanExecuteChanged();
