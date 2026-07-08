@@ -301,3 +301,91 @@ rules:
     bare_name_class: distinctive
     source: 'vault deny-list v2 §A.2 / §D-11'
     note: 'Synology NAS metadata folders.'
+
+  # Gaps found during a real full-PC backup (2026-07-08): system leftovers that were
+  # defaulting to REVIEW and so ended up in the copy. None of these is ever user data.
+  - id: vol.root_stray_dll
+    scope: volume
+    match: '*.dll'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'A DLL sitting loose at a drive root (appverifUI.dll, vfcompact.dll and the like) is a leftover from a tool or SDK, never user data.'
+
+  - id: user.ntuser_hive
+    scope: drive
+    match: '**/NTUSER.*'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+    note: 'Per-user registry hive files (NTUSER.DAT and its logs). The registry is captured through the settings pipeline, never as a raw hive copy.'
+
+  - id: user.thumbnails_cache
+    scope: user
+    match: '<UserProfile>/.thumbnails/**'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'A thumbnail cache some apps drop in the home folder. Rebuilt on demand.'
+
+  - id: os.users_default_profile
+    scope: machine
+    match: '%SystemDrive%/Users/Default/**'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'The template profile Windows copies for each new user. Never holds real user data.'
+
+  - id: vol.gaming_root
+    scope: volume
+    match: '.gamingRoot'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'Xbox app marker that tags a drive holding installed games. A tiny generated file.'
+
+  - id: vol.wpsystem
+    scope: volume
+    match: 'WpSystem/**'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'Windows-managed storage for Store apps on a non-system drive. Recreated by Windows, not user data.'
+
+  - id: junk.log_files
+    scope: drive
+    match: '**/*.log'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+    note: 'Log files are diagnostic output, never user data. A more specific rule (e.g. a captured app config) still wins by specificity.'
+
+  # Boilerplate licence/notice files shipped by app developers. Matched by EXACT dev-convention names
+  # (not a licen* wildcard) so a user file like "licenses-i-bought.txt" is never swallowed. A real
+  # licence-KEY folder (licen*/keys) stays REVIEW via the app-zone exceptions, which are unaffected.
+  - id: junk.license_txt
+    scope: drive
+    match: '**/LICENSE.txt'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+  - id: junk.license_md
+    scope: drive
+    match: '**/LICENSE.md'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+  - id: junk.copying
+    scope: drive
+    match: '**/COPYING*'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+    note: 'COPYING / COPYING.txt: the GPL-family licence file convention.'
+  - id: junk.eula
+    scope: drive
+    match: '**/EULA.txt'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+  - id: junk.third_party_notices
+    scope: drive
+    match: '**/THIRD-PARTY-NOTICES.txt'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'

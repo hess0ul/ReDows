@@ -1,0 +1,158 @@
+# yaml-language-server: $schema=./ruleset.schema.json
+# Deny stage: image files inside an "asset" / "resource" folder are UI artwork shipped with a program,
+# re-installed with it, not user data. Anchored to the user profile (so Known-Folder exceptions are
+# valid): under the profile these are ignored EXCEPT under the user's own document/media folders
+# (Documents, Pictures, Downloads, Desktop), where an "assets" folder is the user's project and is kept
+# (sent back to REVIEW). Asset images outside the profile are handled elsewhere: Program Files is already
+# ignored, and a custom drive folder can be dropped in the sorter. One rule per (folder x extension)
+# because the glob has no brace alternation.
+schema_version: 1
+layer: deny
+rules:
+  - id: junk.asset_png
+    scope: user
+    match: '<UserProfile>/**/asset*/**/*.png'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'App image assets under an asset folder in the profile. Kept under the user document/media folders (exceptions).'
+    exceptions:
+      - id: junk.asset_png.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+        note: "A user project's own assets under Documents are kept."
+      - id: junk.asset_png.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.asset_png.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.asset_png.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.asset_jpg
+    scope: user
+    match: '<UserProfile>/**/asset*/**/*.jpg'
+    verdict: ignore
+    source: 'real-world backup test'
+    exceptions:
+      - id: junk.asset_jpg.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.asset_jpg.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.asset_jpg.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.asset_jpg.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.asset_ico
+    scope: user
+    match: '<UserProfile>/**/asset*/**/*.ico'
+    verdict: ignore
+    source: 'real-world backup test'
+    exceptions:
+      - id: junk.asset_ico.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.asset_ico.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.asset_ico.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.asset_ico.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.asset_svg
+    scope: user
+    match: '<UserProfile>/**/asset*/**/*.svg'
+    verdict: ignore
+    source: 'real-world backup test'
+    exceptions:
+      - id: junk.asset_svg.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.asset_svg.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.asset_svg.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.asset_svg.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.resource_png
+    scope: user
+    match: '<UserProfile>/**/resource*/**/*.png'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'App image resources under a resource folder in the profile. Kept under the user document/media folders (exceptions).'
+    exceptions:
+      - id: junk.resource_png.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.resource_png.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.resource_png.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.resource_png.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.resource_jpg
+    scope: user
+    match: '<UserProfile>/**/resource*/**/*.jpg'
+    verdict: ignore
+    source: 'real-world backup test'
+    exceptions:
+      - id: junk.resource_jpg.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.resource_jpg.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.resource_jpg.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.resource_jpg.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.resource_ico
+    scope: user
+    match: '<UserProfile>/**/resource*/**/*.ico'
+    verdict: ignore
+    source: 'real-world backup test'
+    exceptions:
+      - id: junk.resource_ico.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.resource_ico.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.resource_ico.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.resource_ico.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review
+  - id: junk.resource_svg
+    scope: user
+    match: '<UserProfile>/**/resource*/**/*.svg'
+    verdict: ignore
+    source: 'real-world backup test'
+    exceptions:
+      - id: junk.resource_svg.documents
+        match: 'FOLDERID_Documents/**'
+        verdict: review
+      - id: junk.resource_svg.pictures
+        match: 'FOLDERID_Pictures/**'
+        verdict: review
+      - id: junk.resource_svg.downloads
+        match: 'FOLDERID_Downloads/**'
+        verdict: review
+      - id: junk.resource_svg.desktop
+        match: 'FOLDERID_Desktop/**'
+        verdict: review

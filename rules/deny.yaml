@@ -85,10 +85,17 @@ rules:
   - id: vol.recycle_bin
     scope: volume
     match: '$Recycle.Bin/**'
-    verdict: review
+    verdict: ignore
     prio: low
     source: 'vault deny-list v2 §A.7'
-    note: 'Deleted-but-recoverable user data: surface it, restore on demand, never silently drop.'
+    note: 'The recycle bin on every drive holds files the user already sent to the trash. Ignored so a backup does not copy them all back.'
+
+  - id: vol.system_volume_information
+    scope: volume
+    match: 'System Volume Information/**'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'OS-internal store (restore points, indexing) present on every drive. Not user data and normally inaccessible. Ignored.'
 
   - id: av.defender_quarantine
     scope: machine

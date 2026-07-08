@@ -51,6 +51,13 @@ rules:
     verdict: ignore
     bare_name_class: distinctive
     source: 'vault apps-ctt §1 / deny-list §A.3'
+  - id: app.steam.workshop
+    scope: drive
+    match: '**/steamapps/workshop/**'
+    verdict: ignore
+    bare_name_class: distinctive
+    source: 'real-world backup test'
+    note: 'Subscribed Steam Workshop items: re-downloaded from Steam like the games, so not backed up.'
 
   - id: app.epic.webcache
     scope: user
@@ -58,3 +65,9 @@ rules:
     verdict: ignore
     source: 'vault apps-ctt §1 (chromium-style caches)'
     note: 'webcache, webcache_4147 and other versioned CEF caches.'
+  - id: app.epic.logs
+    scope: user
+    match: '%LOCALAPPDATA%/EpicGamesLauncher/Saved/Logs/**'
+    verdict: ignore
+    source: 'real-world backup test'
+    note: 'Epic launcher logs, not user data.'
