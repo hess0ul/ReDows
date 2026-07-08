@@ -11,9 +11,9 @@
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
 ![Read-only](https://img.shields.io/badge/source-read--only-success)
 
-> ℹ️ **This is a v0.1.0 pre-release.** It works — you can download it and use it today — but it is still
-> evolving: commands, output and the rule set can change, and parts of the plan are not built yet.
-> Feedback is welcome.
+> ℹ️ **This is an early pre-release** (see the badge above for the current version). It works — you can
+> download it and use it today — but it is still evolving: commands, output and the rule set can change,
+> and parts of the plan are not built yet. Feedback is welcome.
 
 ---
 
@@ -21,7 +21,7 @@
 
 Grab the latest build from the **[Releases page](https://github.com/hess0ul/ReDows/releases/latest)**:
 
-1. Download `ReDows-v0.1.0-win-x64.zip`.
+1. Download the win-x64 zip (`ReDows-<version>-win-x64.zip`).
 2. Unzip it anywhere.
 3. Double-click **`redows-gui.exe`**.
 
@@ -100,7 +100,7 @@ dotnet publish src/ReDows.Gui/ReDows.Gui.csproj -c Release -r win-x64 --self-con
 
 ## 📊 Status
 
-**v0.1.0 pre-release.** Working today: machine-context discovery; a read-only scan with a completeness
+**Pre-release, actively evolving.** Working today: machine-context discovery; a read-only scan with a completeness
 report and a per-file keep manifest; the YAML rule set; the installed-apps inventory (with winget
 correlation); reading Windows settings grouped by the InDows module that re-applies them; finding
 registry-only app secrets (locations only, never values); the desktop app (scan, review-and-sort, backup,
