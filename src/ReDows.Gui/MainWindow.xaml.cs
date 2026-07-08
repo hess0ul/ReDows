@@ -33,6 +33,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = shell;
+        Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/redows.ico"));
     }
 
     protected override void OnSourceInitialized(EventArgs e)

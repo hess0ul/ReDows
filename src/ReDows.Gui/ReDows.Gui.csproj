@@ -8,7 +8,13 @@
     <AssemblyName>redows-gui</AssemblyName>
     <RootNamespace>ReDows.Gui</RootNamespace>
     <Description>ReDows desktop UI: a window over the same read-only engine as the CLI.</Description>
+    <ApplicationIcon>redows.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!-- The app icon: embedded in the .exe (ApplicationIcon above) and available as a WPF resource so the window can set it. -->
+  <ItemGroup>
+    <Resource Include="redows.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ReDows.Core\ReDows.Core.csproj" />

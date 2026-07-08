@@ -1,4 +1,6 @@
-# ReDows
+<p align="center">
+  <img src="docs/banner.png" alt="ReDows" width="720">
+</p>
 
 > **Know exactly what to keep before you wipe your PC.**
 > ReDows scans a Windows 11 machine and builds an exhaustive inventory — apps, configuration and
