@@ -48,8 +48,8 @@
                     BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                 <StackPanel>
                     <TextBlock Text="Where to save" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                    <TextBlock Text="A folder, a USB key, or a network share (\\server\share)."
-                               Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8"
+                               Text="A folder, a USB key, or a network share. A mapped drive (Z:) may not be listed when ReDows runs as administrator; type the share path directly instead, e.g. \\server\share."/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

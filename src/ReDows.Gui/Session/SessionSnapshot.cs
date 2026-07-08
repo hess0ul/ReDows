@@ -9,7 +9,7 @@ namespace ReDows.Gui.Session;
 public static class SessionSnapshot
 {
     /// <summary>Capture the scan summary + the user's decisions (trash + unticked apps) into a session to persist.</summary>
-    public static SessionFile Build(ScanResultView result, IReadOnlyDictionary<string, long> trash, string? root, string scannedUtc, IReadOnlyList<string>? deselectedApps = null) =>
+    public static SessionFile Build(ScanResultView result, IReadOnlyDictionary<string, long> trash, string? root, string scannedUtc, IReadOnlyList<string>? deselectedApps = null, SessionBackup? backup = null) =>
         new(
             scannedUtc,
             root,
@@ -19,7 +19,8 @@ public static class SessionSnapshot
             result.IgnoreText,
             result.TopReview.Select(row => new SessionReviewRoot(row.Size, row.Items, row.Folder, row.Bytes)).ToList(),
             trash.Select(entry => new SessionTrashItem(entry.Key, entry.Value)).ToList(),
-            (deselectedApps ?? []).ToList());
+            (deselectedApps ?? []).ToList(),
+            backup);
 
     /// <summary>Rebuild a Scan result view from a session, so the Review and Backup screens work on resume.</summary>
     public static ScanResultView ToResultView(SessionFile session) =>

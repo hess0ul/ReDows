@@ -59,31 +59,54 @@ public sealed class BackupViewModel : ViewModelBase
         set => Set(ref _excludedPaths, value);
     }
 
+    /// <summary>Raised when a remembered choice (destination or a toggle) changes, so the session can persist it.</summary>
+    public event Action? ConfigChanged;
+
+    private bool _restoringConfig;
+
+    private void OnConfigChanged() { if (!_restoringConfig) ConfigChanged?.Invoke(); }
+
     public string Destination
     {
         get => _destination;
-        set { Set(ref _destination, value); Raise(nameof(CanRun)); RaiseCommands(); }
+        set { Set(ref _destination, value); Raise(nameof(CanRun)); RaiseCommands(); OnConfigChanged(); }
     }
 
     /// <summary>Protect capture:secret files in a password-encrypted vault (else they are deferred, never copied in clear).</summary>
     public bool UseVault
     {
         get => _useVault;
-        set => Set(ref _useVault, value);
+        set { Set(ref _useVault, value); OnConfigChanged(); }
     }
 
     /// <summary>Rescue locked files from a volume shadow copy (only takes effect when elevated).</summary>
     public bool UseVss
     {
         get => _useVss;
-        set => Set(ref _useVss, value);
+        set { Set(ref _useVss, value); OnConfigChanged(); }
     }
 
     /// <summary>Store byte-identical files only once (the most-recent copy) and record the rest in a restore map.</summary>
     public bool Dedupe
     {
         get => _dedupe;
-        set => Set(ref _dedupe, value);
+        set { Set(ref _dedupe, value); OnConfigChanged(); }
+    }
+
+    /// <summary>Re-apply the destination and toggles remembered from a previous session (never a password).</summary>
+    public void RestoreConfig(Session.SessionBackup? backup)
+    {
+        if (backup is null)
+        {
+            return;
+        }
+
+        _restoringConfig = true;
+        Destination = backup.Destination;
+        UseVault = backup.UseVault;
+        UseVss = backup.UseVss;
+        Dedupe = backup.Dedupe;
+        _restoringConfig = false;
     }
 
     public bool IsRunning

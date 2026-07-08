@@ -119,7 +119,11 @@ public sealed class WindowsBackupRunner : IBackupRunner
         }
 
         long hashed = 0;
-        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), FileTimes.SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
+        // Reuse the hashes the scan already computed (same session), so files are not read twice. A file
+        // whose size or last-write time changed since the scan is re-hashed; anything else is a cache miss.
+        var seed = HashCache.Read(Path.Combine(Path.GetDirectoryName(manifestPath) ?? ".", HashCache.FileName));
+        var hasher = new CachingFileHasher(new Sha256FileHasher(), FileTimes.SafeSize, FileTimes.SafeLastModifiedUtc, seed);
+        var groups = DuplicateFinder.Find(files, hasher, FileTimes.SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++hashed % 500 == 0)

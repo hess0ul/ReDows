@@ -38,10 +38,12 @@ public sealed class ShellViewModel : ViewModelBase
         Apps = new AppsViewModel(appsRunner);
         _currentViewModel = Home;
 
-        // Persist the session whenever a decision changes: a finished scan, a trash change, or an app un-tick.
+        // Persist the session whenever a decision changes: a finished scan, a trash change, an app un-tick,
+        // or a backup choice (destination / toggles).
         Scan.Scanned += OnScanned;
         Review.TrashChanged += SaveSession;
         Apps.SelectionChanged += SaveSession;
+        Backup.ConfigChanged += SaveSession;
 
         ShowHomeCommand = new RelayCommand(_ => { CurrentViewModel = Home; CurrentScreen = "home"; });
         ShowScanCommand = new RelayCommand(_ => { CurrentViewModel = Scan; CurrentScreen = "scan"; });
@@ -156,6 +158,7 @@ public sealed class ShellViewModel : ViewModelBase
         Review.RestoreTrash(session.Trash.ToDictionary(item => item.Path, item => item.Bytes, StringComparer.OrdinalIgnoreCase));
         Backup.ManifestPath = session.ManifestPath;
         Backup.ExcludedPaths = session.Trash.Select(item => item.Path).ToList();
+        Backup.RestoreConfig(session.Backup);
         Apps.RestoreSelection(session.DeselectedApps ?? []);
         Review.SetRoots(ReviewRootsFromScan(), scanned: true);
 
@@ -185,7 +188,8 @@ public sealed class ShellViewModel : ViewModelBase
             return; // nothing to persist until a scan has written a manifest
         }
 
-        var session = SessionSnapshot.Build(result, Review.Trash.Items, Scan.WholePc ? null : Scan.FolderPath, _scannedUtc ?? DateTime.UtcNow.ToString("o"), Apps.DeselectedKeys);
+        var backup = new SessionBackup(Backup.Destination, Backup.UseVault, Backup.UseVss, Backup.Dedupe);
+        var session = SessionSnapshot.Build(result, Review.Trash.Items, Scan.WholePc ? null : Scan.FolderPath, _scannedUtc ?? DateTime.UtcNow.ToString("o"), Apps.DeselectedKeys, backup);
         _sessionStore.Save(session);
     }
 

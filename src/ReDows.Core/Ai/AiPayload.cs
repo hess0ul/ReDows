@@ -57,6 +57,9 @@ public static class AiPayload
         "{\"classification\":\"keep|drop|mixed|unknown\",\"explanation\":\"one short paragraph, plain language\",\"confidence\":\"high|medium|low\"}. " +
         "keep = user-created or user-configured data. drop = re-obtainable program files, caches, bundles. " +
         "mixed = both are present (say where the user data likely lives). " +
+        "The folder PATH is a strong signal: the same name can be a re-obtainable app in one place and personal " +
+        "data in another, so weigh where it sits. A folder inside a personal location (Documents, a Backup or " +
+        "Sauvegarde folder, a personal data drive) is likely data to KEEP even if its name resembles an app. " +
         "If you are not reasonably sure, use unknown with low confidence. Never guess confidently.";
 
     /// <summary>Render the user message: the whitelisted metadata, nothing else.</summary>
@@ -89,6 +92,8 @@ public static class AiPayload
         "{\"classification\":\"keep|drop|mixed|unknown\",\"explanation\":\"one short sentence, plain language\",\"confidence\":\"high|medium|low\"}. " +
         "keep = user-created/edited or user-configured data. drop = a re-obtainable program file, cache, log, " +
         "temp, or a file the app recreates. mixed = it depends on what's inside. " +
+        "Weigh WHERE it sits: the same name under a personal location (Documents, a Backup or Sauvegarde " +
+        "folder, a personal data drive) leans keep, while under a drive root or an app-data path it leans drop. " +
         "If you are not reasonably sure, use unknown with low confidence. Never guess confidently.";
 
     /// <summary>

@@ -22,4 +22,18 @@ public static class FileTimes
             return DateTime.MinValue;
         }
     }
+
+    /// <summary>Byte length of a file, or -1 if it vanished or access was denied (so it never validates a
+    /// cached hash). Slashes are normalised like <see cref="SafeLastModifiedUtc"/>.</summary>
+    public static long SafeSize(string path)
+    {
+        try
+        {
+            return new FileInfo(path.Replace('/', '\\')).Length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return -1;
+        }
+    }
 }

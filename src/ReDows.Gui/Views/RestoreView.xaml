@@ -11,7 +11,9 @@
             <Border Background="{StaticResource App.Card}" CornerRadius="8" Padding="16"
                     BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                 <StackPanel>
-                    <TextBlock Text="Backup to restore" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Backup to restore" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8"
+                               Text="The folder your backup was saved to. For a network share, type its path (\\server\share); a mapped drive (Z:) may not be listed when running as administrator."/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

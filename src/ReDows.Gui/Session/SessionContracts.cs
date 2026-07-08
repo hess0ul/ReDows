@@ -7,6 +7,12 @@ public sealed record SessionReviewRoot(string Size, string Items, string Folder,
 public sealed record SessionTrashItem(string Path, long Bytes);
 
 /// <summary>
+/// The Backup screen's remembered choices so the user does not re-enter them next time: where to save and
+/// the toggles. The vault PASSWORD is never here (invariant #5), only whether the vault is enabled.
+/// </summary>
+public sealed record SessionBackup(string Destination, bool UseVault, bool UseVss, bool Dedupe);
+
+/// <summary>
 /// A persisted ReDows session: the last scan (its summary + the manifest to back up) AND the user's
 /// decisions (what they trashed in the review sorter, and which apps they unticked for reinstall).
 /// Written after a scan and whenever a decision changes, so re-opening ReDows can offer to resume where
@@ -23,7 +29,8 @@ public sealed record SessionFile(
     string IgnoreText,
     IReadOnlyList<SessionReviewRoot> ReviewRoots,
     IReadOnlyList<SessionTrashItem> Trash,
-    IReadOnlyList<string>? DeselectedApps = null);
+    IReadOnlyList<string>? DeselectedApps = null,
+    SessionBackup? Backup = null);
 
 /// <summary>
 /// Reads and writes the ReDows session on disk. A seam: the real store is a JSON file under the user's

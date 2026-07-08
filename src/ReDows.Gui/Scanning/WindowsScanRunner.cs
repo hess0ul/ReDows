@@ -216,7 +216,10 @@ public sealed class WindowsScanRunner : IScanRunner
         }
 
         long hashed = 0;
-        var groups = DuplicateFinder.Find(files, new Sha256FileHasher(), FileTimes.SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
+        // A caching hasher: it records every full hash so the backup's own de-duplication can reuse them
+        // instead of reading the same files again (a file's size + last-write time gate the reuse).
+        var hasher = new CachingFileHasher(new Sha256FileHasher(), FileTimes.SafeSize, FileTimes.SafeLastModifiedUtc);
+        var groups = DuplicateFinder.Find(files, hasher, FileTimes.SafeLastModifiedUtc, minSize: 1, onFullHash: _ =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++hashed % 500 == 0)
@@ -224,6 +227,7 @@ public sealed class WindowsScanRunner : IScanRunner
                 progress.Report(new ScanProgress(hashed, "comparing possible duplicate files..."));
             }
         });
+        HashCache.Write(ResolveHashCachePath(), hasher.Entries);
 
         var top = groups.Take(25)
             .Select(group => new DuplicateGroupRow(
@@ -260,6 +264,12 @@ public sealed class WindowsScanRunner : IScanRunner
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ReDows",
             "last-scan.jsonl");
+
+    private static string ResolveHashCachePath() =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ReDows",
+            HashCache.FileName);
 
     /// <summary>Open the manifest for writing (best-effort): a write failure just means no backup seed.</summary>
     private static StreamWriter? TryOpenManifest(string path)
