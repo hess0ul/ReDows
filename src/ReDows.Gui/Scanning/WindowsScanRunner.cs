@@ -399,7 +399,8 @@ public sealed class WindowsScanRunner : IScanRunner
             TopReview: topReview,
             RecognizedZones: report.RecognizedZones
                 .Select(z => new RecognizedZoneRow(z.Importance, z.Label, z.Count > 1 ? $"×{z.Count:N0}" : "", z.Note,
-                    z.Paths.Select(p => p.Replace('/', '\\')).ToList()))
+                    z.Paths.Select(p => p.Replace('/', '\\')).ToList(),
+                    IsApp: z.Key.StartsWith("app:", StringComparison.Ordinal)))
                 .ToList());
     }
 }

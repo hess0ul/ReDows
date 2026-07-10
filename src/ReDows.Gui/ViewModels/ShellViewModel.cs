@@ -49,7 +49,7 @@ public sealed class ShellViewModel : ViewModelBase
         ShowScanCommand = new RelayCommand(_ => { CurrentViewModel = Scan; CurrentScreen = "scan"; });
         ShowReviewCommand = new RelayCommand(_ =>
         {
-            Review.SetRoots(ReviewRootsFromScan(), scanned: Scan.Result is not null);
+            Review.SetRoots(ReviewRootsFromScan(), scanned: Scan.Result is not null, appZones: AppZonesFromScan());
             CurrentViewModel = Review;
             CurrentScreen = "review";
         });
@@ -160,7 +160,7 @@ public sealed class ShellViewModel : ViewModelBase
         Backup.ExcludedPaths = session.Trash.Select(item => item.Path).ToList();
         Backup.RestoreConfig(session.Backup);
         Apps.RestoreSelection(session.DeselectedApps ?? []);
-        Review.SetRoots(ReviewRootsFromScan(), scanned: true);
+        Review.SetRoots(ReviewRootsFromScan(), scanned: true, appZones: AppZonesFromScan());
 
         CurrentViewModel = Review;
         CurrentScreen = "review";
@@ -203,6 +203,10 @@ public sealed class ShellViewModel : ViewModelBase
 
         return $"Your last scan ({when}). Keeping {session.KeepText} · {session.Trash.Count:N0} item(s) you trashed.";
     }
+
+    /// <summary>The latest scan's recognized APP zones (each app + the map of its data folders), for the "sort by app" panel.</summary>
+    private IReadOnlyList<RecognizedZoneRow> AppZonesFromScan() =>
+        (Scan.Result?.RecognizedZones ?? []).Where(zone => zone.IsApp).ToList();
 
     /// <summary>The latest scan's REVIEW head directories, as explorer roots (backslash-normalized).</summary>
     private IReadOnlyList<EntryRow> ReviewRootsFromScan() =>

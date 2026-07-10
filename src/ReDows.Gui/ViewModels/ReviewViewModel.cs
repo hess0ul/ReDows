@@ -45,6 +45,7 @@ public sealed class ReviewViewModel : ViewModelBase
     private string _filesSummary = "";
     private string _cloudReminder = "";
     private string _memoryNote = "";
+    private string _appSortSummary = "";
     private ReviewSort _sort = ReviewSort.Size;
 
     private bool _scanned;
@@ -94,6 +95,13 @@ public sealed class ReviewViewModel : ViewModelBase
         SortBySizeCommand = new RelayCommand(_ => SetSort(ReviewSort.Size));
         SortByNameCommand = new RelayCommand(_ => SetSort(ReviewSort.Name));
         SortByTypeCommand = new RelayCommand(_ => SetSort(ReviewSort.Type));
+
+        // "Sort by app first" panel: keep/drop an app's data as a block, above the folder wizard.
+        DropLocationCommand = new RelayCommand(item => { if (item is AppReviewLocationViewModel location) _ = DropLocationAsync(location); }, _ => !IsLoading);
+        KeepLocationCommand = new RelayCommand(item => { if (item is AppReviewLocationViewModel location) KeepLocation(location); });
+        DropAppCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) _ = BulkAppAsync(group, drop: true, suggestedOnly: false); }, _ => !IsLoading);
+        DropSuggestedCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) _ = BulkAppAsync(group, drop: true, suggestedOnly: true); }, _ => !IsLoading);
+        KeepAppCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) _ = BulkAppAsync(group, drop: false, suggestedOnly: false); });
     }
 
     public DropSelection Trash { get; } = new();
@@ -224,22 +232,51 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public RelayCommand SortByTypeCommand { get; }
 
+    public RelayCommand DropLocationCommand { get; }
+
+    public RelayCommand KeepLocationCommand { get; }
+
+    public RelayCommand DropAppCommand { get; }
+
+    public RelayCommand DropSuggestedCommand { get; }
+
+    public RelayCommand KeepAppCommand { get; }
+
+    /// <summary>
+    /// Apps whose data landed in this review's head folders, grouped so you can keep or drop a whole
+    /// app's data in one gesture BEFORE walking the rest folder by folder. Empty when the inventory is
+    /// unavailable or no review folder matches an app name.
+    /// </summary>
+    public ObservableCollection<AppReviewGroupViewModel> AppGroups { get; } = [];
+
+    public bool HasAppGroups => AppGroups.Count > 0;
+
+    /// <summary>One line above the app panel: how many apps it groups and how many folders remain for the wizard.</summary>
+    public string AppSortSummary
+    {
+        get => _appSortSummary;
+        private set => Set(ref _appSortSummary, value);
+    }
+
     public bool HasRoots => _roots.Count > 0;
 
     public bool HasFolder => _folderIndex >= 0 && _folderIndex < _roots.Count;
 
-    public bool HasPrevious => _folderIndex > 0;
+    // Navigation counts only folders still under review: a folder dropped from the "sort by app" panel
+    // (or its own "drop this folder") leaves the wizard, so "Folder X of N" and Previous/Next skip it.
+    public bool HasPrevious => PrevActiveIndex(_folderIndex) is not null;
 
-    public bool HasNext => _folderIndex >= 0 && _folderIndex < _roots.Count - 1;
+    public bool HasNext => NextActiveIndex(_folderIndex) is not null;
 
     /// <summary>On a folder with no next one: the wizard's end, where "Next" becomes "Back up →".</summary>
     public bool OnLastFolder => HasFolder && !HasNext;
 
     /// <summary>
-    /// Whether to offer "Back up →" instead of "Next": at the end of the wizard, OR right after a scan
-    /// that flagged nothing to review (no folders to walk), so the user is never stuck on a dead "Next".
+    /// Whether to offer "Back up →" instead of "Next": at the end of the wizard, right after a scan that
+    /// flagged nothing to review, OR once every review folder has been dropped (e.g. all handled from the
+    /// app panel), so the user is never stuck on a dead "Next".
     /// </summary>
-    public bool ShowBackUp => OnLastFolder || (_scanned && !HasRoots);
+    public bool ShowBackUp => OnLastFolder || (_scanned && !HasRoots) || (_scanned && HasRoots && ActiveRootIndices().Count == 0);
 
     public bool AtFolderRoot => _trail.Count <= 1;
 
@@ -301,7 +338,7 @@ public sealed class ReviewViewModel : ViewModelBase
     /// tells apart "no scan run yet" from "a scan ran but flagged nothing to review"; both give empty roots,
     /// but they need different messages (otherwise a clean scan wrongly reads as "no scan yet").
     /// </summary>
-    public void SetRoots(IReadOnlyList<EntryRow> roots, bool scanned = false)
+    public void SetRoots(IReadOnlyList<EntryRow> roots, bool scanned = false, IReadOnlyList<RecognizedZoneRow>? appZones = null)
     {
         _roots = roots;
         _scanned = scanned;
@@ -311,6 +348,9 @@ public sealed class ReviewViewModel : ViewModelBase
         Error = null;
         IsTrashOpen = false;
         _aiByFolder.Clear(); // a new review starts with no remembered AI analyses
+        AppGroups.Clear();   // rebuilt below for this scan's folders
+        AppSortSummary = "";
+        Raise(nameof(HasAppGroups));
         Ai?.Reset();
         RefreshTrash();
         Raise(nameof(HasRoots));
@@ -320,6 +360,8 @@ public sealed class ReviewViewModel : ViewModelBase
         {
             ApplyLearnedDrops(roots);
         }
+
+        BuildAppGroups(appZones ?? []); // group the app data folders (after learned drops, so the panel reflects them)
 
         if (roots.Count == 0)
         {
@@ -335,7 +377,8 @@ public sealed class ReviewViewModel : ViewModelBase
             return;
         }
 
-        _ = GoToFolderAsync(0);
+        var active = ActiveRootIndices();
+        _ = GoToFolderAsync(active.Count > 0 ? active[0] : 0);
     }
 
     public async Task GoToFolderAsync(int index)
@@ -348,13 +391,13 @@ public sealed class ReviewViewModel : ViewModelBase
         _folderIndex = index;
         _trail.Clear();
         _trail.Add((_roots[index].FullPath, _roots[index].Bytes));
-        StepText = $"Folder {index + 1} of {_roots.Count}";
+        UpdateStepText();
         await LoadCurrentAsync();
     }
 
-    public Task PreviousAsync() => HasPrevious ? GoToFolderAsync(_folderIndex - 1) : Task.CompletedTask;
+    public Task PreviousAsync() => PrevActiveIndex(_folderIndex) is int index ? GoToFolderAsync(index) : Task.CompletedTask;
 
-    public Task NextAsync() => HasNext ? GoToFolderAsync(_folderIndex + 1) : Task.CompletedTask;
+    public Task NextAsync() => NextActiveIndex(_folderIndex) is int index ? GoToFolderAsync(index) : Task.CompletedTask;
 
     public async Task OpenAsync(EntryRow entry)
     {
@@ -524,11 +567,7 @@ public sealed class ReviewViewModel : ViewModelBase
     {
         // Load the installed-apps recogniser ONCE, on the first folder we colour (the registry read is a
         // small one-time cost; after that it's just dictionary lookups).
-        if (!_appsLoaded)
-        {
-            _appsLoaded = true;
-            _appFolders = _appsSource?.Load();
-        }
+        EnsureAppsLoaded();
 
         var cloud = 0;
         foreach (var entry in _current)
@@ -771,6 +810,202 @@ public sealed class ReviewViewModel : ViewModelBase
         }
 
         Raise(nameof(TrashButtonText));
+        SyncAppGroups(); // any drop/restore (wizard, trash, panel or a resumed session) reflects in the app panel
+    }
+
+    /// <summary>Load the installed-apps recogniser once (a small registry read), then just dictionary lookups.</summary>
+    private void EnsureAppsLoaded()
+    {
+        if (_appsLoaded)
+        {
+            return;
+        }
+
+        _appsLoaded = true;
+        _appFolders = _appsSource?.Load();
+    }
+
+    /// <summary>
+    /// Build the "sort by app first" panel from the scan's recognized APP zones (each app + the map of its
+    /// data folders). Empty when the scan surfaced no apps (or on a resume with no zones). The keep/drop
+    /// suggestion is the zone's own colour: rule-based, never the AI.
+    /// </summary>
+    private void BuildAppGroups(IReadOnlyList<RecognizedZoneRow> appZones)
+    {
+        AppGroups.Clear();
+        foreach (var group in AppReviewGrouping.Build(appZones))
+        {
+            AppGroups.Add(group);
+        }
+
+        AppSortSummary = AppGroups.Count == 0
+            ? ""
+            : $"{AppGroups.Count} app(s) with data found on your PC. Keep or drop an app's data as a block here, then sort the rest of the folders below.";
+        SyncAppGroups();
+        Raise(nameof(HasAppGroups));
+    }
+
+    /// <summary>Mirror each app location's dropped state from the trash, so the panel matches every drop/restore.</summary>
+    private void SyncAppGroups()
+    {
+        foreach (var group in AppGroups)
+        {
+            foreach (var location in group.Locations)
+            {
+                location.IsDropped = Trash.IsDropped(location.FullPath);
+            }
+        }
+    }
+
+    private async Task DropLocationAsync(AppReviewLocationViewModel location)
+    {
+        Trash.Drop(location.FullPath, await SizeOfAsync(location.FullPath));
+        AfterPanelChange();
+    }
+
+    private void KeepLocation(AppReviewLocationViewModel location)
+    {
+        Trash.Restore(location.FullPath);
+        AfterPanelChange();
+    }
+
+    /// <summary>Keep or drop a whole app's locations at once (drop = all, or only the rule-suggested ones).</summary>
+    private async Task BulkAppAsync(AppReviewGroupViewModel group, bool drop, bool suggestedOnly)
+    {
+        foreach (var location in group.Locations)
+        {
+            if (!drop)
+            {
+                Trash.Restore(location.FullPath);
+            }
+            else if (!suggestedOnly || location.SuggestDrop)
+            {
+                Trash.Drop(location.FullPath, await SizeOfAsync(location.FullPath));
+            }
+        }
+
+        AfterPanelChange();
+    }
+
+    /// <summary>
+    /// The recursive size of a folder, on demand (read-only): the app zones carry paths but no sizes, so a
+    /// drop measures the folder right then to get the trash total right. Best-effort: an unreadable or gone
+    /// folder counts as 0 (it still drops; the exclusion is by path, not size).
+    /// </summary>
+    private async Task<long> SizeOfAsync(string path)
+    {
+        try
+        {
+            var children = await _browser.ListAsync(path, CancellationToken.None);
+            return children.Sum(child => child.Bytes);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Shared refresh after an app-panel keep/drop: sync the panel and the trash, the summary, and the
+    /// wizard's remaining count, persist the decision, and move the wizard off a folder it just dropped.
+    /// </summary>
+    private void AfterPanelChange()
+    {
+        RefreshTrash(); // also mirrors the drop into the app panel (SyncAppGroups)
+        RaiseSummary();
+        RaiseNav();
+        TrashChanged?.Invoke();
+        _ = MoveOffDroppedCurrentAsync();
+    }
+
+    /// <summary>
+    /// If a per-app drop just trashed the folder the wizard is standing on, move to the nearest folder
+    /// still under review (or clear the step when none is left, so the bar offers "Back up →").
+    /// </summary>
+    private async Task MoveOffDroppedCurrentAsync()
+    {
+        if (_folderIndex < 0 || _folderIndex >= _roots.Count || !Trash.IsDropped(_roots[_folderIndex].FullPath))
+        {
+            return;
+        }
+
+        if ((NextActiveIndex(_folderIndex) ?? PrevActiveIndex(_folderIndex)) is int target)
+        {
+            await GoToFolderAsync(target);
+        }
+        else
+        {
+            _folderIndex = -1;
+            _trail.Clear();
+            _current = [];
+            Entries.Clear();
+            UpdateStepText();
+            FolderNote = "Every folder here is in the trash. Open the trash to restore one, or back up.";
+            RaiseSummary();
+            RaiseNav();
+        }
+    }
+
+    /// <summary>The next review folder still kept (not trashed) after <paramref name="from"/>, or null.</summary>
+    private int? NextActiveIndex(int from)
+    {
+        for (var i = from + 1; i < _roots.Count; i++)
+        {
+            if (!Trash.IsDropped(_roots[i].FullPath))
+            {
+                return i;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The previous review folder still kept (not trashed) before <paramref name="from"/>, or null.</summary>
+    private int? PrevActiveIndex(int from)
+    {
+        for (var i = from - 1; i >= 0; i--)
+        {
+            if (!Trash.IsDropped(_roots[i].FullPath))
+            {
+                return i;
+            }
+        }
+
+        return null;
+    }
+
+    private List<int> ActiveRootIndices()
+    {
+        var active = new List<int>();
+        for (var i = 0; i < _roots.Count; i++)
+        {
+            if (!Trash.IsDropped(_roots[i].FullPath))
+            {
+                active.Add(i);
+            }
+        }
+
+        return active;
+    }
+
+    /// <summary>"Folder X of N" counting only folders still under review (dropped ones no longer count).</summary>
+    private void UpdateStepText()
+    {
+        if (_folderIndex < 0)
+        {
+            StepText = "";
+            return;
+        }
+
+        var active = ActiveRootIndices();
+        if (active.Count == 0)
+        {
+            StepText = "";
+            return;
+        }
+
+        var position = active.IndexOf(_folderIndex);
+        StepText = $"Folder {(position < 0 ? active.Count : position + 1)} of {active.Count}";
     }
 
     private void RaiseSummary()
@@ -797,5 +1032,9 @@ public sealed class ReviewViewModel : ViewModelBase
         AnalyzeFilesCommand.RaiseCanExecuteChanged();
         OpenCommand.RaiseCanExecuteChanged();
         DropCommand.RaiseCanExecuteChanged();
+        DropLocationCommand.RaiseCanExecuteChanged();
+        DropAppCommand.RaiseCanExecuteChanged();
+        DropSuggestedCommand.RaiseCanExecuteChanged();
+        UpdateStepText(); // the remaining-folder count can change when a folder is dropped from the panel
     }
 }

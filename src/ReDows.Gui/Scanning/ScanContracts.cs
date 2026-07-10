@@ -67,8 +67,11 @@ public sealed record GameSavesImpact(int Folders, string SourceText, string Attr
 /// (keep/maybe/drop → colour dot), a friendly <see cref="Label"/>, how many were found
 /// (<see cref="CountText"/>, e.g. "×12" or empty for a single one), the human <see cref="Note"/>, and
 /// <see cref="Paths"/> = where it was found (for an app, the map of everywhere its data lives).
+/// <see cref="IsApp"/> is true when this zone is an installed app (its data folders across the PC), as
+/// opposed to a shipped-memory place (AppData, node_modules...); the Review screen's "sort by app" panel
+/// keeps only the app ones.
 /// </summary>
-public sealed record RecognizedZoneRow(string Importance, string Label, string CountText, string Note, IReadOnlyList<string> Paths);
+public sealed record RecognizedZoneRow(string Importance, string Label, string CountText, string Note, IReadOnlyList<string> Paths, bool IsApp = false);
 
 /// <summary>
 /// A scan result shaped for friendly display (formatted strings, not raw records): what the
