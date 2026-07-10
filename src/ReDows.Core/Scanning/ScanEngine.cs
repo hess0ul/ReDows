@@ -35,6 +35,9 @@ public static class ScanEngine
     /// <summary>How many distinct recognized places the end-of-scan briefing keeps (a bounded recap).</summary>
     private const int RecognizedZonesSize = 100;
 
+    /// <summary>Cap on the locations kept per recognized place (an app found in 3 spots, not 3000 stray hits).</summary>
+    private const int PathsPerZone = 12;
+
     public static ScanReport Run(
         Ruleset ruleset,
         ScanContext context,
@@ -99,7 +102,7 @@ public static class ScanEngine
         var ruleHits = new Dictionary<string, (string Stage, Verdict Verdict, long Items, long Bytes)>(StringComparer.Ordinal);
         var reviewBuckets = new Dictionary<string, (long Items, long Bytes)>(StringComparer.OrdinalIgnoreCase);
         var alerts = new Dictionary<string, long>(StringComparer.Ordinal);
-        var recognizedZones = new Dictionary<string, (RecognizedZoneInfo Info, int Count, string Sample, int Depth)>(StringComparer.OrdinalIgnoreCase);
+        var recognizedZones = new Dictionary<string, (RecognizedZoneInfo Info, int Count, List<(string Path, int Depth)> Paths)>(StringComparer.OrdinalIgnoreCase);
         var partial = false;
 
         foreach (var root in roots)
@@ -173,9 +176,19 @@ public static class ScanEngine
                     && options.RecognizeZone(segments[^1], path, classification.Verdict) is { } zone)
                 {
                     var depth = segments.Length;
-                    recognizedZones[zone.Key] = recognizedZones.TryGetValue(zone.Key, out var seen)
-                        ? (seen.Info, seen.Count + 1, depth < seen.Depth ? path : seen.Sample, Math.Min(depth, seen.Depth))
-                        : (zone, 1, path, depth);
+                    if (recognizedZones.TryGetValue(zone.Key, out var seen))
+                    {
+                        if (seen.Paths.Count < PathsPerZone)
+                        {
+                            seen.Paths.Add((path, depth)); // one more place this app/zone lives (bounded)
+                        }
+
+                        recognizedZones[zone.Key] = (seen.Info, seen.Count + 1, seen.Paths);
+                    }
+                    else
+                    {
+                        recognizedZones[zone.Key] = (zone, 1, [(path, depth)]);
+                    }
                 }
 
                 if (options.OnProgress is not null && items % options.ProgressInterval == 0)
@@ -216,7 +229,8 @@ public static class ScanEngine
                 .OrderByDescending(a => a.Items)
                 .ToList(),
             RecognizedZones: recognizedZones.Values
-                .Select(z => new RecognizedZone(z.Info.Key, z.Info.Label, z.Info.Note, z.Info.Importance, z.Count, z.Sample))
+                .Select(z => new RecognizedZone(z.Info.Key, z.Info.Label, z.Info.Note, z.Info.Importance, z.Count,
+                    z.Paths.OrderBy(p => p.Depth).ThenBy(p => p.Path, StringComparer.OrdinalIgnoreCase).Select(p => p.Path).ToList()))
                 .OrderBy(z => ImportanceRank(z.Importance)) // keep first (save these), then maybe, then drop
                 .ThenByDescending(z => z.Count)
                 .ThenBy(z => z.Label, StringComparer.OrdinalIgnoreCase)

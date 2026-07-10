@@ -65,9 +65,10 @@ public sealed record GameSavesImpact(int Folders, string SourceText, string Attr
 /// <summary>
 /// One recognized place for the Scan screen's end-of-scan briefing: its <see cref="Importance"/>
 /// (keep/maybe/drop → colour dot), a friendly <see cref="Label"/>, how many were found
-/// (<see cref="CountText"/>, e.g. "×12" or empty for a single one), and the human <see cref="Note"/>.
+/// (<see cref="CountText"/>, e.g. "×12" or empty for a single one), the human <see cref="Note"/>, and
+/// <see cref="Paths"/> = where it was found (for an app, the map of everywhere its data lives).
 /// </summary>
-public sealed record RecognizedZoneRow(string Importance, string Label, string CountText, string Note);
+public sealed record RecognizedZoneRow(string Importance, string Label, string CountText, string Note, IReadOnlyList<string> Paths);
 
 /// <summary>
 /// A scan result shaped for friendly display (formatted strings, not raw records): what the

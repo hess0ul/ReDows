@@ -198,10 +198,11 @@ public sealed record RecognizedZoneInfo(string Key, string Label, string Note, s
 /// <summary>
 /// One well-known place the scan recognised (AppData, .ssh, Steam, node_modules, a game/app folder...),
 /// aggregated across the whole walk: <see cref="Count"/> is how many folders matched this same zone and
-/// <see cref="SamplePath"/> the shallowest example. Bounded and de-duplicated, so the end-of-scan
-/// "recognized places" briefing stays short even on a 1.4M-item PC.
+/// <see cref="Paths"/> are where they sit (shallowest first, bounded) — for an app this is the "map" of
+/// everywhere that app's data was found. Bounded and de-duplicated, so the end-of-scan "recognized places"
+/// briefing stays short even on a 1.4M-item PC.
 /// </summary>
-public sealed record RecognizedZone(string Key, string Label, string Note, string Importance, int Count, string SamplePath);
+public sealed record RecognizedZone(string Key, string Label, string Note, string Importance, int Count, IReadOnlyList<string> Paths);
 
 /// <summary>
 /// The complete result of a scan. Total-accounting invariant, verifiable from the

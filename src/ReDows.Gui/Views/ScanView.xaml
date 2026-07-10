@@ -292,10 +292,11 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Recognized places: known folders/apps ReDows spotted, each with a colour + a plain note -->
-                <StackPanel Margin="0,16,0,0">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                <!-- Recognized places: known folders/apps ReDows spotted. Collapsible (collapsed by default) so a
+                     long list on an app-heavy PC doesn't bury the "Review these" button below. -->
+                <Expander Margin="0,16,0,0" Header="✨ Recognized places on your PC" IsExpanded="False">
+                    <Expander.Style>
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Result.RecognizedZones.Count}" Value="0">
@@ -303,8 +304,8 @@
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </StackPanel.Style>
-                    <TextBlock Text="✨ Recognized places on your PC" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    </Expander.Style>
+                    <StackPanel Margin="0,8,0,0">
                     <TextBlock Text="Known folders and apps ReDows spotted while scanning. A quick note on what each is and whether it's worth keeping."
                                Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
                     <ItemsControl ItemsSource="{Binding Result.RecognizedZones}">
@@ -337,13 +338,23 @@
                                             </TextBlock>
                                             <TextBlock Text="{Binding Note}" Foreground="{StaticResource App.Muted}" FontSize="12"
                                                        TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            <!-- Where this app/place was found across the PC (its map). -->
+                                            <ItemsControl ItemsSource="{Binding Paths}" Margin="0,4,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding}" Foreground="{StaticResource App.Muted}" FontSize="11"
+                                                                   FontFamily="Consolas" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </StackPanel>
+                    </StackPanel>
+                </Expander>
 
                 <TextBlock Text="Biggest things to review" FontWeight="SemiBold" Margin="0,16,0,8"/>
                 <ItemsControl ItemsSource="{Binding Result.TopReview}">

@@ -398,7 +398,8 @@ public sealed class WindowsScanRunner : IScanRunner
             Alerts: alerts,
             TopReview: topReview,
             RecognizedZones: report.RecognizedZones
-                .Select(z => new RecognizedZoneRow(z.Importance, z.Label, z.Count > 1 ? $"×{z.Count:N0}" : "", z.Note))
+                .Select(z => new RecognizedZoneRow(z.Importance, z.Label, z.Count > 1 ? $"×{z.Count:N0}" : "", z.Note,
+                    z.Paths.Select(p => p.Replace('/', '\\')).ToList()))
                 .ToList());
     }
 }
