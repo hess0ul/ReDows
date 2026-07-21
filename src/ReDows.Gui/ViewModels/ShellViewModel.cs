@@ -30,12 +30,15 @@ public sealed class ShellViewModel : ViewModelBase
     public ShellViewModel(IContextSource contextSource, IScanRunner scanRunner, IFolderBrowser folderBrowser, IModuleCatalog moduleCatalog, IBackupRunner backupRunner, IRestoreRunner restoreRunner, IAppsRunner appsRunner, ISessionStore sessionStore, IAiAnalyzer aiAnalyzer, IAiSettingsStore aiSettingsStore, IAiLearnedStore aiLearnedStore, IPrescreenCatalog prescreenCatalog, IMemoryCatalog memoryCatalog, IInstalledAppsSource installedAppsSource, IModuleSettingsStore? moduleSettings = null)
     {
         _sessionStore = sessionStore;
+        // One shared AI assistant: Review uses it, and the Settings screen configures it (same instance).
+        var ai = new AiAssistantViewModel(aiAnalyzer, aiSettingsStore, aiLearnedStore);
         Home = new HomeViewModel(contextSource);
-        Scan = new ScanViewModel(scanRunner, moduleCatalog, moduleSettings);
-        Review = new ReviewViewModel(folderBrowser, new AiAssistantViewModel(aiAnalyzer, aiSettingsStore, aiLearnedStore), prescreenCatalog.Load(), memoryCatalog.Load(), installedAppsSource);
+        Scan = new ScanViewModel(scanRunner, moduleCatalog, moduleSettings, ai);
+        Review = new ReviewViewModel(folderBrowser, ai, prescreenCatalog.Load(), memoryCatalog.Load(), installedAppsSource);
         Backup = new BackupViewModel(backupRunner);
         Restore = new RestoreViewModel(restoreRunner);
         Apps = new AppsViewModel(appsRunner);
+        Settings = new SettingsViewModel(ai);
         _currentViewModel = Home;
 
         // Persist the session whenever a decision changes: a finished scan, a trash change, an app un-tick,
@@ -44,6 +47,9 @@ public sealed class ShellViewModel : ViewModelBase
         Review.TrashChanged += SaveSession;
         Apps.SelectionChanged += SaveSession;
         Backup.ConfigChanged += SaveSession;
+        // An AI button clicked before the assistant is set up sends the user to the Settings screen.
+        Review.AiSetupRequested += () => { CurrentViewModel = Settings; CurrentScreen = "settings"; };
+        Scan.AiSetupRequested += () => { CurrentViewModel = Settings; CurrentScreen = "settings"; };
 
         ShowHomeCommand = new RelayCommand(_ => { CurrentViewModel = Home; CurrentScreen = "home"; });
         ShowScanCommand = new RelayCommand(_ => { CurrentViewModel = Scan; CurrentScreen = "scan"; });
@@ -69,6 +75,7 @@ public sealed class ShellViewModel : ViewModelBase
             CurrentScreen = "apps";
             _ = Apps.LoadAsync(); // loads once on first visit (winget enrichment runs in the background)
         });
+        ShowSettingsCommand = new RelayCommand(_ => { CurrentViewModel = Settings; CurrentScreen = "settings"; });
         ResumeCommand = new RelayCommand(_ => Resume());
         DiscardSessionCommand = new RelayCommand(_ => DiscardSession());
     }
@@ -85,6 +92,8 @@ public sealed class ShellViewModel : ViewModelBase
 
     public AppsViewModel Apps { get; }
 
+    public SettingsViewModel Settings { get; }
+
     public RelayCommand ShowHomeCommand { get; }
 
     public RelayCommand ShowScanCommand { get; }
@@ -96,6 +105,8 @@ public sealed class ShellViewModel : ViewModelBase
     public RelayCommand ShowRestoreCommand { get; }
 
     public RelayCommand ShowAppsCommand { get; }
+
+    public RelayCommand ShowSettingsCommand { get; }
 
     public RelayCommand ResumeCommand { get; }
 

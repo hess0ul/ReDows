@@ -12,12 +12,14 @@ namespace ReDows.Gui.ViewModels;
 public sealed class AppReviewLocationViewModel : ViewModelBase
 {
     private bool _isDropped;
+    private string _suggestKey;
+    private string _suggestReason;
 
     public AppReviewLocationViewModel(EntryRow root, string suggestKey, string suggestReason)
     {
         Root = root;
-        SuggestKey = suggestKey;
-        SuggestReason = suggestReason;
+        _suggestKey = suggestKey;
+        _suggestReason = suggestReason;
     }
 
     public EntryRow Root { get; }
@@ -26,13 +28,22 @@ public sealed class AppReviewLocationViewModel : ViewModelBase
 
     public string Name => Root.Name;
 
-    /// <summary>The suggested colour: "keep" (blue) / "maybe" (pink) / "drop" (purple).</summary>
-    public string SuggestKey { get; }
+    /// <summary>The suggested colour: "keep" (blue) / "maybe" (pink) / "drop" (purple). The rules set it
+    /// first; the optional AI proposal can refine it, and the dot recolours live.</summary>
+    public string SuggestKey
+    {
+        get => _suggestKey;
+        set { Set(ref _suggestKey, value); Raise(nameof(SuggestDrop)); }
+    }
 
-    /// <summary>Why the rules suggested that colour, shown as the row's tooltip.</summary>
-    public string SuggestReason { get; }
+    /// <summary>Why this colour was suggested (a rule reason or the AI's own explanation); the row's tooltip.</summary>
+    public string SuggestReason
+    {
+        get => _suggestReason;
+        set => Set(ref _suggestReason, value);
+    }
 
-    /// <summary>True when the rules suggest this location is safe to drop (targeted by "Drop suggested").</summary>
+    /// <summary>True when the suggestion is "safe to drop" (targeted by "Drop suggested").</summary>
     public bool SuggestDrop => SuggestKey == "drop";
 
     /// <summary>Whether this location is currently in the trash (won't be backed up). Set by the view-model.</summary>

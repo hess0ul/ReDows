@@ -140,6 +140,42 @@ public static class AiPayload
     }
 
     /// <summary>
+    /// The system message for the "how do I keep these" advice on machine-bound (DPAPI) files. Given only
+    /// the NAMES and PATHS of files locked to this PC, it explains how to keep the useful data the right
+    /// way before a reset (a browser's saved passwords/history via sign-in or export, and the like). Free
+    /// text, not JSON: this is guidance for the user, not a keep/drop verdict.
+    /// </summary>
+    public const string AdviceSystemPrompt =
+        "You help a user keep important data before a Windows factory reset. You are given a list of files " +
+        "that are LOCKED to this PC (encrypted with Windows DPAPI): after a reset they cannot be opened, so " +
+        "just copying them is useless. From their NAMES and PATHS ONLY (never their contents), recognise what " +
+        "app each belongs to (web browsers, mail clients, credential stores...) and give short, concrete steps " +
+        "to keep the useful data the RIGHT way before the reset: for a browser, sign in to sync or export the " +
+        "bookmarks, history and saved passwords; for other apps, the equivalent export or account sign-in. " +
+        "Group the answer by app, use numbered steps, plain language, no fluff. If an entry is unknown, say so " +
+        "briefly. Never advise copying the locked file itself; it will not open afterward.";
+
+    /// <summary>Render the advice user message: the locked files grouped by folder (names and paths only).</summary>
+    public static string RenderAdvicePrompt(IReadOnlyList<LockedFilesGroup> groups)
+    {
+        var text = new StringBuilder();
+        text.AppendLine("These files are locked to this PC (DPAPI machine-bound) and won't open after a reset:");
+        foreach (var group in groups)
+        {
+            text.AppendLine();
+            text.AppendLine($"In {group.Folder}:");
+            foreach (var file in group.Files)
+            {
+                text.AppendLine($"  - {file}");
+            }
+        }
+
+        text.AppendLine();
+        text.AppendLine("How do I keep the useful data before the reset? Give steps grouped by app.");
+        return text.ToString();
+    }
+
+    /// <summary>
     /// Parse the model's reply into a suggestion. Robust to a "reasoning" model that thinks out loud
     /// before answering: strips &lt;think&gt; blocks, then scans every balanced {...} object from LAST to
     /// first and returns the model's real verdict, so the schema example it echoes while thinking (which

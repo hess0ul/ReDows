@@ -6,6 +6,8 @@ using ReDows.Gui.Scanning;
 
 namespace ReDows.Gui.ViewModels;
 
+// LockedFilesGroup lives in ReDows.Core.Ai; used to ask the AI how to keep the "export before reset" files.
+
 /// <summary>
 /// The Scan screen's brain. It runs the scan off the UI thread (so the window never freezes),
 /// streams progress, and lets the user Cancel (the engine then returns a partial result). All
@@ -16,6 +18,11 @@ public sealed class ScanViewModel : ViewModelBase
     private readonly IScanRunner _runner;
     private readonly IModuleSettingsStore? _moduleSettings;
     private CancellationTokenSource? _cancellation;
+    private CancellationTokenSource? _adviceCancellation; // the "how to keep the locked files" AI call
+
+    private bool _isAdvising;
+    private string _adviceText = "";
+    private string _adviceBusyText = "";
 
     private bool _wholePc = true;
     private string _folderPath = "";
@@ -28,10 +35,11 @@ public sealed class ScanViewModel : ViewModelBase
     private ScanResultView? _result;
     private string? _error;
 
-    public ScanViewModel(IScanRunner runner, IModuleCatalog moduleCatalog, IModuleSettingsStore? moduleSettings = null)
+    public ScanViewModel(IScanRunner runner, IModuleCatalog moduleCatalog, IModuleSettingsStore? moduleSettings = null, AiAssistantViewModel? ai = null)
     {
         _runner = runner;
         _moduleSettings = moduleSettings;
+        Ai = ai;
 
         // Re-apply the keep/review/ignore choices the user last made (so they don't retype them every
         // launch); subscribe AFTER applying, so restoring a saved choice doesn't count as a fresh change.
@@ -51,7 +59,19 @@ public sealed class ScanViewModel : ViewModelBase
 
         RunCommand = new RelayCommand(async _ => await RunAsync(), _ => !IsRunning && ScopeIsValid());
         CancelCommand = new RelayCommand(_ => Cancel(), _ => IsRunning);
+
+        // "How do I keep these?" over the machine-bound (DPAPI) files: clickable whenever there are any;
+        // if the AI isn't set up, the click routes to Settings (same as Review's AI buttons).
+        AdviseCommand = new RelayCommand(_ => AdviseOrRedirect(), _ => !IsAdvising && Result?.LockedFiles is { Count: > 0 });
+        CancelAdviceCommand = new RelayCommand(_ => _adviceCancellation?.Cancel(), _ => IsAdvising);
+        ClearAdviceCommand = new RelayCommand(_ => AdviceText = "");
     }
+
+    /// <summary>The shared AI assistant (null in tests that don't exercise it); configured on the Settings screen.</summary>
+    public AiAssistantViewModel? Ai { get; }
+
+    /// <summary>Raised when the user asks the AI but it isn't set up yet; the shell opens the Settings screen.</summary>
+    public event Action? AiSetupRequested;
 
     /// <summary>Persist the per-category choices whenever one changes, so next launch starts where you left off.</summary>
     private void OnModuleActionChanged(object? sender, PropertyChangedEventArgs e)
@@ -70,6 +90,40 @@ public sealed class ScanViewModel : ViewModelBase
     public RelayCommand RunCommand { get; }
 
     public RelayCommand CancelCommand { get; }
+
+    public RelayCommand AdviseCommand { get; }
+
+    public RelayCommand CancelAdviceCommand { get; }
+
+    public RelayCommand ClearAdviceCommand { get; }
+
+    /// <summary>True while the AI is answering "how do I keep these"; drives the progress row and Cancel.</summary>
+    public bool IsAdvising
+    {
+        get => _isAdvising;
+        private set
+        {
+            Set(ref _isAdvising, value);
+            AdviseCommand.RaiseCanExecuteChanged();
+            CancelAdviceCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>The AI's answer (or an error), shown in a card under the "export before reset" list; empty = none.</summary>
+    public string AdviceText
+    {
+        get => _adviceText;
+        private set { Set(ref _adviceText, value); Raise(nameof(HasAdvice)); }
+    }
+
+    public bool HasAdvice => AdviceText.Length > 0;
+
+    /// <summary>What the advice call is doing right now, shown while it runs.</summary>
+    public string AdviceBusyText
+    {
+        get => _adviceBusyText;
+        private set => Set(ref _adviceBusyText, value);
+    }
 
     public bool WholePc
     {
@@ -134,8 +188,18 @@ public sealed class ScanViewModel : ViewModelBase
     public ScanResultView? Result
     {
         get => _result;
-        private set { Set(ref _result, value); Raise(nameof(HasReview)); }
+        private set
+        {
+            Set(ref _result, value);
+            Raise(nameof(HasReview));
+            Raise(nameof(HasLockedFiles));
+            AdviceText = ""; // a new scan (or a restore) starts with no advice shown
+            AdviseCommand.RaiseCanExecuteChanged();
+        }
     }
+
+    /// <summary>True when the last scan flagged machine-bound (DPAPI) files to export before the reset.</summary>
+    public bool HasLockedFiles => Result?.LockedFiles is { Count: > 0 };
 
     /// <summary>
     /// True when the last scan flagged something to review. When false after a scan, there is nothing to
@@ -222,6 +286,66 @@ public sealed class ScanViewModel : ViewModelBase
         ProgressText = "Cancelling...";
         _cancellation?.Cancel();
     }
+
+    /// <summary>"How do I keep these" click: run the advice if the AI is set up, else route to Settings.</summary>
+    private void AdviseOrRedirect()
+    {
+        if (Ai is null || !Ai.IsEnabled)
+        {
+            AiSetupRequested?.Invoke();
+            return;
+        }
+
+        _ = AdviseAsync();
+    }
+
+    /// <summary>
+    /// Ask the AI how to keep the useful data behind the machine-bound (DPAPI) files (names/paths only,
+    /// never contents). The answer (or an error) shows in a card; Cancel stops it. A hostile reply is
+    /// length-capped. Public so a test can drive it off a fake assistant.
+    /// </summary>
+    public async Task AdviseAsync()
+    {
+        if (Ai is null || !Ai.IsEnabled || IsAdvising || Result?.LockedFiles is not { Count: > 0 } groups)
+        {
+            return;
+        }
+
+        AdviceText = "";
+        AdviceBusyText = "Asking the AI how to keep these...";
+        IsAdvising = true;
+        _adviceCancellation = new CancellationTokenSource();
+        try
+        {
+            var advice = await Ai.AdviseAsync(groups, _adviceCancellation.Token);
+            if (advice is null)
+            {
+                return; // the assistant was turned off mid-call
+            }
+
+            var trimmed = advice.Trim();
+            AdviceText = trimmed.Length == 0
+                ? "The AI returned an empty answer."
+                : trimmed.Length > MaxAdviceLength ? trimmed[..MaxAdviceLength] + "..." : trimmed;
+        }
+        catch (OperationCanceledException) when (_adviceCancellation?.IsCancellationRequested == true)
+        {
+            // cancelled by the user; leave the card empty
+        }
+        catch (Exception ex)
+        {
+            AdviceText = "The AI could not answer: " + (ex is OperationCanceledException ? "it timed out." : ex.Message);
+        }
+        finally
+        {
+            IsAdvising = false;
+            AdviceBusyText = "";
+            _adviceCancellation?.Dispose();
+            _adviceCancellation = null;
+        }
+    }
+
+    private const int MaxAdviceLength = 8000; // bound a hostile endpoint's reply for display
 
     private void RaiseCommands()
     {

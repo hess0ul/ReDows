@@ -476,6 +476,38 @@ public sealed class AiAssistantViewModel : ViewModelBase
         return await _analyzer.AnalyzeFileAsync(Endpoint, file, cancellationToken);
     }
 
+    /// <summary>
+    /// Suggest keep/drop for ONE folder from its listed children (the "sort by app" panel uses this to
+    /// refine each app location's colour). Gated on the OFF state like every call; returns null when
+    /// disabled. Side-effect free: unlike <see cref="AnalyzeAsync"/> it does not touch the single-folder
+    /// card or the remembered-suggestions store. The caller owns the loop, progress and cancellation.
+    /// </summary>
+    public async Task<AiSuggestion?> SuggestForFolderAsync(
+        string folderPath, IReadOnlyList<(string Name, bool IsDirectory, long Bytes)> children, CancellationToken cancellationToken)
+    {
+        if (!IsEnabled)
+        {
+            return null;
+        }
+
+        return await _analyzer.AnalyzeAsync(Endpoint, AiPayload.Build(folderPath, children), cancellationToken);
+    }
+
+    /// <summary>
+    /// Ask the endpoint how to keep the useful data behind machine-bound (DPAPI) files before a reset.
+    /// Gated on the OFF state like every call; returns null when disabled. Side-effect free (the Scan
+    /// screen owns the busy/result state). Sends the file names/paths only, never their contents.
+    /// </summary>
+    public async Task<string?> AdviseAsync(IReadOnlyList<LockedFilesGroup> groups, CancellationToken cancellationToken)
+    {
+        if (!IsEnabled)
+        {
+            return null;
+        }
+
+        return await _analyzer.AdviseAsync(Endpoint, groups, cancellationToken);
+    }
+
     /// <summary>The stored folder-level verdict's explanation, if any; used as context for its files.</summary>
     public string? StoredExplanationFor(string folderPath) =>
         _byFolder.TryGetValue(folderPath, out var suggestion) ? suggestion.Explanation : null;

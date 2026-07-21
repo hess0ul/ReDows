@@ -1,3 +1,4 @@
+using ReDows.Core.Ai;
 using ReDows.Core.Scanning;
 
 namespace ReDows.Gui.Scanning;
@@ -94,7 +95,8 @@ public sealed record ScanResultView(
     InstalledAppsImpact? InstalledApps = null,
     string? ManifestPath = null,
     IReadOnlyList<RecognizedZoneRow>? RecognizedZones = null,
-    GameSavesImpact? GameSaves = null);
+    GameSavesImpact? GameSaves = null,
+    IReadOnlyList<LockedFilesGroup>? LockedFiles = null);
 
 /// <summary>
 /// Runs a scan off the UI thread. A seam: the real implementation drives the engine on this PC;

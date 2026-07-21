@@ -4,51 +4,102 @@
     <Grid Margin="26,22">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
+        <!-- Title (shared by both steps) -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Review and drop what you don't need" FontSize="18" FontWeight="SemiBold"/>
-            <TextBlock Text="Everything under review is kept by default. Drop the junk. It leaves the list and goes to the trash, where you can restore it. One folder at a time."
-                       Foreground="{StaticResource App.Muted}" Margin="0,4,0,10"/>
+            <TextBlock Text="Everything under review is kept by default. Drop the junk. It leaves the list and goes to the trash, where you can restore it."
+                       Foreground="{StaticResource App.Muted}" Margin="0,4,0,0"/>
+        </StackPanel>
 
-            <!-- Sort by app first: the review folders that belong to an installed app, grouped so you can
-                 keep or drop an app's data as a block before walking the rest. Only shows when some match. -->
-            <Expander Header="Sort by app first" IsExpanded="True" Margin="0,0,0,12"
-                      Visibility="{Binding HasAppGroups, Converter={StaticResource BoolToVis}}">
-                <StackPanel Margin="0,8,0,0">
-                    <TextBlock Text="{Binding AppSortSummary}" Foreground="{StaticResource App.Muted}"
-                               FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
+        <!-- ============ STEP 1 of 2: sort by app ============ -->
+        <Grid Grid.Row="1" Visibility="{Binding IsAppsStep, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                <TextBlock Text="Step 1 of 2 · Review by app" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding AppSortSummary}" Foreground="{StaticResource App.Muted}" FontSize="12" TextWrapping="Wrap"/>
+                <!-- Optional AI: refine every app's suggestions in one pass. Always shown; if the assistant
+                     isn't set up, clicking opens the Settings screen (where it's configured). -->
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                            Visibility="{Binding HasAppGroups, Converter={StaticResource BoolToVis}}">
+                    <Button Content="✨ Propose all apps with AI" Style="{StaticResource GhostButton}"
+                            Command="{Binding ProposeAllAppsWithAiCommand}"/>
+                    <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
+                                Visibility="{Binding IsProposingAi, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding AiProposeBusyText}" Foreground="{StaticResource App.Muted}"
+                                   FontSize="12" VerticalAlignment="Center"/>
+                        <Button Content="Cancel" Style="{StaticResource GhostButton}"
+                                Command="{Binding CancelAiProposeCommand}" Margin="10,0,0,0" Padding="10,4"/>
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Text="{Binding Error}" Foreground="#FF9B9B" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Error}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+
+            <!-- Scrollable app list (this is what fixes the "can't scroll the apps" bug). -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="No apps were recognized in this scan. Continue to review the rest."
+                               Foreground="{StaticResource App.Muted}" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasAppGroups}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
                     <ItemsControl ItemsSource="{Binding AppGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,10" Margin="0,0,0,8"
                                         BorderBrush="{StaticResource App.Border}" BorderThickness="1">
                                     <StackPanel>
-                                        <!-- App header: name + how many folders + total size, and the block actions. -->
+                                        <!-- App header: name + how many folders, and the block actions. -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding Header}" FontWeight="SemiBold"
                                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                            <Button Grid.Column="1" Content="Keep all" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
+                                            <!-- Optional AI: refine this app's suggestions. Always shown; opens Settings if not set up. -->
+                                            <Button Grid.Column="1" Content="✨ AI" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
+                                                    ToolTip="Ask the AI to refine this app's keep/drop suggestions."
+                                                    Command="{Binding DataContext.ProposeAppWithAiCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <Button Grid.Column="2" Content="Keep all" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
                                                     Command="{Binding DataContext.KeepAppCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                                     CommandParameter="{Binding}"/>
-                                            <Button Grid.Column="2" Content="Drop suggested" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
-                                                    ToolTip="Drop only the folders the rules flag as safe to drop (purple)."
+                                            <Button Grid.Column="3" Content="Drop suggested" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
+                                                    ToolTip="Drop only the locations coloured purple (safe to drop)."
                                                     Command="{Binding DataContext.DropSuggestedCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                                     CommandParameter="{Binding}"/>
-                                            <Button Grid.Column="3" Content="Drop all" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
+                                            <Button Grid.Column="4" Content="Drop all" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
                                                     Command="{Binding DataContext.DropAppCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                                     CommandParameter="{Binding}"/>
                                         </Grid>
@@ -135,537 +186,475 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </Expander>
+            </ScrollViewer>
 
-            <!-- Optional AI assistant: OFF by default, local endpoint by default (nothing leaves this PC). -->
-            <Expander Header="AI assistant for unknown folders (optional)" Margin="0,0,0,12">
-                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="14,12" Margin="0,8,0,0"
-                        BorderBrush="{StaticResource App.Border}" BorderThickness="1">
-                    <StackPanel>
-                        <CheckBox Content="Enable AI analysis" IsChecked="{Binding Ai.IsEnabled}"/>
+            <!-- Step 1 bottom bar: kept summary + go to the rest. -->
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding KeptSummary}" Foreground="{StaticResource App.Good}"
+                           VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,12,0" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="1" Content="Next: review the rest →" Command="{Binding GoToFilesStepCommand}"/>
+            </Grid>
+        </Grid>
 
-                        <!-- Guided connection: pick the KIND first, then only the fields that kind needs show up. -->
-                        <TextBlock Text="Where is the AI?" FontWeight="SemiBold" Margin="0,10,0,4"/>
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton Content="Self-hosted (local AI)" Margin="0,0,18,0"
-                                         IsChecked="{Binding Ai.IsSelfHosted, Mode=TwoWay}"/>
-                            <RadioButton Content="External service"
-                                         IsChecked="{Binding Ai.IsExternal, Mode=TwoWay}"/>
-                        </StackPanel>
+        <!-- ============ STEP 2 of 2: review the rest, folder by folder ============ -->
+        <Grid Grid.Row="1" Visibility="{Binding IsFilesStep, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-                        <!-- Second choice, external only: your own API key vs a bridge to a subscription you have. -->
-                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
-                                    Visibility="{Binding Ai.ShowExternalChoice, Converter={StaticResource BoolToVis}}">
-                            <RadioButton Content="API (your own key)" Margin="0,0,18,0"
-                                         IsChecked="{Binding Ai.IsExternalApi, Mode=TwoWay}"/>
-                            <RadioButton Content="Proxy API (a subscription you have)"
-                                         IsChecked="{Binding Ai.IsExternalProxy, Mode=TwoWay}"/>
-                        </StackPanel>
+            <!-- Top of step 2: back to apps, the step label, applied lessons, colour guide, analyze-all. -->
+            <StackPanel Grid.Row="0">
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="◀ Back to apps" Style="{StaticResource GhostButton}"
+                            Command="{Binding GoToAppsStepCommand}" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" Text="Step 2 of 2 · Review the rest, folder by folder"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
 
-                        <TextBlock Text="{Binding Ai.PrivacyNote}" Foreground="{StaticResource App.Muted}"
-                                   FontSize="12" Margin="0,10,0,10" TextWrapping="Wrap"/>
-
-                        <!-- Endpoint: always needed (every mode is just a URL under the hood). -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Endpoint:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBox Grid.Column="1" Text="{Binding Ai.BaseUrl}" VerticalAlignment="Center"/>
-                            <Button Grid.Column="2" Content="Test connection" Style="{StaticResource GhostButton}"
-                                    Command="{Binding Ai.TestCommand}" Margin="8,0,0,0"/>
-                        </Grid>
-                        <TextBlock Text="{Binding Ai.EndpointHint}" Foreground="{StaticResource App.Muted}"
-                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
-
-                        <!-- API key: only the per-token API needs one. Kept in memory only, never saved. -->
-                        <Grid Margin="0,8,0,0"
-                              Visibility="{Binding Ai.ShowApiKey, Converter={StaticResource BoolToVis}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="API key:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <PasswordBox Grid.Column="1" x:Name="AiApiKey" VerticalAlignment="Center"
-                                         PasswordChanged="AiApiKey_PasswordChanged"/>
-                        </Grid>
-                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                                   Visibility="{Binding Ai.ShowApiKey, Converter={StaticResource BoolToVis}}"
-                                   Text="The key is kept in memory only and never saved to disk. You re-enter it after a restart."/>
-
-                        <!-- Model: any external service hosts many, so one must be named. -->
-                        <Grid Margin="0,8,0,0"
-                              Visibility="{Binding Ai.ShowModel, Converter={StaticResource BoolToVis}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Model:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBox Grid.Column="1" Text="{Binding Ai.Model}" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <!-- Reply cap: external only (it costs there). Self-hosted runs uncapped, so no field. -->
-                        <Grid Margin="0,8,0,0"
-                              Visibility="{Binding Ai.ShowMaxTokens, Converter={StaticResource BoolToVis}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" SharedSizeGroup="AiLabel"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Max tokens:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBox Grid.Column="1" Text="{Binding Ai.MaxTokens}" VerticalAlignment="Center"/>
-                        </Grid>
-                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                                   Visibility="{Binding Ai.ShowMaxTokens, Converter={StaticResource BoolToVis}}"
-                                   Text="Caps each reply to keep a paid service's cost bounded. A self-hosted model on your PC runs with no cap. Reasoning models (they think before answering) need a few thousand."/>
-
-                        <!-- Honest caveat, subscription bridge only. -->
-                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Visibility="{Binding Ai.ShowProxyNote, Converter={StaticResource BoolToVis}}"
-                                   Text="You host the bridge yourself (for example via LiteLLM or a subscription proxy). Using a consumer subscription this way may be against the provider's terms. That's your call."/>
-
-                        <TextBlock Text="{Binding Ai.ConnectionStatus}" Foreground="{StaticResource App.Muted}"
-                                   FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                        <!-- Analyze all: one suggestion per review folder, shown as you walk the wizard. -->
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Content="✨ Analyze all folders" Style="{StaticResource GhostButton}"
-                                    Command="{Binding AnalyzeAllCommand}"/>
-                            <TextBlock Text="{Binding Ai.BatchStatus}" Foreground="{StaticResource App.Good}"
-                                       FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <TextBlock Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Text="Note: a local &quot;reasoning&quot; model (it thinks before answering) can take a minute or two per folder. That's normal. Use Cancel to stop, or pick a faster non-reasoning model (or turn off thinking in your server) for quicker sorting."/>
-                    </StackPanel>
-                </Border>
-            </Expander>
-
-            <!-- Lessons applied: accepted AI drops from past scans landed straight in the trash. -->
-            <TextBlock Text="{Binding LearnedNote}" Foreground="{StaticResource App.Muted}" FontSize="12"
-                       Margin="0,0,0,10" TextWrapping="Wrap">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Visibility" Value="Visible"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding LearnedNote}" Value="">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-
-            <!-- Colour guide: shown once the AI is on. The colours mean importance (how much you'd miss a
-                 folder), on a blue/pink/purple gradient, deliberately not red/green, so it never reads as
-                 good-vs-bad. A folder gets its colour after it is analysed. -->
-            <Border Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"
-                    Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
-                    BorderBrush="{StaticResource App.Border}" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="Colour guide: how much you'd miss a folder (from the AI, once it's analysed). It's about importance, not good vs bad."
-                               Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Keep}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Worth keeping" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
-                        <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Maybe}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Not sure" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
-                        <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Drop}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Probably not needed" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-
-        <!-- Step header -->
-        <Grid Grid.Row="1" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="{Binding StepText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <!-- Importance colour for THIS folder (once analysed): blue keep · pink maybe · purple drop. -->
-                <Border CornerRadius="9" Padding="9,2" Margin="10,0,0,0" VerticalAlignment="Center"
-                        Visibility="{Binding Ai.HasImportance, Converter={StaticResource BoolToVis}}">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Background" Value="{StaticResource App.Muted}"/>
+                <!-- Lessons applied: accepted AI drops from past scans landed straight in the trash. -->
+                <TextBlock Text="{Binding LearnedNote}" Foreground="{StaticResource App.Muted}" FontSize="12"
+                           Margin="0,0,0,10" TextWrapping="Wrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="keep">
-                                    <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="maybe">
-                                    <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="drop">
-                                    <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
+                                <DataTrigger Binding="{Binding LearnedNote}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </Border.Style>
-                    <TextBlock Text="{Binding Ai.ImportanceLabel}" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Analyze all: always visible; opens Settings if the AI isn't set up yet. -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <Button Content="✨ Analyze all folders" Style="{StaticResource GhostButton}"
+                            Command="{Binding AnalyzeAllCommand}"/>
+                    <TextBlock Text="{Binding Ai.BatchStatus}" Foreground="{StaticResource App.Good}"
+                               FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+                <!-- Colour guide: only meaningful once the AI is on. -->
+                <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,8" Margin="0,0,0,10"
+                        BorderBrush="{StaticResource App.Border}" BorderThickness="1"
+                        Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Colour guide: how much you'd miss a folder (from the AI, once analysed). It's about importance, not good vs bad."
+                                   Foreground="{StaticResource App.Muted}" FontSize="12" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Keep}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Worth keeping" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
+                            <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Maybe}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Not sure" Margin="6,0,16,0" VerticalAlignment="Center" FontSize="12"/>
+                            <Border Width="12" Height="12" CornerRadius="6" Background="{StaticResource App.Level.Drop}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Probably not needed" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
             </StackPanel>
-            <Button Grid.Column="1" Content="✨ AI analysis" Style="{StaticResource GhostButton}"
-                    Command="{Binding AnalyzeFolderCommand}" Margin="0,0,8,0"
-                    Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"/>
-            <Button Grid.Column="2" Content="✕ Drop this folder" Style="{StaticResource GhostButton}" Command="{Binding DropFolderCommand}"/>
-        </Grid>
 
-        <!-- Toolbar: Up + location + sort -->
-        <Grid Grid.Row="2" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Content="↑ Up" Style="{StaticResource GhostButton}" Command="{Binding UpCommand}"/>
-            <TextBlock Grid.Column="1" Text="{Binding Location}" Foreground="{StaticResource App.Muted}"
-                       VerticalAlignment="Center" Margin="14,0,14,0" TextTrimming="CharacterEllipsis"/>
-            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                <TextBlock Text="Sort:" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <Button Content="Size" Style="{StaticResource GhostButton}" Command="{Binding SortBySizeCommand}" Margin="0,0,6,0"/>
-                <Button Content="Name" Style="{StaticResource GhostButton}" Command="{Binding SortByNameCommand}" Margin="0,0,6,0"/>
-                <Button Content="Type" Style="{StaticResource GhostButton}" Command="{Binding SortByTypeCommand}"/>
-            </StackPanel>
-        </Grid>
-
-        <!-- Loading -->
-        <StackPanel Grid.Row="3" Margin="0,0,0,10" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-            <ProgressBar IsIndeterminate="True" Height="4" BorderThickness="0"
-                         Foreground="{StaticResource App.Accent}" Background="{StaticResource App.Card}"/>
-            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                <TextBlock Text="Reading folder (computing sizes)..." Foreground="{StaticResource App.Muted}"
-                           FontSize="12" VerticalAlignment="Center"/>
-                <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}"
-                        Margin="12,0,0,0" Padding="10,4"/>
-            </StackPanel>
-        </StackPanel>
-
-        <!-- Error -->
-        <Border Grid.Row="4" Background="#3A2A2A" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
-            <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Visibility" Value="Visible"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding Error}" Value="{x:Null}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Border.Style>
-            <TextBlock Text="{Binding Error}" Foreground="#FF9B9B"/>
-        </Border>
-
-        <!-- AI suggestion for the current folder: analyzing / failed / a suggestion to accept or dismiss -->
-        <Border Grid.Row="5" Background="{StaticResource App.Card}" CornerRadius="6" Padding="14,12" Margin="0,0,0,10"
-                BorderBrush="{StaticResource App.Accent}" BorderThickness="1">
-            <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding Ai.IsBusy}" Value="True">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding Ai.HasResult}" Value="True">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding Ai.HasError}" Value="True">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Border.Style>
-            <StackPanel>
-                <!-- Analyzing... (one folder, or the analyze-all batch) -->
-                <StackPanel Orientation="Horizontal" Visibility="{Binding Ai.IsBusy, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="{Binding Ai.BusyText}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
-                    <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding Ai.CancelCommand}"
-                            Margin="12,0,0,0" Padding="10,4"/>
-                </StackPanel>
-
-                <!-- Failure -->
-                <TextBlock Text="{Binding Ai.Error}" Foreground="#FF9B9B" TextWrapping="Wrap"
-                           Visibility="{Binding Ai.HasError, Converter={StaticResource BoolToVis}}"/>
-
-                <!-- Suggestion -->
-                <StackPanel Visibility="{Binding Ai.HasResult, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="{Binding Ai.ResultTitle}" FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding Ai.Result.Explanation}" Foreground="{StaticResource App.Muted}"
-                               TextWrapping="Wrap" Margin="0,4,0,10"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Accept and drop this folder" Padding="12,6" Command="{Binding Ai.AcceptCommand}"
-                                Visibility="{Binding Ai.CanAcceptDrop, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0"/>
-                        <Button Content="Dismiss" Style="{StaticResource GhostButton}" Command="{Binding Ai.DismissCommand}"/>
-                    </StackPanel>
-                    <TextBlock Text="This is a suggestion from an AI model. It can be wrong. You decide."
-                               Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0"/>
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
-        <!-- Content: the folder list, or the trash panel -->
-        <Grid Grid.Row="6">
-            <!-- Folder list -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ScrollViewer.Style>
-                    <Style TargetType="ScrollViewer">
-                        <Setter Property="Visibility" Value="Visible"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsTrashOpen}" Value="True">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ScrollViewer.Style>
-                <StackPanel>
-                    <TextBlock Text="{Binding FolderNote}" Foreground="{StaticResource App.Muted}" Margin="0,4,0,10">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding FolderNote}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-
-                    <!-- What ReDows knows about this folder (from its memory). A note shown when recognised. -->
-                    <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,9" Margin="0,0,0,8"
-                            BorderBrush="{StaticResource App.Level.Keep}" BorderThickness="0,0,0,2">
+            <!-- Step header: folder X of N + importance pill + per-folder AI + drop this folder -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StepText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <!-- Importance colour for THIS folder (once analysed): blue keep · pink maybe · purple drop. -->
+                    <Border CornerRadius="9" Padding="9,2" Margin="10,0,0,0" VerticalAlignment="Center"
+                            Visibility="{Binding Ai.HasImportance, Converter={StaticResource BoolToVis}}">
                         <Border.Style>
                             <Style TargetType="Border">
-                                <Setter Property="Visibility" Value="Visible"/>
+                                <Setter Property="Background" Value="{StaticResource App.Muted}"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding MemoryNote}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="keep">
+                                        <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="maybe">
+                                        <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Ai.ImportanceKey}" Value="drop">
+                                        <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE946;" FontFamily="{StaticResource App.IconFont}" FontSize="14"
-                                       Foreground="{StaticResource App.Level.Keep}" VerticalAlignment="Top" Margin="0,1,10,0"/>
-                            <TextBlock Text="{Binding MemoryNote}" Foreground="{StaticResource App.Text}" TextWrapping="Wrap"/>
-                        </StackPanel>
+                        <TextBlock Text="{Binding Ai.ImportanceLabel}" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
                     </Border>
+                </StackPanel>
+                <Button Grid.Column="1" Content="✨ AI analysis" Style="{StaticResource GhostButton}"
+                        Command="{Binding AnalyzeFolderCommand}" Margin="0,0,8,0"/>
+                <Button Grid.Column="2" Content="✕ Drop this folder" Style="{StaticResource GhostButton}" Command="{Binding DropFolderCommand}"/>
+            </Grid>
 
-                    <!-- Colour these files: the memory + rules already tinted the known ones on browse; this
-                         asks the AI about whatever is left unknown. Shown even with the AI off (the summary
-                         then just reports what the rules coloured). -->
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="✨ Colour the rest with AI" Style="{StaticResource GhostButton}"
-                                Command="{Binding AnalyzeFilesCommand}"
-                                Visibility="{Binding Ai.IsEnabled, Converter={StaticResource BoolToVis}}"/>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
-                                    Visibility="{Binding IsAnalyzingFiles, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{Binding FilesBusyText}" Foreground="{StaticResource App.Muted}" FontSize="12" VerticalAlignment="Center"/>
-                            <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelFilesCommand}" Margin="10,0,0,0" Padding="10,4"/>
+            <!-- Toolbar: Up + location + sort -->
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="↑ Up" Style="{StaticResource GhostButton}" Command="{Binding UpCommand}"/>
+                <TextBlock Grid.Column="1" Text="{Binding Location}" Foreground="{StaticResource App.Muted}"
+                           VerticalAlignment="Center" Margin="14,0,14,0" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Sort:" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Button Content="Size" Style="{StaticResource GhostButton}" Command="{Binding SortBySizeCommand}" Margin="0,0,6,0"/>
+                    <Button Content="Name" Style="{StaticResource GhostButton}" Command="{Binding SortByNameCommand}" Margin="0,0,6,0"/>
+                    <Button Content="Type" Style="{StaticResource GhostButton}" Command="{Binding SortByTypeCommand}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Loading -->
+            <StackPanel Grid.Row="3" Margin="0,0,0,10" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                <ProgressBar IsIndeterminate="True" Height="4" BorderThickness="0"
+                             Foreground="{StaticResource App.Accent}" Background="{StaticResource App.Card}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="Reading folder (computing sizes)..." Foreground="{StaticResource App.Muted}"
+                               FontSize="12" VerticalAlignment="Center"/>
+                    <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}"
+                            Margin="12,0,0,0" Padding="10,4"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Error -->
+            <Border Grid.Row="4" Background="#3A2A2A" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Error}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding Error}" Foreground="#FF9B9B"/>
+            </Border>
+
+            <!-- AI suggestion for the current folder: analyzing / failed / a suggestion to accept or dismiss -->
+            <Border Grid.Row="5" Background="{StaticResource App.Card}" CornerRadius="6" Padding="14,12" Margin="0,0,0,10"
+                    BorderBrush="{StaticResource App.Accent}" BorderThickness="1">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Ai.IsBusy}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Ai.HasResult}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Ai.HasError}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <!-- Analyzing... (one folder, or the analyze-all batch) -->
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding Ai.IsBusy, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding Ai.BusyText}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"/>
+                        <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding Ai.CancelCommand}"
+                                Margin="12,0,0,0" Padding="10,4"/>
+                    </StackPanel>
+
+                    <!-- Failure -->
+                    <TextBlock Text="{Binding Ai.Error}" Foreground="#FF9B9B" TextWrapping="Wrap"
+                               Visibility="{Binding Ai.HasError, Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- Suggestion -->
+                    <StackPanel Visibility="{Binding Ai.HasResult, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding Ai.ResultTitle}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding Ai.Result.Explanation}" Foreground="{StaticResource App.Muted}"
+                                   TextWrapping="Wrap" Margin="0,4,0,10"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Accept and drop this folder" Padding="12,6" Command="{Binding Ai.AcceptCommand}"
+                                    Visibility="{Binding Ai.CanAcceptDrop, Converter={StaticResource BoolToVis}}" Margin="0,0,8,0"/>
+                            <Button Content="Dismiss" Style="{StaticResource GhostButton}" Command="{Binding Ai.DismissCommand}"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="1" Text="{Binding FilesSummary}" Foreground="{StaticResource App.Good}" FontSize="12"
-                                   Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap">
+                        <TextBlock Text="This is a suggestion from an AI model. It can be wrong. You decide."
+                                   Foreground="{StaticResource App.Muted}" FontSize="11" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Content: the folder list, or the trash panel -->
+            <Grid Grid.Row="6">
+                <!-- Folder list -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTrashOpen}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
+                    <StackPanel>
+                        <TextBlock Text="{Binding FolderNote}" Foreground="{StaticResource App.Muted}" Margin="0,4,0,10">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Visible"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding FilesSummary}" Value="">
+                                        <DataTrigger Binding="{Binding FolderNote}" Value="">
                                             <Setter Property="Visibility" Value="Collapsed"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                    </Grid>
-                    <!-- Cloud-sync reminder: rule-dropped cloud files are safe only if actually synced. -->
-                    <TextBlock Text="{Binding CloudReminder}" Foreground="{StaticResource App.Level.Maybe}" FontSize="12"
-                               Margin="0,0,0,8" TextWrapping="Wrap">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding CloudReminder}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
 
-                    <ItemsControl ItemsSource="{Binding Entries}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,0,0,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Margin="0"
-                                            Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
-                                            CommandParameter="{Binding}" IsEnabled="{Binding IsDirectory}">
-                                        <!-- The rectangle's outline takes the importance colour too (not just the dot). -->
-                                        <!-- The explanation pops INSTANTLY (0 delay) anywhere over the whole rectangle, files included. -->
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource RowButton}">
-                                                <Setter Property="ToolTip" Value="{Binding ImportanceReason}"/>
-                                                <Setter Property="ToolTipService.InitialShowDelay" Value="0"/>
-                                                <Setter Property="ToolTipService.BetweenShowDelay" Value="0"/>
-                                                <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
-                                                <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
-                                                <Style.Triggers>
-                                                    <!-- No colour reason yet → no (empty) tooltip. -->
-                                                    <DataTrigger Binding="{Binding ImportanceReason}" Value="">
-                                                        <Setter Property="ToolTipService.IsEnabled" Value="False"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding ImportanceKey}" Value="keep">
-                                                        <Setter Property="BorderBrush" Value="{StaticResource App.Level.Keep}"/>
-                                                        <Setter Property="BorderThickness" Value="1.4"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding ImportanceKey}" Value="maybe">
-                                                        <Setter Property="BorderBrush" Value="{StaticResource App.Level.Maybe}"/>
-                                                        <Setter Property="BorderThickness" Value="1.4"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding ImportanceKey}" Value="drop">
-                                                        <Setter Property="BorderBrush" Value="{StaticResource App.Level.Drop}"/>
-                                                        <Setter Property="BorderThickness" Value="1.4"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="96"/>
-                                                <ColumnDefinition Width="110"/>
-                                            </Grid.ColumnDefinitions>
-                                            <!-- Importance dot (once the file is coloured): blue keep · pink maybe · purple drop. -->
-                                            <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5" VerticalAlignment="Center">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Setter Property="Margin" Value="0,0,10,0"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding ImportanceKey}" Value="keep">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding ImportanceKey}" Value="maybe">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding ImportanceKey}" Value="drop">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                            </Border>
-                                            <TextBlock Grid.Column="1" Text="{Binding Icon}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"
-                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Kind}"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
-                                                       VerticalAlignment="Center" TextAlignment="Right"/>
-                                        </Grid>
-                                    </Button>
-                                    <Button Grid.Column="1" Content="✕ Drop" Style="{StaticResource GhostButton}" Margin="8,0,0,0"
-                                            Command="{Binding DataContext.DropCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
-                                            CommandParameter="{Binding}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </ScrollViewer>
+                        <!-- What ReDows knows about this folder (from its memory). A note shown when recognised. -->
+                        <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,9" Margin="0,0,0,8"
+                                BorderBrush="{StaticResource App.Level.Keep}" BorderThickness="0,0,0,2">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MemoryNote}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE946;" FontFamily="{StaticResource App.IconFont}" FontSize="14"
+                                           Foreground="{StaticResource App.Level.Keep}" VerticalAlignment="Top" Margin="0,1,10,0"/>
+                                <TextBlock Text="{Binding MemoryNote}" Foreground="{StaticResource App.Text}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
 
-            <!-- Trash panel -->
-            <Border Background="{StaticResource App.Surface}" CornerRadius="8" Padding="14"
-                    BorderBrush="{StaticResource App.Border}" BorderThickness="1"
-                    Visibility="{Binding IsTrashOpen, Converter={StaticResource BoolToVis}}">
-                <DockPanel>
-                    <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Trash: dropped items won't be backed up. Restore brings one back." FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Content="Close" Style="{StaticResource GhostButton}" Command="{Binding ToggleTrashCommand}"/>
-                    </Grid>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding TrashItems}">
+                        <!-- Colour these files: the memory + rules already tinted the known ones on browse; this
+                             asks the AI about whatever is left unknown. Shown once the AI is on. -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="✨ Colour the rest with AI" Style="{StaticResource GhostButton}"
+                                    Command="{Binding AnalyzeFilesCommand}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
+                                        Visibility="{Binding IsAnalyzingFiles, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding FilesBusyText}" Foreground="{StaticResource App.Muted}" FontSize="12" VerticalAlignment="Center"/>
+                                <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelFilesCommand}" Margin="10,0,0,0" Padding="10,4"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding FilesSummary}" Foreground="{StaticResource App.Good}" FontSize="12"
+                                       Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding FilesSummary}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                        <!-- Cloud-sync reminder: rule-dropped cloud files are safe only if actually synced. -->
+                        <TextBlock Text="{Binding CloudReminder}" Foreground="{StaticResource App.Level.Maybe}" FontSize="12"
+                                   Margin="0,0,0,8" TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CloudReminder}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <ItemsControl ItemsSource="{Binding Entries}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Margin="0,0,0,5">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
-                                                   VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,10,0"/>
-                                        <Button Grid.Column="2" Content="Restore" Style="{StaticResource GhostButton}"
-                                                Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                        <Button Grid.Column="0" Margin="0"
+                                                Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                CommandParameter="{Binding}" IsEnabled="{Binding IsDirectory}">
+                                            <!-- The rectangle's outline takes the importance colour too (not just the dot). -->
+                                            <!-- The explanation pops INSTANTLY (0 delay) anywhere over the whole rectangle, files included. -->
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource RowButton}">
+                                                    <Setter Property="ToolTip" Value="{Binding ImportanceReason}"/>
+                                                    <Setter Property="ToolTipService.InitialShowDelay" Value="0"/>
+                                                    <Setter Property="ToolTipService.BetweenShowDelay" Value="0"/>
+                                                    <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
+                                                    <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
+                                                    <Style.Triggers>
+                                                        <!-- No colour reason yet → no (empty) tooltip. -->
+                                                        <DataTrigger Binding="{Binding ImportanceReason}" Value="">
+                                                            <Setter Property="ToolTipService.IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ImportanceKey}" Value="keep">
+                                                            <Setter Property="BorderBrush" Value="{StaticResource App.Level.Keep}"/>
+                                                            <Setter Property="BorderThickness" Value="1.4"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ImportanceKey}" Value="maybe">
+                                                            <Setter Property="BorderBrush" Value="{StaticResource App.Level.Maybe}"/>
+                                                            <Setter Property="BorderThickness" Value="1.4"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ImportanceKey}" Value="drop">
+                                                            <Setter Property="BorderBrush" Value="{StaticResource App.Level.Drop}"/>
+                                                            <Setter Property="BorderThickness" Value="1.4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="96"/>
+                                                    <ColumnDefinition Width="110"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Importance dot (once the file is coloured): blue keep · pink maybe · purple drop. -->
+                                                <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Setter Property="Margin" Value="0,0,10,0"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ImportanceKey}" Value="keep">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Setter Property="Background" Value="{StaticResource App.Level.Keep}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding ImportanceKey}" Value="maybe">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Setter Property="Background" Value="{StaticResource App.Level.Maybe}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding ImportanceKey}" Value="drop">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Setter Property="Background" Value="{StaticResource App.Level.Drop}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Icon}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Kind}" Foreground="{StaticResource App.Muted}" VerticalAlignment="Center"
+                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Kind}"/>
+                                                <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
+                                                           VerticalAlignment="Center" TextAlignment="Right"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button Grid.Column="1" Content="✕ Drop" Style="{StaticResource GhostButton}" Margin="8,0,0,0"
+                                                Command="{Binding DataContext.DropCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                                 CommandParameter="{Binding}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
-            </Border>
-        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
 
-        <!-- Wizard bar: Previous | summary | Trash | Next -->
-        <Grid Grid.Row="7" Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Content="◀ Previous" Style="{StaticResource GhostButton}"
-                    Command="{Binding PreviousCommand}" Margin="0,0,10,0"/>
-            <TextBlock Grid.Column="1" Text="{Binding KeptSummary}" Foreground="{StaticResource App.Good}"
-                       VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="SemiBold"
-                       Margin="12,0,12,0" TextTrimming="CharacterEllipsis"/>
-            <Button Grid.Column="2" Content="{Binding TrashButtonText}" Style="{StaticResource GhostButton}"
-                    Command="{Binding ToggleTrashCommand}" Margin="0,0,10,0"/>
-            <!-- End of the wizard (or nothing to review) → the "Next" button becomes "Back up →" (jumps to Backup). -->
-            <Button Grid.Column="3" Content="Next ▶" Command="{Binding NextCommand}">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                        <Setter Property="Visibility" Value="Visible"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ShowBackUp}" Value="True">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-            <Button Grid.Column="3" Content="Back up →"
-                    Command="{Binding DataContext.ShowBackupCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ShowBackUp}" Value="True">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
+                <!-- Trash panel -->
+                <Border Background="{StaticResource App.Surface}" CornerRadius="8" Padding="14"
+                        BorderBrush="{StaticResource App.Border}" BorderThickness="1"
+                        Visibility="{Binding IsTrashOpen, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Trash: dropped items won't be backed up. Restore brings one back." FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Close" Style="{StaticResource GhostButton}" Command="{Binding ToggleTrashCommand}"/>
+                        </Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding TrashItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding SizeText}" Foreground="{StaticResource App.Muted}"
+                                                       VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,10,0"/>
+                                            <Button Grid.Column="2" Content="Restore" Style="{StaticResource GhostButton}"
+                                                    Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- Wizard bar: Previous | summary | Trash | Next / Back up -->
+            <Grid Grid.Row="7" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="◀ Previous" Style="{StaticResource GhostButton}"
+                        Command="{Binding PreviousCommand}" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1" Text="{Binding KeptSummary}" Foreground="{StaticResource App.Good}"
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="SemiBold"
+                           Margin="12,0,12,0" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="2" Content="{Binding TrashButtonText}" Style="{StaticResource GhostButton}"
+                        Command="{Binding ToggleTrashCommand}" Margin="0,0,10,0"/>
+                <!-- End of the wizard (or nothing to review) → the "Next" button becomes "Back up →" (jumps to Backup). -->
+                <Button Grid.Column="3" Content="Next ▶" Command="{Binding NextCommand}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowBackUp}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Grid.Column="3" Content="Back up →"
+                        Command="{Binding DataContext.ShowBackupCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowBackUp}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

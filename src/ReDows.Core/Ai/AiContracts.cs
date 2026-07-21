@@ -46,6 +46,13 @@ public sealed record FileInContext(
     string? ParentContext);
 
 /// <summary>
+/// A group of machine-bound (DPAPI) files sitting under one folder: the "export before reset" briefing
+/// groups the locked files this way, and the optional AI advice is asked over the same list. Names and
+/// paths only, never content (a secret's location is listed, its value is never read).
+/// </summary>
+public sealed record LockedFilesGroup(string Folder, IReadOnlyList<string> Files);
+
+/// <summary>
 /// Analyzes metadata with an AI model. A seam: the real implementation talks to an OpenAI-compatible
 /// endpoint (a local LM Studio / Ollama by default); a test swaps a fake. The ONLY inputs are the
 /// whitelisted <see cref="FolderMetadata"/> / <see cref="FileInContext"/>. Nothing else ever leaves the PC.

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using ReDows.Core.Ai;
 using ReDows.Core.Apps;
 using ReDows.Core.Classification;
 using ReDows.Core.Duplicates;
@@ -130,11 +131,24 @@ public sealed class WindowsScanRunner : IScanRunner
         StreamWriter? manifestWriter = TryOpenManifest(manifestPath);
         var wroteManifest = manifestWriter is not null;
 
+        // Collect the machine-bound (DPAPI) files as they are captured: these are the "export before you
+        // reset" items (locked to this PC, unreadable after). We grab their paths (bounded) to group them
+        // by folder for the briefing, and to offer the optional AI "how do I keep these" advice.
+        var lockedPaths = new List<string>();
+        void OnCaptured(ManifestEntry entry)
+        {
+            manifestWriter?.WriteLine(ManifestLine.Format(entry));
+            if (lockedPaths.Count < MaxLockedFiles && entry.Flags.Contains(DpapiFlag))
+            {
+                lockedPaths.Add(entry.Path);
+            }
+        }
+
         var options = new ScanOptions(
             Roots: request.FolderRoot is null ? null : [Path.GetFullPath(request.FolderRoot)],
             OnProgress: (items, path) => progress.Report(new ScanProgress(items, path)),
             ClaimedZones: indexZones.Zones,
-            OnCapture: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
+            OnCapture: OnCaptured,
             OnReview: manifestWriter is null ? null : entry => manifestWriter.WriteLine(ManifestLine.Format(entry)),
             ReinstallZones: reinstallZones,
             AppDataZones: saveZones.Count == 0 ? appDataZones : appDataZones.Concat(saveZones).ToList(),
@@ -158,7 +172,11 @@ public sealed class WindowsScanRunner : IScanRunner
             manifestWriter?.Dispose();
         }
 
-        var result = Shape(report) with { ManifestPath = wroteManifest ? manifestPath : null };
+        var result = Shape(report) with
+        {
+            ManifestPath = wroteManifest ? manifestPath : null,
+            LockedFiles = GroupLockedFiles(lockedPaths),
+        };
         if (recognized)
         {
             result = result with { InstalledApps = InstalledAppsImpactOf(report, appCount) };
@@ -339,6 +357,68 @@ public sealed class WindowsScanRunner : IScanRunner
 
     /// <summary>The licence-required credit for the game-save locations (PCGamingWiki is CC BY-NC-SA).</summary>
     private const string SaveCatalogAttribution = "Save locations from PCGamingWiki (CC BY-NC-SA), via the ludusavi project.";
+
+    /// <summary>The manifest flag marking a capture item as machine-bound (DPAPI), unreadable after a reset.</summary>
+    private const string DpapiFlag = "dpapi_machine_bound";
+
+    private const int MaxLockedFiles = 500;  // bound the "export before reset" collection on a huge PC
+
+    /// <summary>
+    /// Group the machine-bound (DPAPI) file paths by their app-data ROOT, so all of a browser's profiles
+    /// and sub-folders collapse under one heading instead of repeating the same top folder many times. A
+    /// Chromium browser (Chrome, Edge, Brave...) keeps everything under a "User Data" folder, so that is
+    /// the root; anything else groups by its immediate parent. Each file keeps its path RELATIVE to the
+    /// root, so the detail (which profile, which sub-folder) is still shown. Bounded, de-duplicated.
+    /// </summary>
+    private static IReadOnlyList<LockedFilesGroup> GroupLockedFiles(IReadOnlyList<string> paths)
+    {
+        const int maxGroups = 40, maxPerGroup = 120;
+        var byRoot = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var order = new List<string>();
+        foreach (var raw in paths)
+        {
+            var (root, file) = SplitAtDataRoot(raw.Replace('/', '\\').TrimEnd('\\'));
+            if (!byRoot.TryGetValue(root, out var files))
+            {
+                if (byRoot.Count >= maxGroups)
+                {
+                    continue;
+                }
+
+                byRoot[root] = files = [];
+                order.Add(root);
+            }
+
+            if (files.Count < maxPerGroup && !files.Contains(file, StringComparer.OrdinalIgnoreCase))
+            {
+                files.Add(file);
+            }
+        }
+
+        return order.Select(root => new LockedFilesGroup(root, byRoot[root])).ToList();
+    }
+
+    /// <summary>
+    /// Split a locked-file path into its grouping ROOT and the file's path relative to it. A Chromium
+    /// "User Data" folder is the root (so all profiles collapse into one group); otherwise the immediate
+    /// parent folder is the root.
+    /// </summary>
+    private static (string Root, string File) SplitAtDataRoot(string path)
+    {
+        var segments = path.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        for (var i = segments.Length - 2; i >= 0; i--) // -2: never treat the file name itself as the root
+        {
+            if (segments[i].Equals("User Data", StringComparison.OrdinalIgnoreCase))
+            {
+                var root = string.Join('\\', segments[..(i + 1)]);
+                var file = string.Join('\\', segments[(i + 1)..]);
+                return (root, file.Length == 0 ? segments[^1] : file);
+            }
+        }
+
+        var cut = path.LastIndexOf('\\');
+        return cut < 0 ? (path, path) : (path[..cut], path[(cut + 1)..]);
+    }
 
     private static string GameSaveSourceText(LudusaviSourceStatus status) => status switch
     {

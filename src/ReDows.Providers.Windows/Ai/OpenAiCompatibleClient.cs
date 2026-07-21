@@ -78,7 +78,21 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
     public Task<AiSuggestion> AnalyzeFileAsync(FileInContext file, CancellationToken cancellationToken) =>
         CompleteAsync(AiPayload.FileSystemPrompt, AiPayload.RenderFilePrompt(file), cancellationToken);
 
+    /// <summary>
+    /// Ask, in plain language, how to keep the useful data behind machine-bound (DPAPI) files before a
+    /// reset. Sends the file names/paths only (never contents) and returns the model's free-text answer.
+    /// </summary>
+    public Task<string> AdviseAsync(IReadOnlyList<LockedFilesGroup> groups, CancellationToken cancellationToken) =>
+        CompleteTextAsync(AiPayload.AdviceSystemPrompt, AiPayload.RenderAdvicePrompt(groups), cancellationToken);
+
     private async Task<AiSuggestion> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken)
+    {
+        var reply = await CompleteTextAsync(systemPrompt, userPrompt, cancellationToken);
+        return AiPayload.ParseSuggestion(reply)
+            ?? throw new InvalidOperationException("The model's reply could not be read as a suggestion.");
+    }
+
+    private async Task<string> CompleteTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken)
     {
         _model ??= await FirstModelAsync(cancellationToken)
             ?? throw new InvalidOperationException("No model is loaded on the endpoint.");
@@ -110,10 +124,8 @@ public sealed class OpenAiCompatibleClient : IAiProvider, IDisposable
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        var reply = ExtractMessageText(body)
+        return ExtractMessageText(body)
             ?? throw new InvalidOperationException("The endpoint's reply had no message content.");
-        return AiPayload.ParseSuggestion(reply)
-            ?? throw new InvalidOperationException("The model's reply could not be read as a suggestion.");
     }
 
     private async Task<string?> FirstModelAsync(CancellationToken cancellationToken)

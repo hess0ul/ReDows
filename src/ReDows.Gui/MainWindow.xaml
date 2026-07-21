@@ -49,7 +49,9 @@
                     <RadioButton Content="Apps" Tag="&#xE71D;" GroupName="nav" Style="{StaticResource NavItem}"
                                  Command="{Binding ShowAppsCommand}"
                                  IsChecked="{Binding CurrentScreen, Converter={StaticResource IsScreen}, ConverterParameter=apps, Mode=TwoWay}"/>
-                    <RadioButton Content="Settings" Tag="&#xE713;" GroupName="nav" Style="{StaticResource NavItem}" IsEnabled="False"/>
+                    <RadioButton Content="Settings" Tag="&#xE713;" GroupName="nav" Style="{StaticResource NavItem}"
+                                 Command="{Binding ShowSettingsCommand}"
+                                 IsChecked="{Binding CurrentScreen, Converter={StaticResource IsScreen}, ConverterParameter=settings, Mode=TwoWay}"/>
                     <RadioButton Content="Secrets" Tag="&#xE72E;" GroupName="nav" Style="{StaticResource NavItem}" IsEnabled="False"/>
                     <TextBlock Text="More screens coming next." Foreground="{StaticResource App.Muted}"
                                FontSize="11" Margin="20,12,10,0"/>

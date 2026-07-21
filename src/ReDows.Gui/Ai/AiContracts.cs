@@ -24,6 +24,9 @@ public interface IAiAnalyzer
     Task<AiSuggestion> AnalyzeAsync(AiEndpoint endpoint, FolderMetadata folder, CancellationToken cancellationToken);
 
     Task<AiSuggestion> AnalyzeFileAsync(AiEndpoint endpoint, FileInContext file, CancellationToken cancellationToken);
+
+    /// <summary>Ask, in plain language, how to keep the useful data behind machine-bound (DPAPI) files before a reset.</summary>
+    Task<string> AdviseAsync(AiEndpoint endpoint, IReadOnlyList<LockedFilesGroup> groups, CancellationToken cancellationToken);
 }
 
 /// <summary>

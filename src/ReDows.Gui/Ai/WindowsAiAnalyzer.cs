@@ -22,6 +22,9 @@ public sealed class WindowsAiAnalyzer : IAiAnalyzer
     public Task<AiSuggestion> AnalyzeFileAsync(AiEndpoint endpoint, FileInContext file, CancellationToken cancellationToken) =>
         ClientFor(endpoint).AnalyzeFileAsync(file, cancellationToken);
 
+    public Task<string> AdviseAsync(AiEndpoint endpoint, IReadOnlyList<LockedFilesGroup> groups, CancellationToken cancellationToken) =>
+        ClientFor(endpoint).AdviseAsync(groups, cancellationToken);
+
     private OpenAiCompatibleClient ClientFor(AiEndpoint endpoint)
     {
         var normalized = endpoint with { BaseUrl = OpenAiCompatibleClient.NormalizeBaseUrl(endpoint.BaseUrl) };

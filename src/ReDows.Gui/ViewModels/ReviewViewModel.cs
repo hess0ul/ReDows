@@ -16,6 +16,13 @@ public enum ReviewSort
     Type,
 }
 
+/// <summary>The two stages of Review: first sort what belongs to installed apps, then walk the rest.</summary>
+public enum ReviewStep
+{
+    Apps,
+    Files,
+}
+
 /// <summary>
 /// The review wizard, trash model: everything under review is KEPT by default (safe: nothing lost
 /// by forgetting). You walk the REVIEW folders one at a time (Folder X of N, Previous/Next), drill in
@@ -46,6 +53,10 @@ public sealed class ReviewViewModel : ViewModelBase
     private string _cloudReminder = "";
     private string _memoryNote = "";
     private string _appSortSummary = "";
+    private CancellationTokenSource? _aiProposeCancellation; // per-app / all-apps AI proposal; its own Cancel
+    private bool _isProposingAi;
+    private string _aiProposeBusyText = "";
+    private ReviewStep _step = ReviewStep.Apps; // Review opens on the "by app" step, then "the rest"
     private ReviewSort _sort = ReviewSort.Size;
 
     private bool _scanned;
@@ -79,9 +90,11 @@ public sealed class ReviewViewModel : ViewModelBase
             };
         }
 
-        AnalyzeFolderCommand = new RelayCommand(_ => _ = AnalyzeCurrentFolderAsync(), _ => Ai is not null && HasFolder && !IsLoading);
-        AnalyzeAllCommand = new RelayCommand(_ => _ = AnalyzeAllFoldersAsync(), _ => Ai is not null && HasRoots && !IsLoading);
-        AnalyzeFilesCommand = new RelayCommand(_ => _ = AnalyzeFilesHereAsync(), _ => (_prescreen is not null || Ai is not null) && HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
+        // The wizard's AI buttons stay clickable even when the assistant is off: a click then routes to
+        // Settings to set it up (its config lives there), just like the "sort by app" AI buttons.
+        AnalyzeFolderCommand = new RelayCommand(_ => RunAiOrRedirect(AnalyzeCurrentFolderAsync), _ => HasFolder && !IsLoading);
+        AnalyzeAllCommand = new RelayCommand(_ => RunAiOrRedirect(AnalyzeAllFoldersAsync), _ => HasRoots && !IsLoading);
+        AnalyzeFilesCommand = new RelayCommand(_ => RunAiOrRedirect(AnalyzeFilesHereAsync), _ => HasFolder && Entries.Count > 0 && !IsLoading && !IsAnalyzingFiles);
         CancelFilesCommand = new RelayCommand(_ => _filesCancellation?.Cancel(), _ => IsAnalyzingFiles);
         OpenCommand = new RelayCommand(item => { if (item is EntryRow entry) _ = OpenAsync(entry); }, _ => !IsLoading);
         DropCommand = new RelayCommand(item => { if (item is EntryRow entry) DropEntry(entry); }, _ => !IsLoading);
@@ -102,7 +115,21 @@ public sealed class ReviewViewModel : ViewModelBase
         DropAppCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) _ = BulkAppAsync(group, drop: true, suggestedOnly: false); }, _ => !IsLoading);
         DropSuggestedCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) _ = BulkAppAsync(group, drop: true, suggestedOnly: true); }, _ => !IsLoading);
         KeepAppCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) _ = BulkAppAsync(group, drop: false, suggestedOnly: false); });
+
+        // The two Review stages: sort by app first, then walk the rest folder by folder.
+        GoToFilesStepCommand = new RelayCommand(_ => SetStep(ReviewStep.Files));
+        GoToAppsStepCommand = new RelayCommand(_ => SetStep(ReviewStep.Apps));
+
+        // The optional AI proposal: refine an app's (or every app's) keep/drop suggestions with the assistant.
+        // The buttons stay clickable even when the assistant is off: clicking then jumps to Settings to set
+        // it up (its config lives there), instead of doing nothing.
+        ProposeAppWithAiCommand = new RelayCommand(item => { if (item is AppReviewGroupViewModel group) ProposeAppOrRedirect(group); }, _ => CanProposeAi);
+        ProposeAllAppsWithAiCommand = new RelayCommand(_ => ProposeAllOrRedirect(), _ => CanProposeAi);
+        CancelAiProposeCommand = new RelayCommand(_ => _aiProposeCancellation?.Cancel(), _ => IsProposingAi);
     }
+
+    /// <summary>Raised when the user asks for AI but it isn't set up yet; the shell opens the Settings screen.</summary>
+    public event Action? AiSetupRequested;
 
     public DropSelection Trash { get; } = new();
 
@@ -242,6 +269,22 @@ public sealed class ReviewViewModel : ViewModelBase
 
     public RelayCommand KeepAppCommand { get; }
 
+    public RelayCommand ProposeAppWithAiCommand { get; }
+
+    public RelayCommand ProposeAllAppsWithAiCommand { get; }
+
+    public RelayCommand CancelAiProposeCommand { get; }
+
+    public RelayCommand GoToFilesStepCommand { get; }
+
+    public RelayCommand GoToAppsStepCommand { get; }
+
+    /// <summary>The "by app" stage is showing (step 1 of 2).</summary>
+    public bool IsAppsStep => _step == ReviewStep.Apps;
+
+    /// <summary>The "walk the rest" stage is showing (step 2 of 2).</summary>
+    public bool IsFilesStep => _step == ReviewStep.Files;
+
     /// <summary>
     /// Apps whose data landed in this review's head folders, grouped so you can keep or drop a whole
     /// app's data in one gesture BEFORE walking the rest folder by folder. Empty when the inventory is
@@ -250,6 +293,34 @@ public sealed class ReviewViewModel : ViewModelBase
     public ObservableCollection<AppReviewGroupViewModel> AppGroups { get; } = [];
 
     public bool HasAppGroups => AppGroups.Count > 0;
+
+    /// <summary>
+    /// Whether the AI proposal buttons are clickable: an assistant exists, apps are present, and no
+    /// proposal is already running. NOT gated on the assistant being ON, so a click while it is off can
+    /// still route the user to Settings to set it up (see <see cref="AiSetupRequested"/>).
+    /// </summary>
+    public bool CanProposeAi => Ai is not null && HasAppGroups && !IsProposingAi && !IsLoading;
+
+    /// <summary>True while the AI is proposing keep/drop for app locations; drives its progress row and Cancel.</summary>
+    public bool IsProposingAi
+    {
+        get => _isProposingAi;
+        private set
+        {
+            Set(ref _isProposingAi, value);
+            Raise(nameof(CanProposeAi));
+            ProposeAppWithAiCommand.RaiseCanExecuteChanged();
+            ProposeAllAppsWithAiCommand.RaiseCanExecuteChanged();
+            CancelAiProposeCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>What the AI proposal is doing right now (app name, location X of N).</summary>
+    public string AiProposeBusyText
+    {
+        get => _aiProposeBusyText;
+        private set => Set(ref _aiProposeBusyText, value);
+    }
 
     /// <summary>One line above the app panel: how many apps it groups and how many folders remain for the wizard.</summary>
     public string AppSortSummary
@@ -351,6 +422,7 @@ public sealed class ReviewViewModel : ViewModelBase
         AppGroups.Clear();   // rebuilt below for this scan's folders
         AppSortSummary = "";
         Raise(nameof(HasAppGroups));
+        SetStep(ReviewStep.Apps); // always open on the "by app" stage
         Ai?.Reset();
         RefreshTrash();
         Raise(nameof(HasRoots));
@@ -843,6 +915,9 @@ public sealed class ReviewViewModel : ViewModelBase
             : $"{AppGroups.Count} app(s) with data found on your PC. Keep or drop an app's data as a block here, then sort the rest of the folders below.";
         SyncAppGroups();
         Raise(nameof(HasAppGroups));
+        Raise(nameof(CanProposeAi));
+        ProposeAppWithAiCommand.RaiseCanExecuteChanged();
+        ProposeAllAppsWithAiCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>Mirror each app location's dropped state from the trash, so the panel matches every drop/restore.</summary>
@@ -902,6 +977,131 @@ public sealed class ReviewViewModel : ViewModelBase
         catch
         {
             return 0;
+        }
+    }
+
+    private void SetStep(ReviewStep step)
+    {
+        _step = step;
+        Raise(nameof(IsAppsStep));
+        Raise(nameof(IsFilesStep));
+    }
+
+    /// <summary>Per-app "propose with AI" click: run it if the assistant is set up, else route to Settings.</summary>
+    private void ProposeAppOrRedirect(AppReviewGroupViewModel group)
+    {
+        if (Ai is null || !Ai.IsEnabled)
+        {
+            AiSetupRequested?.Invoke();
+            return;
+        }
+
+        _ = ProposeAppWithAiAsync(group);
+    }
+
+    /// <summary>"Propose all apps with AI" click: run it if the assistant is set up, else route to Settings.</summary>
+    private void ProposeAllOrRedirect()
+    {
+        if (Ai is null || !Ai.IsEnabled)
+        {
+            AiSetupRequested?.Invoke();
+            return;
+        }
+
+        _ = ProposeAllAppsWithAiAsync();
+    }
+
+    /// <summary>A wizard AI button (analyze folder / analyze all / colour files): run it if the assistant is
+    /// set up, else route to Settings, so the buttons can stay visible instead of vanishing when it is off.</summary>
+    private void RunAiOrRedirect(Func<Task> analysis)
+    {
+        if (Ai is null || !Ai.IsEnabled)
+        {
+            AiSetupRequested?.Invoke();
+            return;
+        }
+
+        _ = analysis();
+    }
+
+    /// <summary>Ask the AI to refine ONE app's keep/drop suggestions (its locations only).</summary>
+    public Task ProposeAppWithAiAsync(AppReviewGroupViewModel group) =>
+        ProposeWithAiAsync([.. group.Locations], group.AppName);
+
+    /// <summary>Ask the AI to refine the suggestions of EVERY app in the panel, in one pass.</summary>
+    public Task ProposeAllAppsWithAiAsync() =>
+        ProposeWithAiAsync([.. AppGroups.SelectMany(group => group.Locations)], "all apps");
+
+    /// <summary>
+    /// Refine each location's keep/drop colour with the AI (metadata only, like the rest of the assistant):
+    /// list the folder's children, ask the endpoint, and recolour the row with the model's verdict and its
+    /// own explanation. Progress + Cancel; two failures in a row stop the pass. Nothing is dropped: this
+    /// only changes the SUGGESTION, so the user still decides (a stronger "Drop suggested" comes from here).
+    /// </summary>
+    private async Task ProposeWithAiAsync(IReadOnlyList<AppReviewLocationViewModel> locations, string what)
+    {
+        if (Ai is null || !Ai.IsEnabled || IsProposingAi || locations.Count == 0)
+        {
+            return;
+        }
+
+        Error = null;
+        IsProposingAi = true;
+        _aiProposeCancellation = new CancellationTokenSource();
+        var token = _aiProposeCancellation.Token;
+        var consecutiveFailures = 0;
+        try
+        {
+            for (var i = 0; i < locations.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                var location = locations[i];
+                AiProposeBusyText = $"Asking the AI about {what}: {i + 1} of {locations.Count} ({location.Name})...";
+                try
+                {
+                    var children = await _browser.ListAsync(location.FullPath, token);
+                    var listing = children.Select(child => (child.Name, child.IsDirectory, child.Bytes)).ToList();
+                    var suggestion = await Ai.SuggestForFolderAsync(location.FullPath, listing, token);
+                    if (suggestion is null)
+                    {
+                        break; // the assistant was turned off mid-pass
+                    }
+
+                    var key = AiAssistantViewModel.ImportanceKeyOf(suggestion);
+                    if (key.Length > 0)
+                    {
+                        location.SuggestKey = key;
+                        location.SuggestReason = string.IsNullOrWhiteSpace(suggestion.Explanation)
+                            ? "AI suggestion (no explanation given)."
+                            : "AI: " + suggestion.Explanation.Trim();
+                    }
+
+                    consecutiveFailures = 0;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                    if (++consecutiveFailures >= 2)
+                    {
+                        Error = "The endpoint keeps failing, so the AI proposal stopped. Test the connection, then try again.";
+                        break;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // cancelled; the suggestions refined so far are kept
+        }
+        finally
+        {
+            IsProposingAi = false;
+            AiProposeBusyText = "";
+            _aiProposeCancellation?.Dispose();
+            _aiProposeCancellation = null;
         }
     }
 
@@ -1035,6 +1235,9 @@ public sealed class ReviewViewModel : ViewModelBase
         DropLocationCommand.RaiseCanExecuteChanged();
         DropAppCommand.RaiseCanExecuteChanged();
         DropSuggestedCommand.RaiseCanExecuteChanged();
+        Raise(nameof(CanProposeAi));
+        ProposeAppWithAiCommand.RaiseCanExecuteChanged();
+        ProposeAllAppsWithAiCommand.RaiseCanExecuteChanged();
         UpdateStepText(); // the remaining-folder count can change when a folder is dropped from the panel
     }
 }

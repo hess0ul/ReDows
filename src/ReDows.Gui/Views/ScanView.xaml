@@ -1,6 +1,7 @@
 <UserControl x:Class="ReDows.Gui.Views.ScanView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:ReDows.Gui.Controls">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="26,22" MaxWidth="920" HorizontalAlignment="Left">
             <TextBlock Text="Scan" FontSize="18" FontWeight="SemiBold"/>
@@ -279,16 +280,54 @@
                     <StackPanel>
                         <TextBlock Text="⚠ Export these before you reset. They're locked to this PC and won't open afterward."
                                    Foreground="#E8C97A" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                        <ItemsControl ItemsSource="{Binding Result.Alerts}">
+                        <!-- Grouped by the folder they live in, so a browser's files fall together under its profile. -->
+                        <ItemsControl ItemsSource="{Binding Result.LockedFiles}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                        <TextBlock Text="{Binding Items}" Foreground="{StaticResource App.Muted}" Width="90"/>
-                                        <TextBlock Text="{Binding Rule}"/>
+                                    <StackPanel Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding Folder}" Foreground="{StaticResource App.Muted}" FontSize="12"
+                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Folder}"/>
+                                        <ItemsControl ItemsSource="{Binding Files}" Margin="14,2,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding StringFormat='• {0}'}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- Optional AI: how to keep the useful data (browser passwords / history, profiles...) the
+                             right way. Always shown; opens Settings if the assistant isn't set up yet. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button Content="✨ How do I keep these? (AI)" Style="{StaticResource GhostButton}"
+                                    Command="{Binding AdviseCommand}"/>
+                            <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
+                                        Visibility="{Binding IsAdvising, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding AdviceBusyText}" Foreground="{StaticResource App.Muted}"
+                                           FontSize="12" VerticalAlignment="Center"/>
+                                <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelAdviceCommand}"
+                                        Margin="10,0,0,0" Padding="10,4"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- The AI's answer (or an error). -->
+                        <Border Background="{StaticResource App.Card}" CornerRadius="6" Padding="12,10" Margin="0,8,0,0"
+                                BorderBrush="{StaticResource App.Accent}" BorderThickness="1"
+                                Visibility="{Binding HasAdvice, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <!-- The model answers in Markdown; render it (headings/bold/code/lists) so the raw markers don't show. -->
+                                <TextBlock TextWrapping="Wrap" controls:MarkdownText.Text="{Binding AdviceText}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <TextBlock Text="AI suggestion. It can be wrong. You decide." Foreground="{StaticResource App.Muted}"
+                                               FontSize="11" VerticalAlignment="Center"/>
+                                    <Button Content="Dismiss" Style="{StaticResource GhostButton}" Command="{Binding ClearAdviceCommand}"
+                                            Margin="12,0,0,0" Padding="10,4"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
