@@ -2,8 +2,33 @@ include:
   - project: 'homelab/ci-templates'
     file: '/leak-audit.yml'
     ref: main
+  - project: 'homelab/ci-templates'
+    file: '/github-feedback.yml'
+    ref: main
+
+# `stages:` is REPLACED, not merged, across includes: leak-audit.yml declares `audit`
+# and github-feedback.yml uses `feedback`. Declaring both here (the project file wins
+# over every include) is what keeps one from silently wiping the other.
+stages:
+  - audit
+  - feedback
+
+# NOTE: GH_REPO and GL_TARGET_PROJECT are deliberately NOT set here. This repository is
+# push-mirrored to github.com, so this file is public — and naming the internal GitLab
+# project layout in it would leak topology the leak-audit gate does not look for. Both
+# values are carried by the pipeline schedule that triggers the job, which is also where
+# they belong: the trigger and its parameters in one place.
 
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# Deterministic and content-based: on unchanged files the verdict cannot differ, so
+# re-running it daily would be a no-op. Keep the scheduled pipeline about one thing.
+leak-audit:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - when: on_success
