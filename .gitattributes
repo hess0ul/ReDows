@@ -1,0 +1,4 @@
+# Normalise line endings inside the repository so that comparing the private and the
+# published trees shows real differences only. Without this, the same file stored once
+# as CRLF and once as LF looks modified while being byte-identical after normalisation.
+* text=auto

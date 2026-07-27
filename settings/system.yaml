@@ -263,7 +263,7 @@ settings:
     what: Diagnostic telemetry level
     in_loop: true
     indows_module: base
-    note: 'set by the InDows base install (AllowTelemetry); the shipped privacy-telemetry module does not set it'
+    note: 'set by the InDows base install (Specialize.ps1 AllowTelemetry); the shipped privacy-telemetry module does not set it'
     default: '3'
     decode: { '0': security/off, '1': basic, '3': full }
     source: 'reglages-checklist Part 5'

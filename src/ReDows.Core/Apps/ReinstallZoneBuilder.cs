@@ -1,4 +1,3 @@
-using System.IO;
 using ReDows.Core.Scanning;
 
 namespace ReDows.Core.Apps;
@@ -28,7 +27,7 @@ public static class ReinstallZoneBuilder
         foreach (var app in inventory.Entries)
         {
             var location = app.InstallLocation;
-            if (string.IsNullOrWhiteSpace(location) || !Path.IsPathRooted(location))
+            if (string.IsNullOrWhiteSpace(location) || !ScanPaths.IsRootedWindowsPath(location))
             {
                 continue;
             }

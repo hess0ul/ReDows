@@ -20,3 +20,6 @@ settings-profile.md
 secrets.json
 secrets.md
 configuration.dsc.yaml
+
+# Local publish output (the CI packages releases; never commit it)
+dist/
