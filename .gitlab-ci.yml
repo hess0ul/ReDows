@@ -14,6 +14,11 @@ include:
   - project: 'homelab/ci-templates'
     file: '/github-release.yml'
     ref: main
+  # Authenticode signing, pulled into package:windows below. Also a template, for the
+  # same reason: the build belongs in public, the Vault plumbing does not.
+  - project: 'homelab/ci-templates'
+    file: '/sign-windows.yml'
+    ref: main
 
 # `stages:` is REPLACED, not merged, across includes. Declaring the full list here (the
 # project file wins over every include) is what keeps one include from wiping another's.
@@ -75,6 +80,9 @@ stop-windows-runner:
     - when: never
 
 package:windows:
+  # extends brings the Vault id_token the signing step needs; the step itself is
+  # referenced below, between staging and zipping.
+  extends: .sign-windows
   stage: package
   tags: [windows]
   interruptible: false
@@ -114,7 +122,11 @@ package:windows:
       }
       Copy-Item 'README.md' $stage -Force
       Get-ChildItem $stage -Filter '*.pdb' -Recurse | Remove-Item -Force
-
+    # Sign BEFORE zipping — signing after would leave the archive holding unsigned
+    # binaries, and the SHA256 below must cover the artifact as shipped.
+    - !reference [.sign-windows, script]
+    - |
+      $ErrorActionPreference = 'Stop'
       $zip = Join-Path $dist "$pkg.zip"
       Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
       $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
