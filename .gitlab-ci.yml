@@ -5,24 +5,38 @@ include:
   - project: 'homelab/ci-templates'
     file: '/github-feedback.yml'
     ref: main
+  - project: 'homelab/ci-templates'
+    file: '/windows-runner-power.yml'
+    ref: main
+  # The GitHub Release job lives in a template: this file is public (mirrored), and the
+  # Vault address, KV path and role name have no reason to be. The build below, however,
+  # is deliberately public — anyone can check how the released binary is produced.
+  - project: 'homelab/ci-templates'
+    file: '/github-release.yml'
+    ref: main
 
-# `stages:` is REPLACED, not merged, across includes: leak-audit.yml declares `audit`
-# and github-feedback.yml uses `feedback`. Declaring both here (the project file wins
-# over every include) is what keeps one from silently wiping the other.
+# `stages:` is REPLACED, not merged, across includes. Declaring the full list here (the
+# project file wins over every include) is what keeps one include from wiping another's.
 stages:
   - audit
   - feedback
+  - prepare
+  - package
+  - release
+  - cleanup
 
-# NOTE: GH_REPO and GL_TARGET_PROJECT are deliberately NOT set here. This repository is
-# push-mirrored to github.com, so this file is public — and naming the internal GitLab
-# project layout in it would leak topology the leak-audit gate does not look for. Both
-# values are carried by the pipeline schedule that triggers the job, which is also where
-# they belong: the trigger and its parameters in one place.
+variables:
+  # The public GitHub repo this project is mirrored to. Public information — it IS this
+  # repository's own identity — unlike GL_TARGET_PROJECT, which names the internal GitLab
+  # layout and therefore stays on the pipeline schedule (this file is public on github.com).
+  GH_REPO: "hess0ul/ReDows"
+  PKG_REGISTRY_NAME: "redows"
 
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 # Deterministic and content-based: on unchanged files the verdict cannot differ, so
@@ -32,3 +46,94 @@ leak-audit:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
     - when: on_success
+
+# ===========================================================================
+# PUBLIC RELEASE (tag pipelines only)
+# The binary is rebuilt HERE, from the public sources, never copied from the private
+# build — that is what makes it verifiable by anyone reading this repository.
+# ===========================================================================
+
+# The shared template boots the VM on tags AND on the default branch; here we only ever
+# want it for a release, otherwise the daily feedback schedule would power on a build VM
+# for nothing. Gated behind leak-audit: never build a public artifact we would refuse to
+# publish anyway.
+start-windows-runner:
+  needs: [leak-audit]
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: on_success
+    - when: never
+
+stop-windows-runner:
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: always
+    - when: never
+
+package:windows:
+  stage: package
+  tags: [windows]
+  interruptible: false
+  needs: [leak-audit, start-windows-runner]
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      $tag   = $env:CI_COMMIT_TAG
+      $ver   = $tag -replace '^v',''
+      $pkg   = "ReDows-$tag-win-x64"
+      $dist  = 'dist'
+      $stage = Join-Path $dist $pkg
+
+      # CLEAN publish, always: incremental builds do not reliably recopy the Content data
+      # folders, and shipping a stale ruleset is worse than failing the build.
+      if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
+      New-Item -ItemType Directory -Path $stage | Out-Null
+
+      foreach ($proj in 'src\ReDows.Cli\ReDows.Cli.csproj', 'src\ReDows.Gui\ReDows.Gui.csproj') {
+        $name = [IO.Path]::GetFileNameWithoutExtension($proj)
+        $out  = Join-Path $dist "_pub\$name"
+        dotnet publish $proj -c Release -r win-x64 --self-contained true `
+          -p:PublishSingleFile=true -p:Version=$ver -o $out
+        if ($LASTEXITCODE -ne 0) { throw "publish failed: $proj" }
+        Copy-Item (Join-Path $out '*') $stage -Recurse -Force
+      }
+
+      # Data folders come from git, not from the build output: the CLI never copies them
+      # (only the GUI declares them as Content) and everything is resolved next to the exe
+      # at runtime, so all six must ship.
+      foreach ($d in 'rules','modules','prescreen','memory','settings','secrets') {
+        $dst = Join-Path $stage $d
+        if (Test-Path $dst) { Remove-Item -Recurse -Force $dst }
+        Copy-Item -Recurse -Force $d $dst
+      }
+      Copy-Item 'README.md' $stage -Force
+      Get-ChildItem $stage -Filter '*.pdb' -Recurse | Remove-Item -Force
+
+      $zip = Join-Path $dist "$pkg.zip"
+      Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+      $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+      "$sha  $pkg.zip" | Out-File -Encoding ascii (Join-Path $dist "$pkg.zip.sha256")
+      Write-Host "SHA256 $sha"
+
+      # Park it in the GitLab package registry: ~140 MB is past the job-artifact limit,
+      # and the release job then pulls it back over the LAN instead of the WAN.
+      # --http1.1 because NPMplus advertises `Upgrade: h2,h2c` over HTTP/2 and curl rejects it.
+      $base = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/generic/redows/$ver"
+      foreach ($f in @($zip, (Join-Path $dist "$pkg.zip.sha256"))) {
+        $leaf = Split-Path $f -Leaf
+        curl.exe --fail --silent --show-error --http1.1 `
+          --header "JOB-TOKEN: $env:CI_JOB_TOKEN" --upload-file $f "$base/$leaf"
+        if ($LASTEXITCODE -ne 0) { throw "upload failed: $leaf" }
+        Write-Host "uploaded $leaf"
+      }
+
+      @("PKG_NAME=$pkg", "PKG_VERSION=$ver", "PKG_SHA256=$sha") |
+        Out-File -Encoding ascii 'package.env'
+  artifacts:
+    reports:
+      dotenv: package.env
+
+release:github:
+  needs: [package:windows]
